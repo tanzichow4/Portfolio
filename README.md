@@ -1,6 +1,6 @@
 # tanzi.os
 
-Tanzi Chowdhury's portfolio, presented as a tiny desktop OS: draggable windows, a dock, a menubar,
+My portfolio, presented as a tiny desktop OS: draggable windows, a dock, a menubar,
 a working terminal, themes and wallpapers.
 
 Built with Vite, React and TypeScript. The design spec is in
@@ -11,7 +11,7 @@ Built with Vite, React and TypeScript. The design spec is in
 Requires Node 24 (see `.nvmrc`).
 
 ```bash
-npm install
+npm install   # also downloads the Playwright Chromium browser (postinstall)
 npm run dev
 ```
 
@@ -27,6 +27,8 @@ npm run dev
 | `npm run lint`       | ESLint                         |
 | `npm run format`     | Format with Prettier           |
 | `npm run typecheck`  | `tsc --noEmit`                 |
+
+Set `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` to skip the browser download (for example on a build-only server).
 
 CI (`.github/workflows/ci.yml`) runs lint, format check, typecheck, tests and build.
 
