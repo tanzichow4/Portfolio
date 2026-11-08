@@ -1,41 +1,49 @@
-# Boilerplate
+# tanzi.os
 
-A reusable Python project template. Clone, run one script, start coding.
+Tanzi Chowdhury's portfolio, presented as a tiny desktop OS: draggable windows, a dock, a menubar,
+a working terminal, themes and wallpapers.
 
-## Quick start
+Built with Vite, React and TypeScript. The design spec is in
+[`design_handoff_tanzi_os/README.md`](design_handoff_tanzi_os/README.md).
+
+## Getting started
+
+Requires Node 24 (see `.nvmrc`).
 
 ```bash
-git clone <this-repo> my-new-project   # the folder name becomes the project name
-cd my-new-project
-./setup.sh              # macOS / Linux
-.\setup.ps1             # Windows (PowerShell)
+npm install
+npm run dev
 ```
 
-The project name is taken from the folder you cloned into. Optional argument: `--fresh-git`
-(drops the template's git history and starts a clean repo — recommended for new projects).
+## Scripts
 
-The script will:
-1. Rename the `my_project` placeholder package to the folder name (e.g. `my-new-project` -> package `my_new_project`)
-2. Create `.venv` and install the project plus dev tools (`pip install -e ".[dev]"`)
-3. Create `.env` from `.env.example`
-4. Install pre-commit hooks (ruff lint + format)
+| Command              | What it does                   |
+| -------------------- | ------------------------------ |
+| `npm run dev`        | Start the dev server           |
+| `npm run build`      | Typecheck and build to `dist/` |
+| `npm run preview`    | Serve the production build     |
+| `npm test`           | Run tests (Vitest)             |
+| `npm run test:watch` | Run tests in watch mode        |
+| `npm run lint`       | ESLint                         |
+| `npm run format`     | Format with Prettier           |
+| `npm run typecheck`  | `tsc --noEmit`                 |
 
-It's safe to re-run.
+CI (`.github/workflows/ci.yml`) runs lint, format check, typecheck, tests and build.
 
 ## Layout
 
 ```
-src/<package>/   application code
-tests/           pytest tests
-scripts/setup.py cross-platform setup logic
-.github/         CI (ruff + pytest)
+src/
+  data.ts         all content (experience, projects, links, facts, verbs)
+  theme.css       Nocturne tokens, light overrides, wallpapers
+  Desktop.tsx     window, z-order, menu, theme and wallpaper state
+  MenuBar.tsx  Dock.tsx  Window.tsx  BootScreen.tsx
+  windows/        Hello, About, Experience, Projects, Terminal, AboutSite
+  hooks/          useDrag
+  test/           test setup
 ```
 
-## Everyday commands (with the venv activated)
+## Content
 
-```
-pytest             run tests
-ruff check .       lint
-ruff format .      format
-python -m <pkg>    run the app
-```
+Placeholder content (roles, projects, links, email, `/resume.pdf`) lives in `src/data.ts`.
+Put the real résumé at `public/resume.pdf`.

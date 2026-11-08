@@ -1,21 +1,11 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-build/
+node_modules/
 dist/
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-
-# Environments
-.venv/
+*.local
+*.tsbuildinfo
 .env
-
-# Editors / OS
-.vscode/
+.env.*
+!.env.example
+.vscode/*
+!.vscode/extensions.json
 .idea/
 .DS_Store
-Thumbs.db

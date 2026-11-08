@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Tanzi Chowdhury — tanzi.os</title>
+<link rel="stylesheet" href="_ds/nocturne-2e43a37d-bc40-4a52-86c2-1db215d4365d/styles.css">
+<script src="_ds/nocturne-2e43a37d-bc40-4a52-86c2-1db215d4365d/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#161826}
+a{color:var(--color-accent)}a:hover{color:var(--color-accent-400)}
+</style>
+</helmet>
+<div ref="{{ root }}" style="position:fixed;inset:0;overflow:hidden;user-select:none;color:var(--color-text);font-family:var(--font-body);background:{{ wallpaper }};transition:background-color .4s">
+
+<div ref="{{ desk }}" onMouseDown="{{ closeMenus }}" style="position:absolute;inset:0"></div>
+
+<!-- menubar -->
+<div style="position:absolute;top:0;left:0;right:0;height:36px;display:flex;align-items:center;gap:2px;padding:0 12px;font-size:13px;background:color-mix(in srgb, var(--color-bg) 72%, transparent);backdrop-filter:blur(10px);z-index:1000;box-shadow:0 1px 0 var(--color-divider)">
+<sc-for list="{{ menus }}" as="m" hint-placeholder-count="4">
+<div style="position:relative">
+<button onClick="{{ m.toggle }}" onMouseEnter="{{ m.enter }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;font-weight:{{ m.weight }};color:{{ m.color }};background:{{ m.bg }};transition:background .15s" style-hover="background:color-mix(in srgb, var(--color-text) 8%, transparent)"><i class="{{ m.icon }}" style="font-size:15px;color:var(--color-accent)"></i>{{ m.label }}</button>
+<sc-if value="{{ m.open }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;top:34px;left:0;min-width:240px;padding:6px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:1px">
+<sc-for list="{{ m.items }}" as="it" hint-placeholder-count="4">
+<sc-if value="{{ it.divider }}" hint-placeholder-val="{{ false }}"><div style="height:1px;margin:5px 8px;background:var(--color-divider)"></div></sc-if>
+<sc-if value="{{ it.isItem }}" hint-placeholder-val="{{ true }}">
+<button onClick="{{ it.onClick }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;font-size:13px;color:var(--color-text)" style-hover="background:color-mix(in srgb, var(--color-accent) 16%, transparent)" style-active="background:color-mix(in srgb, var(--color-accent) 26%, transparent)">
+<i class="ph ph-check" style="width:14px;font-size:13px;color:var(--color-accent);opacity:{{ it.check }}"></i><span style="flex:1">{{ it.label }}</span><span style="font-size:11px;color:var(--color-neutral-500)">{{ it.hint }}</span></button>
+</sc-if>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+<div style="margin-left:auto;display:flex;align-items:center;gap:2px">
+<sc-for list="{{ links }}" as="l" hint-placeholder-count="3">
+<a href="{{ l.href }}" target="_blank" title="{{ l.label }}" style="width:30px;height:28px;display:grid;place-items:center;border-radius:6px;color:var(--color-neutral-400);font-size:16px;text-decoration:none;transition:transform .35s cubic-bezier(.34,1.8,.64,1), color .15s" style-hover="color:var(--color-text);transform:translateY(-2px) rotate(-8deg)"><i class="{{ l.icon }}"></i></a>
+</sc-for>
+<button onClick="{{ toggleTheme }}" title="Toggle theme" style="all:unset;cursor:pointer;width:30px;height:28px;display:grid;place-items:center;border-radius:6px;color:var(--color-neutral-300);font-size:16px;transition:transform .5s cubic-bezier(.34,1.8,.64,1)" style-hover="transform:rotate(40deg);color:var(--color-accent)"><i class="{{ themeIcon }}"></i></button>
+<span style="padding:0 6px 0 10px;color:var(--color-neutral-300);font-variant-numeric:tabular-nums">{{ clock }}</span>
+</div>
+</div>
+
+<!-- hello -->
+<sc-if value="{{ W.hello.open }}" hint-placeholder-val="{{ true }}">
+<div onMouseDown="{{ focus.hello }}" style="position:absolute;left:{{ W.hello.x }}px;top:{{ W.hello.y }}px;z-index:{{ W.hello.z }};width:560px;transform:{{ W.hello.tf }};opacity:{{ W.hello.op }};pointer-events:{{ W.hello.pe }};transition:{{ W.hello.tr }};transform-origin:top center;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:{{ W.hello.shadow }};overflow:hidden">
+<div onMouseDown="{{ drag.hello }}" onDoubleClick="{{ min.hello }}" style="cursor:grab;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;font-size:12px;color:var(--color-neutral-400);background:var(--color-bg)"><i class="ph ph-hand-waving" style="color:var(--color-accent)"></i>hello.txt<span style="margin-left:auto"></span>
+<button onClick="{{ min.hello }}" title="Minimize" class="btn btn-icon" style="width:24px;height:24px;color:var(--color-neutral-400)"><i class="ph ph-minus"></i></button>
+<button onClick="{{ close.hello }}" title="Close" class="btn btn-icon" style="width:24px;height:24px;color:var(--color-neutral-400)"><i class="ph ph-x"></i></button></div>
+<div style="padding:34px 38px 34px">
+<div style="display:flex;align-items:center;gap:8px;font-size:15px;color:var(--color-accent);margin-bottom:12px"><span style="display:inline-block;font-size:22px;transition:transform .6s cubic-bezier(.34,1.56,.64,1);transform-origin:70% 80%" style-hover="transform:rotate(-28deg)"><i class="ph ph-hand-waving"></i></span>Hi, my name is</div>
+<div style="font-size:58px;font-weight:500;letter-spacing:-0.04em;line-height:1.02;display:flex;flex-wrap:wrap;cursor:default">
+<sc-for list="{{ letters1 }}" as="c" hint-placeholder-count="5"><span style="display:inline-block;transition:transform .45s cubic-bezier(.34,1.8,.64,1), color .2s" style-hover="transform:translateY(-12px) rotate(-6deg);color:var(--color-accent-400)">{{ c }}</span></sc-for>
+<span style="flex-basis:100%;height:0"></span>
+<sc-for list="{{ letters2 }}" as="c" hint-placeholder-count="10"><span style="display:inline-block;transition:transform .45s cubic-bezier(.34,1.8,.64,1), color .2s" style-hover="transform:translateY(-12px) rotate(-6deg);color:var(--color-accent-400)">{{ c }}</span></sc-for>
+</div>
+<div style="font-size:30px;font-weight:500;color:var(--color-neutral-400);margin-top:14px;letter-spacing:-0.02em;display:flex;align-items:baseline;gap:10px">I
+<button onClick="{{ nextVerb }}" title="Click me" style="all:unset;cursor:pointer;color:var(--color-text);position:relative;transition:transform .4s cubic-bezier(.34,1.56,.64,1)" style-hover="transform:rotate(-4deg) scale(1.06)" style-active="transform:scale(.92)">{{ verb }}<span style="position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:2px;background:var(--color-accent)"></span></button>
+stuff.</div>
+<div style="font-size:12px;color:var(--color-neutral-500);margin-top:10px;display:flex;align-items:center;gap:6px"><i class="ph ph-cursor-click"></i>psst — click the verb</div>
+<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:28px;align-items:center">
+<button onClick="{{ openProj }}" class="btn btn-primary" style="padding:11px 18px;border-radius:10px;transition:transform .35s cubic-bezier(.34,1.56,.64,1), box-shadow .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 0 0 0 var(--color-accent)" style-hover="transform:translate(-3px,-3px);box-shadow:3px 3px 0 0 var(--color-accent)" style-active="transform:translate(0,0);box-shadow:0 0 0 0 var(--color-accent)"><i class="ph ph-folder-open"></i>See what I've built</button>
+<a href="mailto:hello@tanzi.dev" class="btn btn-secondary" style="padding:11px 18px;border-radius:10px;transition:transform .35s cubic-bezier(.34,1.56,.64,1), box-shadow .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 0 0 0 var(--color-neutral-700)" style-hover="transform:translate(-3px,-3px);box-shadow:3px 3px 0 0 var(--color-neutral-700);color:var(--color-text)" style-active="transform:translate(0,0);box-shadow:0 0 0 0 var(--color-neutral-700)">Say hi</a>
+</div>
+</div>
+</div>
+</sc-if>
+
+<!-- about -->
+<sc-if value="{{ W.about.open }}" hint-placeholder-val="{{ true }}">
+<div onMouseDown="{{ focus.about }}" style="position:absolute;left:{{ W.about.x }}px;top:{{ W.about.y }}px;z-index:{{ W.about.z }};width:420px;transform:{{ W.about.tf }};opacity:{{ W.about.op }};pointer-events:{{ W.about.pe }};transition:{{ W.about.tr }};transform-origin:top center;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:{{ W.about.shadow }};overflow:hidden">
+<div onMouseDown="{{ drag.about }}" onDoubleClick="{{ min.about }}" style="cursor:grab;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;font-size:12px;color:var(--color-neutral-400);background:var(--color-bg)"><i class="ph ph-user" style="color:var(--color-accent)"></i>about.md<span style="margin-left:auto"></span>
+<button onClick="{{ min.about }}" title="Minimize" class="btn btn-icon" style="width:24px;height:24px;color:var(--color-neutral-400)"><i class="ph ph-minus"></i></button>
+<button onClick="{{ close.about }}" title="Close" class="btn btn-icon" style="width:24px;height:24px;color:var(--color-neutral-400)"><i class="ph ph-x"></i></button></div>
+<div style="padding:22px 24px 24px;font-size:14px;line-height:1.65;color:var(--color-neutral-400);user-select:text">
+<p>I'm a software engineer who enjoys the whole arc of a project — the sketch, the gnarly middle, and the <span style="color:var(--color-text)">last pixel</span>.</p>
+<p style="margin-bottom:18px">Currently building <span style="color:var(--color-text)">developer tools and backend services</span>.</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{ facts }}" as="f" hint-placeholder-count="5">
+<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;background:var(--color-bg);box-shadow:var(--shadow-sm);font-size:12.5px;color:var(--color-neutral-300);transition:transform .4s cubic-bezier(.34,1.8,.64,1)" style-hover="transform:rotate(-4deg) translateY(-3px)"><i class="{{ f.icon }}" style="color:var(--color-accent)"></i>{{ f.label }}</span>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<!-- experience -->
+<sc-if value="{{ W.exp.open }}" hint-placeholder-val="{{ true }}">
+<div onMouseDown="{{ focus.exp }}" style="position:absolute;left:{{ W.exp.x }}px;top:{{ W.exp.y }}px;z-index:{{ W.exp.z }};width:520px;transform:{{ W.exp.tf }};opacity:{{ W.exp.op }};pointer-events:{{ W.exp.pe }};transition:{{ W.exp.tr }};transform-origin:top center;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:{{ W.exp.shadow }};overflow:hidden">
+<div onMouseDown="{{ drag.exp }}" onDoubleClick="{{ min.exp }}" style="cursor:grab;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;font-size:12px;color:var(--color-neutral-400);background:var(--color-bg)"><i class="ph ph-briefcase" style="color:var(--color-accent)"></i>experience.log<span style="margin-left:auto"></span>
+<button onClick="{{ min.exp }}" title="Minimize" class="btn btn-icon" style="width:24px;height:24px;color:var(--color-neutral-400)"><i class="ph ph-minus"></i></button>
+<button onClick="{{ close.exp }}" title="Close" class="btn btn-icon" style="width:24px;height:24px;color:var(--color-neutral-400)"><i class="ph ph-x"></i></button></div>
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);min-height:250px">
+<div style="display:flex;flex-direction:column;gap:2px;padding:10px;box-shadow:inset -1px 0 0 var(--color-divider)">
+<sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+<button onClick="{{ t.onClick }}" style="all:unset;cursor:pointer;padding:9px 12px;border-radius:var(--radius-md);font-size:13px;font-weight:500;color:{{ t.color }};background:{{ t.bg }};box-shadow:{{ t.shadow }};transition:transform .35s cubic-bezier(.34,1.56,.64,1), background .2s" style-hover="transform:translateX(4px)">{{ t.label }}</button>
+</sc-for>
+</div>
+<div style="padding:18px 22px 22px;display:flex;flex-direction:column;gap:8px;user-select:text">
+<div style="font-size:17px;font-weight:500;letter-spacing:-0.01em">{{ cur.role }} <span style="color:var(--color-accent)">@ {{ cur.org }}</span></div>
+<div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500);font-weight:600">{{ cur.when }}</div>
+<div style="font-size:13.5px;line-height:1.6;color:var(--color-neutral-400);text-wrap:pretty">{{ cur.desc }}</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"><sc-for list="{{ cur.tags }}" as="t" hint-placeholder-count="3"><span class="tag tag-accent">{{ t }}</span></sc-for></div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<!-- projects -->
+<sc-if value="{{ W.proj.open }}" hint-placeholder-val="{{ true }}">
+<div onMouseDown="{{ focus.proj }}" style="position:absolute;left:{{ W.proj.x }}px;top:{{ W.proj.y }}px;z-index:{{ W.proj.z }};width:520px;transform:{{ W.proj.tf }};opacity:{{ W.proj.op }};pointer-events:{{ W.proj.pe }};transition:{{ W.proj.tr }};transform-origin:top center;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:{{ W.proj.shadow }};overflow:hidden">
+<div onMouseDown="{{ drag.proj }}" onDoubleClick="{{ min.proj }}" style="cursor:grab;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;font-size:12px;color:var(--color-neutral-400);background:var(--color-bg)"><i class="ph ph-folder" style="color:var(--color-accent)"></i>~/projects<span style="margin-left:auto"></span>
+<button onClick="{{ min.proj }}" title="Minimize" class="btn btn-icon" style="width:24px;height:24px;color:var(--color-neutral-400)"><i class="ph ph-minus"></i></button>
+<button onClick="{{ close.proj }}" title="Close" class="btn btn-icon" style="width:24px;height:24px;color:var(--color-neutral-400)"><i class="ph ph-x"></i></button></div>
+<div style="padding:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+<sc-for list="{{ projects }}" as="p" hint-placeholder-count="4">
+<a href="{{ p.href }}" target="_blank" style="display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:var(--radius-md);background:var(--color-bg);text-decoration:none;color:var(--color-text);transition:transform .4s cubic-bezier(.34,1.56,.64,1), box-shadow .2s" style-hover="transform:translateY(-5px) rotate(-1.5deg);box-shadow:var(--shadow-md);color:var(--color-text)" style-active="transform:scale(.97)">
+<div style="display:flex;justify-content:space-between;align-items:center"><i class="{{ p.icon }}" style="font-size:22px;color:var(--color-accent)"></i><i class="ph ph-arrow-up-right" style="font-size:13px;color:var(--color-neutral-500)"></i></div>
+<div style="font-size:14px;font-weight:500">{{ p.name }}</div>
+<div style="font-size:12px;line-height:1.5;color:var(--color-neutral-500)">{{ p.desc }}</div>
+<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px"><sc-for list="{{ p.tags }}" as="t" hint-placeholder-count="2"><span class="tag tag-neutral" style="font-size:10px;padding:2px 7px">{{ t }}</span></sc-for></div>
+</a>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<!-- terminal -->
+<sc-if value="{{ W.term.open }}" hint-placeholder-val="{{ true }}">
+<div onMouseDown="{{ focus.term }}" style="position:absolute;left:{{ W.term.x }}px;top:{{ W.term.y }}px;z-index:{{ W.term.z }};width:440px;transform:{{ W.term.tf }};opacity:{{ W.term.op }};pointer-events:{{ W.term.pe }};transition:{{ W.term.tr }};transform-origin:top center;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:{{ W.term.shadow }};overflow:hidden">
+<div onMouseDown="{{ drag.term }}" onDoubleClick="{{ min.term }}" style="cursor:grab;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;font-size:12px;color:var(--color-neutral-400);background:var(--color-bg)"><i class="ph ph-terminal-window" style="color:var(--color-accent)"></i>terminal<span style="margin-left:auto"></span>
+<button onClick="{{ min.term }}" title="Minimize" class="btn btn-icon" style="width:24px;height:24px;color:var(--color-neutral-400)"><i class="ph ph-minus"></i></button>
+<button onClick="{{ close.term }}" title="Close" class="btn btn-icon" style="width:24px;height:24px;color:var(--color-neutral-400)"><i class="ph ph-x"></i></button></div>
+<div ref="{{ termBody }}" onClick="{{ focusInput }}" style="height:230px;overflow-y:auto;padding:14px 16px;font:13px/1.6 ui-monospace,Menlo,monospace;color:var(--color-neutral-300);user-select:text;cursor:text">
+<sc-for list="{{ lines }}" as="ln" hint-placeholder-count="2"><div style="white-space:pre-wrap;color:{{ ln.color }}">{{ ln.text }}</div></sc-for>
+<div style="display:flex;gap:8px"><span style="color:var(--color-accent)">tanzi ~ %</span><input ref="{{ termInput }}" value="{{ cmd }}" onChange="{{ onCmd }}" onKeyDown="{{ onKey }}" spellcheck="false" autocomplete="off" style="all:unset;flex:1;color:var(--color-text);caret-color:var(--color-accent)"></div>
+</div>
+</div>
+</sc-if>
+
+<!-- about this site -->
+<sc-if value="{{ W.site.open }}" hint-placeholder-val="{{ false }}">
+<div onMouseDown="{{ focus.site }}" style="position:absolute;left:{{ W.site.x }}px;top:{{ W.site.y }}px;z-index:{{ W.site.z }};width:340px;transform:{{ W.site.tf }};opacity:{{ W.site.op }};pointer-events:{{ W.site.pe }};transition:{{ W.site.tr }};transform-origin:top center;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:{{ W.site.shadow }};overflow:hidden">
+<div onMouseDown="{{ drag.site }}" style="cursor:grab;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;font-size:12px;color:var(--color-neutral-400);background:var(--color-bg)"><i class="ph ph-info" style="color:var(--color-accent)"></i>About this site<span style="margin-left:auto"></span>
+<button onClick="{{ close.site }}" title="Close" class="btn btn-icon" style="width:24px;height:24px;color:var(--color-neutral-400)"><i class="ph ph-x"></i></button></div>
+<div style="padding:26px 24px 24px;display:flex;flex-direction:column;align-items:flex-start;gap:6px">
+<div style="width:52px;height:52px;border-radius:14px;border:1px solid var(--color-accent);color:var(--color-accent);display:grid;place-items:center;font-size:18px;font-weight:600;margin-bottom:8px;transition:transform .6s cubic-bezier(.34,1.8,.64,1)" style-hover="transform:rotate(-14deg) scale(1.1)">TC</div>
+<div style="font-size:18px;font-weight:500">tanzi.os</div>
+<div style="font-size:12px;color:var(--color-neutral-500)">Version 1.0 · Portfolio edition</div>
+<p style="font-size:13px;line-height:1.6;color:var(--color-neutral-400);margin:12px 0 0">A tiny desktop that happens to be a portfolio. Drag the windows, poke the dock, try the terminal.</p>
+</div>
+</div>
+</sc-if>
+
+<!-- dock -->
+<div style="position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:900;display:flex;align-items:flex-end;gap:6px;padding:8px;border-radius:18px;background:color-mix(in srgb, var(--color-surface) 78%, transparent);backdrop-filter:blur(12px);box-shadow:var(--shadow-md)">
+<sc-for list="{{ dock }}" as="d" hint-placeholder-count="5">
+<button onClick="{{ d.onClick }}" title="{{ d.label }}" style="all:unset;cursor:pointer;position:relative;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:var(--color-bg);color:var(--color-accent-400);transition:transform .35s cubic-bezier(.34,1.8,.64,1)" style-hover="transform:translateY(-10px) scale(1.15)" style-active="transform:translateY(-4px) scale(.95)"><i class="{{ d.icon }}"></i><span style="position:absolute;bottom:-5px;left:50%;width:4px;height:4px;margin-left:-2px;border-radius:2px;background:var(--color-accent);opacity:{{ d.dot }};transition:opacity .2s"></span></button>
+</sc-for>
+<div style="width:1px;height:34px;background:var(--color-divider);margin:0 4px 6px"></div>
+<sc-for list="{{ links }}" as="l" hint-placeholder-count="3">
+<a href="{{ l.href }}" target="_blank" title="{{ l.label }}" style="width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:var(--color-bg);color:var(--color-neutral-300);text-decoration:none;transition:transform .35s cubic-bezier(.34,1.8,.64,1)" style-hover="transform:translateY(-10px) scale(1.15) rotate(-8deg);color:var(--color-text)"><i class="{{ l.icon }}"></i></a>
+</sc-for>
+</div>
+
+<!-- boot screen -->
+<sc-if value="{{ booting }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;z-index:2000;background:var(--color-bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px">
+<div style="width:64px;height:64px;border-radius:16px;border:1px solid var(--color-accent);color:var(--color-accent);display:grid;place-items:center;font-size:22px;font-weight:600">TC</div>
+<div style="width:200px;height:3px;border-radius:2px;background:var(--color-neutral-800);overflow:hidden"><div style="height:100%;width:{{ bootPct }}%;background:var(--color-accent);transition:width .12s linear"></div></div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const EXP = [
+  { when: '2025 — Now', role: 'Software Engineer', org: 'Northwind', desc: 'Build and maintain internal developer tooling and the services behind it — faster CI, saner deploys, fewer 2am pages.', tags: ['TypeScript', 'Go', 'Postgres', 'AWS'] },
+  { when: '2024', role: 'SWE Intern', org: 'Brightline', desc: 'Shipped a real-time notifications pipeline end to end, from the queue consumers to the settings UI.', tags: ['Python', 'Kafka', 'React'] },
+  { when: '2023', role: 'Research Assistant', org: 'University Lab', desc: 'Wrote data tooling for a systems research group and helped benchmark a distributed cache.', tags: ['C++', 'Rust', 'Linux'] }
+];
+const PROJECTS = [
+  { name: 'Pathfinder', icon: 'ph ph-graph', href: '#', desc: 'Graph search, visualized. Draw walls, watch A* think.', tags: ['TypeScript', 'Canvas'] },
+  { name: 'Pantry', icon: 'ph ph-cooking-pot', href: '#', desc: 'Recipes from whatever is already in your fridge.', tags: ['React Native', 'SQLite'] },
+  { name: 'tinyq', icon: 'ph ph-stack', href: '#', desc: 'A durable job queue on Postgres, in 600 lines.', tags: ['Go', 'Postgres'] },
+  { name: 'dotfiles', icon: 'ph ph-terminal', href: '#', desc: 'My over-tuned setup, bootstrapped in one command.', tags: ['Shell', 'Nix'] }
+];
+const LINKS = [
+  { label: 'GitHub', icon: 'ph ph-github-logo', href: 'https://github.com/' },
+  { label: 'LinkedIn', icon: 'ph ph-linkedin-logo', href: 'https://linkedin.com/' },
+  { label: 'Email', icon: 'ph ph-envelope-simple', href: 'mailto:hello@tanzi.dev' }
+];
+const FACTS = [
+  { icon: 'ph ph-map-pin', label: 'New York' }, { icon: 'ph ph-code', label: 'TypeScript · Go · Python' },
+  { icon: 'ph ph-cooking-pot', label: 'Ambitious home cook' }, { icon: 'ph ph-horse', label: 'Mediocre at chess' }, { icon: 'ph ph-coffee', label: 'Runs on oat lattes' }
+];
+const VERBS = ['build', 'break', 'fix', 'ship', 'debug', 'refactor', 'design'];
+const WINS = {
+  hello: { icon: 'ph ph-hand-waving', label: 'hello.txt', w: 560, dock: true },
+  about: { icon: 'ph ph-user', label: 'about.md', w: 420, dock: true },
+  exp: { icon: 'ph ph-briefcase', label: 'experience.log', w: 520, dock: true },
+  proj: { icon: 'ph ph-folder', label: 'projects', w: 520, dock: true },
+  term: { icon: 'ph ph-terminal-window', label: 'terminal', w: 440, dock: true },
+  site: { icon: 'ph ph-info', label: 'About this site', w: 340, dock: false }
+};
+const IDS = Object.keys(WINS);
+const DARK = {};
+const LIGHT = {
+  '--color-bg': '#e4e7f5', '--color-surface': '#f3f5fe', '--color-text': '#292b31', '--color-accent': '#796cbf',
+  '--color-divider': 'color-mix(in srgb, #292b31 16%, transparent)',
+  '--color-section': '#d2cefd', '--color-section-glow': '#e7e5fe',
+  '--shadow-sm': '0 0 0 1px #cfd3e5', '--shadow-md': '0 0 0 1px #b2b6ca, 0 6px 18px rgba(40,44,80,0.14)', '--shadow-lg': '0 0 0 1px #9397ab, 0 16px 40px rgba(40,44,80,0.2)'
+};
+['neutral', 'accent'].forEach(r => {
+  const dark = { neutral: ['#f3f5fe','#e4e7f5','#cfd3e5','#b2b6ca','#9397ab','#75798c','#595d6c','#3f424d','#292b31'], accent: ['#f5f4ff','#e7e5fe','#d2cefd','#b5abfc','#968ae0','#796cbf','#5d5294','#423a6a','#2b2741'] }[r];
+  dark.forEach((hex, i) => { LIGHT[`--color-${r}-${(i + 1) * 100}`] = dark[8 - i]; });
+});
+const WALLS = {
+  nebula: 'radial-gradient(900px 600px at 15% 100%, var(--color-section), transparent 70%), radial-gradient(800px 560px at 100% 0%, var(--color-accent-900), transparent 70%), var(--color-bg)',
+  grid: 'radial-gradient(circle at 1px 1px, var(--color-neutral-800) 1px, transparent 0) 0 0 / 22px 22px, var(--color-bg)',
+  plain: 'var(--color-bg)'
+};
+const C = { out: 'var(--color-neutral-300)', dim: 'var(--color-neutral-500)', acc: 'var(--color-accent-400)', cmd: 'var(--color-text)' };
+const SPRING = 'cubic-bezier(.34,1.56,.64,1)';
+
+function layout(vw, vh) {
+  const cl = (x, w) => Math.max(16, Math.min(x, vw - w - 16));
+  return {
+    hello: { x: cl(vw * 0.06, 560), y: 72 },
+    about: { x: cl(vw * 0.5, 420), y: 64 },
+    exp: { x: cl(vw * 0.05, 520), y: Math.max(380, vh * 0.52) },
+    proj: { x: cl(vw * 0.42, 520), y: Math.max(300, vh * 0.38) },
+    term: { x: cl(vw - 470, 440), y: Math.max(330, vh - 380) },
+    site: { x: vw / 2 - 170, y: vh / 2 - 180 }
+  };
+}
+
+class Component extends DCLogic {
+  root = React.createRef(); desk = React.createRef(); termBody = React.createRef(); termInput = React.createRef();
+  state = this.initial();
+
+  initial() {
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1440, vh = typeof window !== 'undefined' ? window.innerHeight : 900, L = layout(vw, vh);
+    const wins = {};
+    IDS.forEach(id => { wins[id] = { ...L[id], open: id !== 'site', min: false }; });
+    return {
+      wins, order: ['proj', 'exp', 'term', 'about', 'hello'], menu: null, theme: 'dark', wall: 'nebula', wobble: true,
+      drag: null, tilt: 0, verb: 0, tab: 0, cmd: '', clock: '', booting: false, bootPct: 0, vw, vh,
+      lines: [{ text: 'tanzi.os v1.0 — type "help" to look around', color: C.dim }]
+    };
+  }
+  componentDidMount() {
+    const tick = () => this.setState({ clock: new Date().toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) });
+    tick(); this.iv = setInterval(tick, 15000);
+    this.onResize = () => this.setState({ vw: window.innerWidth, vh: window.innerHeight });
+    this.onEsc = e => { if (e.key === 'Escape') this.setState({ menu: null }); };
+    window.addEventListener('resize', this.onResize); window.addEventListener('keydown', this.onEsc);
+    this.applyTheme();
+  }
+  componentWillUnmount() { clearInterval(this.iv); window.removeEventListener('resize', this.onResize); window.removeEventListener('keydown', this.onEsc); }
+  componentDidUpdate(_, prev) {
+    if (prev.lines !== this.state.lines && this.termBody.current) this.termBody.current.scrollTop = 1e6;
+    if (prev.theme !== this.state.theme) this.applyTheme();
+  }
+  applyTheme() {
+    const el = this.root.current; if (!el) return;
+    Object.keys(LIGHT).forEach(k => el.style.removeProperty(k));
+    if (this.state.theme === 'light') Object.entries(LIGHT).forEach(([k, v]) => el.style.setProperty(k, v));
+    document.body.style.background = this.state.theme === 'light' ? LIGHT['--color-bg'] : '';
+  }
+
+  top() { const vis = this.state.order.filter(id => this.state.wins[id].open && !this.state.wins[id].min); return vis[vis.length - 1]; }
+  raise(id) { this.setState(s => ({ order: [...s.order.filter(o => o !== id), id] })); }
+  setWin(id, patch) { this.setState(s => ({ wins: { ...s.wins, [id]: { ...s.wins[id], ...patch } } })); }
+  open(id) {
+    const w = this.state.wins[id];
+    if (!w.open) { this.setWin(id, { open: true, min: true }); setTimeout(() => this.setWin(id, { min: false }), 30); }
+    else if (w.min) this.setWin(id, { min: false });
+    this.raise(id);
+  }
+  dockClick(id) {
+    const w = this.state.wins[id];
+    if (w.open && !w.min && this.top() === id) this.setWin(id, { min: true });
+    else this.open(id);
+  }
+  allWins(patch) { this.setState(s => { const wins = {}; IDS.forEach(id => { wins[id] = s.wins[id].open ? { ...s.wins[id], ...patch } : s.wins[id]; }); return { wins, menu: null }; }); }
+  tidy() {
+    const L = layout(this.state.vw, this.state.vh);
+    this.setState(s => { const wins = {}; IDS.forEach(id => { wins[id] = { ...s.wins[id], ...L[id], open: id !== 'site', min: false }; }); return { wins, order: ['proj', 'exp', 'term', 'about', 'hello'], menu: null }; });
+  }
+  restart() {
+    this.setState({ menu: null, booting: true, bootPct: 0 });
+    let p = 0; const iv = setInterval(() => {
+      p += 7 + Math.random() * 14;
+      if (p >= 100) { clearInterval(iv); const init = this.initial(); this.setState({ ...init, theme: this.state.theme, wall: this.state.wall, clock: this.state.clock }); }
+      else this.setState({ bootPct: p });
+    }, 90);
+  }
+  startDrag(id, e) {
+    if (e.target.closest('button')) return;
+    e.preventDefault();
+    const w = this.state.wins[id], sx = e.clientX, sy = e.clientY;
+    this.setState({ drag: id, menu: null });
+    const move = ev => {
+      const tilt = this.state.wobble ? Math.max(-7, Math.min(7, ev.movementX * 0.7)) : 0;
+      this.setState({ tilt });
+      this.setWin(id, { x: Math.max(-WINS[id].w + 80, Math.min(this.state.vw - 80, w.x + ev.clientX - sx)), y: Math.max(36, Math.min(this.state.vh - 60, w.y + ev.clientY - sy)) });
+    };
+    const up = () => { this.setState({ drag: null, tilt: 0 }); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+  }
+  run(raw) {
+    const cmd = raw.trim(), out = [{ text: 'tanzi ~ % ' + cmd, color: C.cmd }], say = (t, c = C.out) => out.push({ text: t, color: c });
+    const [head, ...rest] = cmd.split(/\s+/), arg = rest.join(' ');
+    const map = { hello: 'hello', 'hello.txt': 'hello', about: 'about', 'about.md': 'about', experience: 'exp', 'experience.log': 'exp', projects: 'proj', 'projects/': 'proj' };
+    if (!cmd) {}
+    else if (head === 'help') { say('whoami · ls · open <file> · experience · projects · contact', C.acc); say('theme dark|light · wallpaper nebula|grid|plain · tidy · restart · clear', C.acc); }
+    else if (head === 'whoami') say('Tanzi Chowdhury — software engineer. builds stuff.');
+    else if (head === 'ls') say('hello.txt   about.md   experience.log   projects/');
+    else if (head === 'open' && map[arg]) { this.open(map[arg]); say('opening ' + arg + '…', C.dim); }
+    else if (head === 'open') say('open: no such file: ' + (arg || '(nothing)'), C.dim);
+    else if (head === 'experience') EXP.forEach(e => say(e.when.padEnd(12) + e.role + ' @ ' + e.org));
+    else if (head === 'projects') PROJECTS.forEach(p => say(p.name.padEnd(12) + p.desc));
+    else if (head === 'contact') say('hello@tanzi.dev · github · linkedin');
+    else if (head === 'theme' && (arg === 'dark' || arg === 'light')) { this.setState({ theme: arg }); say('theme → ' + arg, C.dim); }
+    else if (head === 'wallpaper' && WALLS[arg]) { this.setState({ wall: arg }); say('wallpaper → ' + arg, C.dim); }
+    else if (head === 'tidy') { this.tidy(); say('windows tidied.', C.dim); }
+    else if (head === 'restart') { this.restart(); return; }
+    else if (cmd === 'sudo hire-tanzi') { say('[sudo] password for recruiter: ********', C.dim); say('access granted → hello@tanzi.dev', C.acc); }
+    else if (head === 'sudo') say('nice try. (psst: sudo hire-tanzi)', C.dim);
+    else if (head === 'rm') say('absolutely not.', C.acc);
+    else if (head === 'clear') { this.setState({ lines: [], cmd: '' }); return; }
+    else say('command not found: ' + head + ' — try "help"', C.dim);
+    this.setState(s => ({ lines: [...s.lines, ...out], cmd: '' }));
+  }
+
+  renderVals() {
+    const st = this.state, topId = this.top();
+    const W = {}, drag = {}, close = {}, focus = {}, min = {};
+    IDS.forEach(id => {
+      const w = st.wins[id], z = st.order.indexOf(id) + 10, dragging = st.drag === id;
+      const dx = st.vw / 2 - (w.x + WINS[id].w / 2), dy = st.vh - 40 - w.y;
+      W[id] = {
+        ...w, z: id === 'site' ? 800 : z,
+        shadow: topId === id ? 'var(--shadow-lg)' : 'var(--shadow-md)',
+        tf: w.min ? `translate(${dx}px, ${dy}px) scale(0.06)` : `rotate(${dragging ? st.tilt : 0}deg) scale(${dragging ? 1.015 : 1})`,
+        op: w.min ? 0 : 1, pe: w.min ? 'none' : 'auto',
+        tr: w.min ? 'transform .45s cubic-bezier(.55,0,.25,1), opacity .4s ease-in' : `transform .45s ${SPRING}, opacity .25s ease-out`
+      };
+      drag[id] = e => this.startDrag(id, e);
+      close[id] = () => this.setWin(id, { open: false, min: false });
+      min[id] = () => this.setWin(id, { min: true });
+      focus[id] = () => { if (st.menu) this.setState({ menu: null }); if (st.order[st.order.length - 1] !== id) this.raise(id); };
+    });
+    const item = (label, onClick, opts = {}) => ({ isItem: true, divider: false, label, hint: opts.hint || '', check: opts.check ? 1 : 0, onClick: () => { onClick(); this.setState({ menu: null }); } });
+    const div = { isItem: false, divider: true };
+    const defs = [
+      { id: 'os', label: 'tanzi.os', icon: 'ph ph-circle-half', bold: true, items: [item('About this site', () => this.open('site')), div, item('Restart…', () => this.restart())] },
+      { id: 'win', label: 'Windows', icon: '', items: [...IDS.filter(id => WINS[id].dock).map(id => item(WINS[id].label, () => this.open(id), { check: st.wins[id].open && !st.wins[id].min })), div, item('Minimize all', () => this.allWins({ min: true })), item('Show all', () => this.allWins({ min: false })), item('Tidy up', () => this.tidy())] },
+      { id: 'view', label: 'View', icon: '', items: [item('Dark mode', () => this.setState({ theme: 'dark' }), { check: st.theme === 'dark' }), item('Light mode', () => this.setState({ theme: 'light' }), { check: st.theme === 'light' }), div, item('Wallpaper: Nebula', () => this.setState({ wall: 'nebula' }), { check: st.wall === 'nebula' }), item('Wallpaper: Grid', () => this.setState({ wall: 'grid' }), { check: st.wall === 'grid' }), item('Wallpaper: Plain', () => this.setState({ wall: 'plain' }), { check: st.wall === 'plain' }), div, item('Wobbly windows', () => this.setState(s => ({ wobble: !s.wobble })), { check: st.wobble })] },
+      { id: 'help', label: 'Help', icon: '', items: [item('Terminal commands', () => { this.open('term'); this.run('help'); }), item('Résumé (PDF)', () => window.open('#', '_blank')), div, item('Say hi', () => { window.location.href = 'mailto:hello@tanzi.dev'; }, { hint: 'email' })] }
+    ];
+    const menus = defs.map(m => ({
+      label: m.label, icon: m.icon, items: m.items, open: st.menu === m.id,
+      weight: m.bold ? 600 : 400, color: m.bold ? 'var(--color-accent)' : 'var(--color-neutral-300)',
+      bg: st.menu === m.id ? 'color-mix(in srgb, var(--color-text) 10%, transparent)' : 'transparent',
+      toggle: () => this.setState(s => ({ menu: s.menu === m.id ? null : m.id })),
+      enter: () => { if (st.menu && st.menu !== m.id) this.setState({ menu: m.id }); }
+    }));
+    return {
+      root: this.root, desk: this.desk, wallpaper: WALLS[st.wall], clock: st.clock, menus, links: LINKS,
+      closeMenus: () => st.menu && this.setState({ menu: null }),
+      themeIcon: st.theme === 'dark' ? 'ph ph-moon' : 'ph ph-sun', toggleTheme: () => this.setState(s => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      W, drag, close, focus, min,
+      letters1: 'Tanzi'.split(''), letters2: 'Chowdhury.'.split(''),
+      verb: VERBS[st.verb], nextVerb: () => this.setState(s => ({ verb: (s.verb + 1) % VERBS.length })),
+      openProj: () => this.open('proj'), facts: FACTS, projects: PROJECTS,
+      tabs: EXP.map((e, i) => ({ label: e.org, onClick: () => this.setState({ tab: i }), color: i === st.tab ? 'var(--color-accent)' : 'var(--color-neutral-500)', bg: i === st.tab ? 'color-mix(in srgb, var(--color-accent) 12%, transparent)' : 'transparent', shadow: i === st.tab ? 'inset 2px 0 0 var(--color-accent)' : 'none' })),
+      cur: EXP[st.tab],
+      dock: IDS.filter(id => WINS[id].dock).map(id => ({ icon: WINS[id].icon, label: WINS[id].label, dot: st.wins[id].open ? (st.wins[id].min ? 0.4 : 1) : 0, onClick: () => this.dockClick(id) })),
+      lines: st.lines, cmd: st.cmd, termBody: this.termBody, termInput: this.termInput,
+      onCmd: e => this.setState({ cmd: e.target.value }),
+      onKey: e => { if (e.key === 'Enter') this.run(st.cmd); },
+      focusInput: () => this.termInput.current && this.termInput.current.focus(),
+      booting: st.booting, bootPct: st.bootPct
+    };
+  }
+}
+</script>
+</body>
+</html>
