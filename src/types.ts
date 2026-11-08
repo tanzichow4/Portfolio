@@ -8,9 +8,10 @@ export interface Win {
 export type MenuId = null | 'os' | 'win' | 'view' | 'help';
 export type Theme = 'dark' | 'light';
 export type Wall = 'nebula' | 'grid' | 'plain';
+export type Tone = 'cmd' | 'out' | 'dim' | 'acc';
 export interface Line {
   text: string;
-  color: string;
+  tone: Tone;
 }
 export interface State {
   wins: Record<WinId, Win>;

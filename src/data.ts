@@ -38,6 +38,11 @@ export interface Fact {
   label: string;
 }
 
+export const NAME = 'Tanzi Chowdhury';
+export const ROLE = 'software engineer';
+export const EMAIL = 'hello@tanzi.dev';
+export const VERSION = '1.0';
+
 export const EXP: Exp[] = [
   {
     when: '2025 — Now',
@@ -97,7 +102,7 @@ export const PROJECTS: Project[] = [
 export const LINKS: LinkItem[] = [
   { label: 'GitHub', icon: GithubLogo, href: 'https://github.com/' },
   { label: 'LinkedIn', icon: LinkedinLogo, href: 'https://linkedin.com/' },
-  { label: 'Email', icon: EnvelopeSimple, href: 'mailto:hello@tanzi.dev' },
+  { label: 'Email', icon: EnvelopeSimple, href: `mailto:${EMAIL}` },
 ];
 
 export const FACTS: Fact[] = [

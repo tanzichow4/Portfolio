@@ -1,132 +1,179 @@
-# T01 plan: theme tokens, fonts, light-mode contrast, no-flash theme init
+# T02 plan: pure logic modules and unit tests
 
-Source: `docs/plans/00-requirements.md` (ACs, current state, assumptions A1-A9), `docs/design-decisions.md` (decisions 4 and 11), `design_handoff_tanzi_os/README.md` "Design tokens".
+Source: `docs/plans/00-requirements.md` (current state, module contract, assumptions A1-A11, AC1-AC39), `docs/design-decisions.md` (decisions 5, 6, 7, 8 and the spec gaps on `site` z-order, the email and the version string), and the prototype logic in `design_handoff_tanzi_os/Tanzi OS.dc.html` lines 204-212 and 232-341.
 
 ## 1. Goal and scope
 
-**Goal.** Make `src/theme.css` the complete, WCAG AA source of the Nocturne tokens for both themes, with Inter 400/500/600 bundled locally and no external font requests. Make the page paint in the correct theme from the first frame (stored choice, else `prefers-color-scheme`, else `dark` if storage throws).
+**Goal.** Add pure, framework-free TypeScript modules under `src/logic/` for window metadata, layout, z-order, dock click logic, drag clamp and tilt, the terminal `runCommand`, and command history, each covered by Vitest unit tests. T03 imports these modules from the `Desktop` reducer and the `Terminal` component, so this ticket fixes their signatures and changes no UI.
 
-**Already done, not redone:** `@fontsource/inter` 400/500/600 imports in `src/main.tsx`; no Google Fonts `@import`; inline theme-init script in `index.html` (kept as is, see 3); light `--color-accent: #6558ad`. T01 only fixes the remaining tokens and locks everything in with tests.
+**Already done, not redone:** `WinId`, `Win`, `Theme`, `Wall` in `src/types.ts`; `EXP`, `PROJECTS`, `LINKS` in `src/data.ts`; Vitest config (`tests/**/*.test.{ts,tsx}`, jsdom, globals); the `?raw` import pattern already used in `tests/fonts.test.ts`.
 
-**Out of scope** (carried over): theme toggle UI, the `theme` command and writing the theme to storage (T02/T03/T05); reducer reading or syncing `<html data-theme>` (T03); persisting wallpaper and wobble; `prefers-reduced-motion` rules; deploy config, meta/OG, `<noscript>`, font preload links (T12); dark palette changes or any color not listed; light `--color-section-ghost`; mobile; editing `design_handoff_tanzi_os/`.
+**Out of scope** (carried over): wiring into `Desktop`, the reducer, actions, resize listeners, and fixing `State` (`verb`, `tab`, `cmd`, `lines`) (T03); `useDrag`, pointer capture, `touch-action`, rAF, genie math (T04); rendering the terminal and the tone-to-color CSS (T03/T07); applying effects (theme, wallpaper, localStorage, tidy, restart, boot); menus (T05) and dock UI (T06); tab completion, `open terminal`/`open site`, new commands or aliases, case-insensitive commands; a history cap or keeping history across close or restart; mobile; extracting the about and hello copy (T10); any edit to `design_handoff_tanzi_os/`.
+
+**Dependency on T03.** T03 consumes every export listed in section 3 by name. The signatures below are the contract. Change them only with a matching note in T03's plan.
 
 ## 2. Acceptance criteria
 
-AC1-AC16 are copied from `00-requirements.md` with the same numbers and wording. In short:
+AC1-AC39 are copied from `00-requirements.md` with the same numbers and meaning. Short form:
 
-- **AC1.** Dark tokens match the spec exactly (bg, surface, text, accent, divider, section, neutral 100-900, accent 100-900, shadow-sm/md/lg).
-- **AC2.** Light tokens match the spec with decision 11: bg `#e4e7f5`, surface `#f3f5fe`, text `#292b31`, divider `color-mix(in srgb, #292b31 16%, transparent)`, section `#d2cefd`, light shadows as in the spec, accent `#6558ad`. Neutral 100-900 is `#292b31 #3f424d #595d6c #5c6073 #626679 #b2b6ca #cfd3e5 #e4e7f5 #f3f5fe`. Accent 100-900 is `#2b2741 #423a6a #5d5294 #796cbf #968ae0 #b5abfc #d2cefd #e7e5fe #f5f4ff`, except as changed by AC4. Per A3 that makes accent-400 `#6558ad`.
-- **AC3.** Light `--color-section-glow` is `#e7e5fe`. The light `--color-accent-2-*` ramp is reversed (`#2b293a #423e5d #5c5783 #7972a9 #9690c9 #b5afe8 #d2cefd #e7e5fe #f5f4ff`), so `.tag-accent-2` shows dark text on a light chip.
-- **AC4.** An automated test computes WCAG 2.x ratios from `src/theme.css` and fails below 4.5:1. The text tokens are `--color-text`, `--color-accent`, `--color-neutral-300`, `--color-neutral-400`, `--color-neutral-500` and `--color-accent-400`, each on `--color-surface` and on `--color-bg`, in both themes.
-- **AC5.** `--wall-nebula`, `--wall-grid`, `--wall-plain` and the easing tokens match the spec and follow the active theme.
-- **AC6.** No request goes to `fonts.googleapis.com`, `fonts.gstatic.com` or any other third-party origin (dev and build + preview).
-- **AC7.** After the fonts load, `document.fonts.check('400 15px Inter')`, `'500 15px Inter'` and `'600 15px Inter'` all return true. The computed `font-family` of `body` begins with Inter.
-- **AC8.** The build ships Inter files for weights 400, 500 and 600 only, with no 700 and no italic.
-- **AC9.** `--font-mono` is `ui-monospace, Menlo, monospace` and no web font is loaded for mono.
-- **AC10.** With no stored theme, `data-theme` follows the OS color scheme (light or dark) before any module script runs.
-- **AC11.** A stored `dark` or `light` wins over the OS scheme.
-- **AC12.** Any other stored value (`"blue"`, `""`) is ignored and the OS scheme decides.
-- **AC13.** If reading storage throws, the result is `dark`, the page still loads, and there are no uncaught errors.
-- **AC14.** The correct theme is on the first frame: with the JS entry blocked, `data-theme` is correct and the `body` background is `#161826` (dark) or `#e4e7f5` (light).
-- **AC15.** `index.html` has no hard-coded `data-theme` on `<html>`, and the script uses only the key `tanzi-os:theme`.
-- **AC16.** `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` and `npm run format:check` all pass. The smoke test is not weakened.
-- **AC17 (added).** The spec uses the tag classes `.tag-accent` and `.tag-neutral` (plus `.tag-accent-2` from AC3) for text. Their pairs (`accent-100` on `accent-800`, `neutral-100` on `neutral-800`, `accent-2-100` on `accent-2-800`) meet 4.5:1 in both themes, checked by the same test as AC4. Reason for adding it: AC4 only covers text on surface or bg, but tags are small text (10-11px) on their own chip color.
+- **AC1.** `layout(vw, vh)` returns `{ x, y }` for all six ids, all finite integers, for `vw`, `vh` in `[0, 4000]`.
+- **AC2.** For every id except `site`, `x` is in `[16, vw - width - 16]` when `vw - width - 32 >= 0`, otherwise 16.
+- **AC3.** At 1280x720, 1366x768, 1440x900, 1536x864 and 1920x1080, every id has `y >= 36` and `y + nominalHeight(id) <= vh - 76`.
+- **AC4.** At 1440x900 and 1920x1080, `x` equals the spec formula (hello `0.06vw`, about `0.5vw`, exp `0.05vw`, proj `0.42vw`, term `vw - 470`, rounded then clamped as in AC2). `y` equals the spec formula (hello 72, about 64, exp `max(380, 0.52vh)`, proj `max(300, 0.38vh)`, term `max(330, vh - 380)`, rounded), unless that would break AC3. In that case `y` is the largest integer that satisfies AC3.
+- **AC5.** `site`: `x = round(vw/2 - 170)`, `y = round(vh/2 - 180)`, then clamped to `y >= 36`.
+- **AC6.** `INITIAL_ORDER` is `['proj', 'exp', 'term', 'about', 'hello']` (back to front), without `site`.
+- **AC7.** `initialWindows(vw, vh)` returns the `layout` positions, `open: true, min: false` for the five dock windows, `open: false, min: false` for `site`, and `order` as a fresh copy of `INITIAL_ORDER`.
+- **AC8.** Layout is deterministic: equal inputs give deep-equal outputs.
+- **AC9.** `raise(order, id)` returns a new array with `id` last and the others in their existing relative order. An id that is missing gets appended.
+- **AC10.** If `id` is already last, `raise` returns the same reference.
+- **AC11.** `topMost(order, wins)` returns the last id in `order` that is `open && !min`, or `null`. Ids that are not in `order` are ignored.
+- **AC12.** `zIndexFor('site', order)` is 800. Other ids get `indexOf + 10`, always below 900, and an id not in `order` gets at least 10.
+- **AC13.** `dockClickAction` returns `'open'` (closed, whatever `min` is), `'restore'` (open and minimized), `'focus'` (visible, not top-most) or `'minimize'` (visible and top-most).
+- **AC14.** A table-driven test covers those four branches plus three cases: the only visible window; a minimized window that is last in `order` with a visible one below it; and `site` open and top-most.
+- **AC15.** `clampPosition` keeps `x` in `[80 - width, vw - 80]` and `y` in `[36, vh - 60]`. Positions already in range are unchanged. If `vh - 60 < 36`, `y` is 36.
+- **AC16.** `clampPosition` is idempotent.
+- **AC17.** `dragPosition(origin, { dx, dy }, ...)` equals `clampPosition({ x: origin.x + dx, y: origin.y + dy }, ...)`.
+- **AC18.** `tiltFor(m, enabled)` is `clamp(m * 0.7, -7, 7)` when enabled and 0 otherwise. It never returns `-0` or NaN, and a non-finite input gives 0.
+- **AC19.** Input is trimmed and split on whitespace into `head` and `arg`, where `arg` is the remaining words joined with single spaces. The first line is the echo `{ text: 'tanzi ~ % ' + trimmed, tone: 'cmd' }`, except for `clear`. Matching is case-sensitive.
+- **AC20.** Empty or whitespace-only input gives only the echo and no effects.
+- **AC21.** At most one effect per call, and only from the commands in AC23-AC27.
+- **AC22.** Exact output for `help` (two `acc` lines), `whoami`, `ls`, `experience`, `projects` and `contact`, with all personal values taken from `data.ts`.
+- **AC23.** `open X`: the eight accepted names print `opening X…` (`dim`) and return `{ type: 'open', id }`. An unknown X prints `open: no such file: X` (`dim`). No argument prints `usage: open <hello|about|experience|projects>` (`dim`).
+- **AC24.** `theme dark|light` prints `theme → <t>` (`dim`) plus the effect. Anything else prints `usage: theme dark|light` (`dim`).
+- **AC25.** `wallpaper nebula|grid|plain` prints `wallpaper → <w>` (`dim`) plus the effect. Anything else prints `usage: wallpaper nebula|grid|plain` (`dim`).
+- **AC26.** `tidy` prints `windows tidied.` (`dim`) plus `{ type: 'tidy' }`. `restart` returns only the echo plus `{ type: 'restart' }`.
+- **AC27.** `clear` returns `lines: []` and `{ type: 'clear' }`.
+- **AC28.** `sudo hire-tanzi` prints `[sudo] password for recruiter: ********` (`dim`) and then `access granted → <email>` (`acc`). Any other `sudo …` prints `nice try. (psst: sudo hire-tanzi)` (`dim`).
+- **AC29.** `rm …` prints `absolutely not.` (`acc`).
+- **AC30.** Any other head prints `command not found: <head> — try "help"` (`dim`).
+- **AC31.** `TERMINAL_BANNER` is one `dim` line: `tanzi.os v<VERSION> — type "help" to look around`.
+- **AC32.** The email literal appears once in `src/` (in `data.ts`). `LINKS` and the terminal both derive from it, and a test checks that `contact` and `sudo hire-tanzi` contain the `Email` link's `href` without `mailto:`.
+- **AC33.** `pushHistory` appends the trimmed non-empty command, ignores blank input, keeps consecutive duplicates and resets navigation. `clear` is recorded like any other command.
+- **AC34.** `historyUp`: with an empty history it returns `value === input` and the history unchanged. The first press saves the draft and returns the newest entry. Later presses move one entry older and stop at the oldest.
+- **AC35.** `historyDown`: moves one entry newer. Moving past the newest entry returns the draft and leaves navigation. Outside navigation it returns `value === input` with the history unchanged.
+- **AC36.** No mutation. The sequence push `a, b, c`, input `x`, then Up x4 and Down x4 gives `c, b, a, a, b, c, x, x`.
+- **AC37.** Each module has its own test file under `tests/logic/`, and `npm test` covers every AC. Coverage is optional. `@vitest/coverage-v8` is not installed, so it is **not added** (resolved: no new dependency).
+- **AC38.** No logic module imports React, Phosphor or anything that touches `window`, `document` or `localStorage`. A test guards this. The Phosphor import that comes indirectly through `data.ts` is accepted.
+- **AC39.** lint, typecheck, test, test:e2e, build and format:check all pass. Existing tests are unchanged and the page renders the same.
 
-Resolved assumption (no human needed): **A3 is adopted.** Light `--color-accent-400` becomes `#6558ad`. My WCAG 2.x figures are about 5.4:1 on surface and 4.8:1 on bg. I checked the other light pairs too: neutral-500 `#626679` is about 5.2:1 and 4.6:1, and the accent `#6558ad` is the same as accent-400. The ramp still gets darker in order (300 `#5d5294` < 400 `#6558ad` < 500 `#968ae0`). The plain-reversal value `#796cbf` is used for small terminal highlights, so the large-text exception does not apply.
+No ACs added. The gaps I found (prototype-pollution lookups, `-0`, fractional viewport sizes, readonly typing) are covered as safeguards in section 5 under the existing ACs.
 
 ## 3. Architecture
 
-- **Approach.** Edit CSS only. Keep the current inline `<head>` script, since it already meets AC10-AC13 and AC15 (A7). Do not refactor it: it must stay synchronous and inline, and moving its logic into a TS module would mean a second copy or a build step. Its logic is tested by pulling the script text out of `index.html` and running it against stubs (pure, no DOM needed).
-- **Files changed**
-  - `src/theme.css`, in the `[data-theme='light']` block only: neutral-400 `#5c6073`, neutral-500 `#626679`, accent-400 `#6558ad` (with a comment citing decision 11 and A3), add `--color-section-glow: #e7e5fe`, add the reversed `--color-accent-2-100..900`.
-  - `playwright.config.ts`: add a second project `chromium-preview` (baseURL `http://localhost:4173`, `testMatch: '**/*.preview.spec.ts'`, same 1280x720 viewport). The existing `chromium` project gets `testIgnore: '**/*.preview.spec.ts'`. `webServer` becomes an array: the existing dev entry unchanged, plus `npm run build && npm run preview -- --port 4173 --strictPort` with `reuseExistingServer: false` (so the build is always fresh) and `timeout: 180_000`. Why: in dev, CSS is injected by `main.tsx`, so blocking the entry also removes the CSS. AC14's background check and AC8 can only be tested on a real build.
-- **New test-only helpers** (in `tests/helpers/`, not shipped in `src/` because no app code uses them):
-  - `tests/helpers/cssTokens.ts`: `stripComments(css)`, `parseBlock(css, selector)` (merges every `:root { }` block, or the `[data-theme='light']` block, into `Record<string, string>`, with multi-line values whitespace-collapsed), and `resolveTheme(css, 'dark' | 'light')` (root merged with the light overrides).
-  - `tests/helpers/contrast.ts`: `hexToRgb`, `relativeLuminance` (WCAG 2.x sRGB formula), `contrastRatio(a, b)`. It accepts `#rrggbb` only and throws on anything else, so a token turning into `color-mix` fails loudly and is not skipped.
-- **Reading source files in Vitest.** Use Vite `?raw` imports (`../src/theme.css?raw`, `../index.html?raw`, `../src/main.tsx?raw`). These are typed by `vite/client`, which is already in `tsconfig`, so `@types/node` is not needed. Every test asserts the raw string is non-empty. If Vitest's `css: false` ever blanks `?raw` CSS, add `test.css: { include: [/theme\.css/] }` in `vite.config.ts` and do not change the test.
-- **Built fonts (AC8)** are checked in the preview spec by fetching the built stylesheet(s) linked from `index.html` and parsing their `@font-face` blocks. Again, no `fs` or `@types/node` is needed.
-- **Data and API changes:** none. **New dependencies:** none.
+**Approach.** Seven small modules in a new `src/logic/` folder. Each exports plain functions and constants only. No React, DOM, timers, `Date` or `Math.random`, and no input is mutated. Port the behaviour from the prototype, not its code, with the changes required by decisions 6-8.
+
+**Files and exact public surface (the T03 contract):**
+
+| File                    | Exports                                                                                                                                                                                                                                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/types.ts` (edit)   | `type Tone = 'cmd' \| 'out' \| 'dim' \| 'acc'`. `Line` becomes `{ text: string; tone: Tone }` (the `color` field is removed, A1). `State` is otherwise untouched.                                                                                                                                                      |
+| `src/data.ts` (edit)    | Add `NAME = 'Tanzi Chowdhury'`, `ROLE = 'software engineer'`, `EMAIL = 'hello@tanzi.dev'`, `VERSION = '1.0'`. The `LINKS` Email `href` becomes `` `mailto:${EMAIL}` ``.                                                                                                                                                |
+| `src/logic/windows.ts`  | `WIN_IDS: readonly WinId[]` = `['hello','about','exp','proj','term','site']`; `interface WinMeta { width: number; height: number; dock: boolean }`; `WIN_META: Readonly<Record<WinId, WinMeta>>`; `DOCK_IDS: readonly WinId[]` (every id except `site`).                                                               |
+| `src/logic/layout.ts`   | `MENUBAR_H = 36`, `DOCK_CLEARANCE = 76`; `layout(vw: number, vh: number): Record<WinId, { x: number; y: number }>`; `INITIAL_ORDER: readonly WinId[]`; `initialWindows(vw: number, vh: number): { wins: Record<WinId, Win>; order: WinId[] }`.                                                                         |
+| `src/logic/zorder.ts`   | `raise(order: readonly WinId[], id: WinId): readonly WinId[]`; `topMost(order: readonly WinId[], wins: Record<WinId, Win>): WinId \| null`; `zIndexFor(id: WinId, order: readonly WinId[]): number`; `SITE_Z = 800`.                                                                                                   |
+| `src/logic/dock.ts`     | `type DockAction = 'open' \| 'restore' \| 'focus' \| 'minimize'`; `dockClickAction(id: WinId, wins: Record<WinId, Win>, order: readonly WinId[]): DockAction` (uses `topMost`).                                                                                                                                        |
+| `src/logic/drag.ts`     | `type Point = { x: number; y: number }`; `clampPosition(pos: Point, width: number, vw: number, vh: number): Point`; `dragPosition(origin: Point, delta: { dx: number; dy: number }, width: number, vw: number, vh: number): Point`; `tiltFor(movementX: number, enabled: boolean): number`.                            |
+| `src/logic/terminal.ts` | `type TerminalEffect` (the six variants from the contract); `runCommand(raw: string): { lines: Line[]; effects: TerminalEffect[] }`; `TERMINAL_BANNER: readonly Line[]`; `PROMPT = 'tanzi ~ % '`. Imports only `EXP`, `PROJECTS`, `NAME`, `ROLE`, `EMAIL`, `VERSION` from `../data` and types from `../types`.         |
+| `src/logic/history.ts`  | `interface History { readonly entries: readonly string[]; readonly index: number \| null; readonly draft: string }` (`index === null` means not navigating); `emptyHistory()`, `pushHistory(h, cmd)`, `historyUp(h, input)` and `historyDown(h, input)`, the last two returning `{ history: History; value: string }`. |
+
+**One signature refinement (resolved).** The contract lists `raise(...): WinId[]`, but AC10 requires the input reference to be returned, and that input is `readonly WinId[]`. TypeScript does not allow both. Resolution: `raise` returns `readonly WinId[]`, and T03 types `State.order` as `readonly WinId[]` (T03 rewrites `State` anyway). `initialWindows().order` stays a mutable `WinId[]`, which can be assigned to the readonly type.
+
+**Nominal heights (A3), kept in `WIN_META`:** hello 420, about 460, exp 300 (40 titlebar + 250 body min-height + borders), proj 330, term 310 (40 + 230 body + input row), site 340. Widths come from the spec: 560, 420, 520, 520, 440, 340. T07 may correct the heights. AC3 must keep passing, and the tests read heights from `WIN_META`.
+
+**Layout rule (meets AC2-AC5 at every size):**
+
+- `xClamp(x, w) = max(16, min(round(x), floor(vw - w - 16)))`.
+- `yFit(y, h) = max(36, min(round(y), floor(vh - 76 - h)))`.
+- `site` uses `x = round(vw/2 - 170)` and `y = max(36, round(vh/2 - 180))`.
+- Normalize every value with `+ 0` so `-0` never appears.
+- `floor` keeps fractional viewports on integers (AC1).
+
+Reference values with the heights above (useful as a sanity check; the tests compute expectations from the formula and `WIN_META`):
+
+| vw x vh   | hello  | about  | exp    | proj    | term     | site    |
+| --------- | ------ | ------ | ------ | ------- | -------- | ------- |
+| 1280x720  | 77,72  | 640,64 | 64,344 | 538,300 | 810,334  | 470,180 |
+| 1440x900  | 86,72  | 720,64 | 72,468 | 605,342 | 970,514  | 550,270 |
+| 1920x1080 | 115,72 | 960,64 | 96,562 | 806,410 | 1450,694 | 790,360 |
+
+The terminal's formula `vh - 380` plus a height of 310 always crosses `vh - 76`, so `term` always sits 6px higher than the formula. This is expected under AC4.
+
+**Other rules:**
+
+- **Drag.** `clampPosition` uses `x = max(80 - width, min(vw - 80, x))` and `y = max(36, min(vh - 60, y))`. The lower bound wins when the range is empty, as in the prototype and AC15. No rounding (A5). It returns a new object.
+- **Tilt.** `tiltFor` returns 0 if `!enabled || !Number.isFinite(m)`. Otherwise it computes `t = max(-7, min(7, m * 0.7))` and returns `t === 0 ? 0 : t`.
+- **Z-index.** `zIndexFor`: `site` gives 800. Otherwise `max(order.indexOf(id), 0) + 10`.
+- **Terminal lookups.** Lookups use `ReadonlyMap` or `includes` on constant arrays, never plain-object indexing (see R1). `sudo hire-tanzi` matches on `head === 'sudo' && arg === 'hire-tanzi'`, so extra spaces in between still match, which fits AC19's normalization. Exact Unicode characters: `…` U+2026, `—` U+2014, `→` U+2192, `·` U+00B7.
+
+**Data and API changes.** Only `Line` (A1) and the four new `data.ts` constants. `State.lines` still typechecks. No storage, no network, no env vars.
+
+**Dependencies.** None added. Coverage tooling is skipped (AC37 allows that).
 
 ## 4. Design
 
-- **User flow.** The visitor loads the page and the first paint is already in the right theme. Nothing is interactive in this ticket.
-- **States**
-  - Loading: the background is painted from the CSS token while the JS entry is still loading (AC14). Before Inter loads, text falls back to `system-ui`.
-  - Empty (no stored theme): the OS scheme decides.
-  - Error (storage throws, or the stored value is invalid): fall back to `dark` or to the OS scheme respectively, with no console error.
-  - Success: the stored theme is applied.
-- **Viewport.** Nothing depends on the viewport. All e2e runs use 1280x720 (both Playwright projects). There is no mobile work.
-- **Accessibility.** This ticket is the contrast floor for both themes (AC4, AC17). Translucent text mixes (`.text-muted`, `figcaption`, `.card-meta`, menubar bg) are not measured here (A5), and components that adopt them must re-check. Reduced motion: not affected.
+There is no UI change in this ticket. The rendered page, the user flow and every visual state stay the same (the smoke test and the e2e tests confirm it). The design choices that carry into later tickets:
+
+- **User flow.** Desktop behaviour at 1280x720 and larger is decided here through the layout values: every window fits between the menubar and the dock (AC3). Below 1280x720, values are only finite and clamped (mobile is out of scope, decision 1).
+- **States.** No state rendering happens here. Terminal "error" states are `dim` usage, no-such-file and not-found lines rather than exceptions. No pure function throws on any string or number input.
+- **Accessibility.** `Line.tone` keeps text semantics apart from color, and T03/T07 map tones to tokens that already pass AA (T01). Echoed input is plain text and must be rendered as React text, never HTML (A11, carried to T03/T07).
+- **Reduced motion.** `tiltFor(m, enabled)` takes the caller's `wobble && !prefersReducedMotion` and returns exactly 0 when it is disabled. The module itself never reads media queries.
 
 ## 5. Risk and security
 
-- **Untrusted stored value.** The script only compares it against `'dark'` and `'light'` and never writes the raw value into the DOM. T5 locks this in: a value like `"<img onerror>"` falls back to the OS scheme.
-- **Storage or `matchMedia` throwing** is caught and falls back to `dark` (A8). Covered by T5 (stubbed) and T7 (real browser, `Storage.prototype.getItem` overridden to throw).
-- **Third-party requests and privacy.** No external origin is allowed (AC6). The e2e tests record every request and fail on any origin other than the app's.
-- **Future CSP (T12).** An inline script needs a `script-src` hash or nonce. I note this for T12 and do not change it here.
-- **Brittle token tests.** Expected values sit in one table per theme in the test, copied from the spec plus decision 11, and are compared after collapsing whitespace. A failure shows the token name and both values.
-- **Preview server port 4173 already in use** makes e2e fail loudly (`--strictPort`). This is accepted and better than testing a stale build.
-- **Slower e2e** because the build runs inside Playwright. This is accepted, since it is the only way to test AC8 and AC14 properly.
-- **`document.fonts.check` false negatives** on faces that are not loaded yet. The test first calls `document.fonts.load('<w> 15px Inter', 'Tanzi')`, asserts that it returned at least one face, and then calls `check`. This also proves the weight is registered and loads from the app's own origin.
+| #   | Risk                                                                                                                                       | Safeguard (task)                                                                                                                                                                               |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | Plain-object lookup: in the prototype, `open constructor` or `wallpaper toString` is truthy and would open a function or set a bogus wall. | Use `Map` and `includes` lookups (T6). Tests run `open constructor`, `open __proto__`, `wallpaper toString` and `theme constructor` and expect the no-file or usage line with no effect (T12). |
+| R2  | Untrusted terminal input reaches the DOM.                                                                                                  | Lines are plain strings. The rule is noted for T03/T07 (render as text). Tests include `<img src=x onerror=1>` and expect it echoed verbatim, with no effect (T12).                            |
+| R3  | Pathological input (very long or many spaces) is slow or throws.                                                                           | Use one `trim` and one `split(/\s+/)`, with no regex backtracking. Test a 10,000-character input and tabs or newlines mixed in (T12).                                                          |
+| R4  | `-0` or non-integer layout values make tests flaky or put windows on half pixels.                                                          | Use `+ 0` normalization and `floor`ed bounds (T3). Property test over a grid of `vw` and `vh` in `[0, 4000]`, including fractional values like 1280.5 (T9).                                    |
+| R5  | The nominal heights are guesses, and T07 may change them.                                                                                  | Heights live only in `WIN_META`. Layout tests derive expectations from it, so a change keeps the tests meaningful (T3, T9).                                                                    |
+| R6  | Input mutation leaks between reducer states.                                                                                               | Tests deep-freeze inputs (`Object.freeze` on arrays, records and history) before calling any function (T10, T11, T13).                                                                         |
+| R7  | A logic module silently starts using `window` or React later.                                                                              | Purity test over `import.meta.glob('/src/logic/*.ts', { query: '?raw', import: 'default', eager: true })`. It also asserts that all seven files are found, so an empty glob cannot pass (T14). |
+| R8  | The email gets duplicated again.                                                                                                           | A source-scan test counts `EMAIL` occurrences across `src/**/*.{ts,tsx}` and expects exactly 1 (T12).                                                                                          |
+| R9  | T03 drifts from these signatures.                                                                                                          | The signatures are frozen in section 3. Tests import every named export, so a rename breaks typecheck.                                                                                         |
+| R10 | `padEnd(12)` with a name or date of 12 characters or more gives no gap.                                                                    | Accepted. It matches the prototype (spec copy), and the test uses the real formula, not hard-coded strings.                                                                                    |
+
+Auth, data exposure and network: not applicable (no network, no storage, no secrets). The only "personal" data is the public email, now single-sourced.
 
 ## 6. Gaps check
 
-- Auth: not applicable (static site, no accounts).
-- Validation: the stored theme is whitelisted (T5).
-- Error handling: storage that throws, an invalid stored value, a CSS `?raw` read that comes back empty, and a non-hex token in the contrast helper all have explicit handling or failing tests.
-- Mobile: out of scope (decision 1).
-- Accessibility: AC4 and AC17 contrast. The A5 limits are noted.
-- Config and env vars: no env vars. The only config changes are in `playwright.config.ts`, plus `vite.config.ts` as a fallback only.
-- Tests: Vitest unit tests (helpers, tokens, contrast, fonts, theme init) and Playwright (dev and preview).
-- Gap found: tag text pairs, added as AC17.
+- **Auth:** none in this app. N/A.
+- **Validation:** terminal input is the only untrusted input (R1-R3). Numeric inputs: AC1 covers `[0, 4000]` including fractional values, and `tiltFor` guards non-finite input.
+- **Error handling:** pure functions are total and never throw. Bad commands give usage or not-found lines.
+- **Mobile:** out of scope (decision 1). Small viewports only need finite, clamped values.
+- **Accessibility:** no UI. Tone semantics and the reduced-motion parameter are noted in section 4.
+- **Config and env vars:** none. No `.env`, no eslint or vite config change (the purity guard is a test, which is the simpler option).
+- **Tests:** one test file per module under `tests/logic/`, plus a purity test and the email single-source test. Existing tests stay untouched.
 
 ## 7. Tasks
 
-Each task is one commit and leaves `npm test` green.
+Coder tasks (T1-T7, `src/` only) and test-writer tasks (T8-T14, `tests/` only) can run in parallel, because the tests are written against the signatures in section 3. **Commit order rule:** a test task is committed only after the src task it names, so the suite is green at every commit. Suggested interleave: T1, T2, T8, T3, T9, T4, T10, T5, T11, T6, T12, T7, T13, T14, T15.
 
-- **T1. Contrast and token helpers with their own tests.** Add `tests/helpers/contrast.ts`, `tests/helpers/cssTokens.ts` and `tests/helpers.test.ts`. The tests cover: white on black is 21:1, a color on itself is 1:1, `#6558ad` on `#f3f5fe` is about 5.4 (±0.05), multiple `:root` blocks merge, comments are stripped, light overrides win, and non-hex input throws. (AC4, AC17 infrastructure)
-- **T2. Light token fixes plus token tests.** Edit the light block of `src/theme.css` as in section 3. Add `tests/theme-tokens.test.ts`, which:
-  - checks every AC1 dark token and every AC2/AC3 light token against the expected tables;
-  - checks that the wallpaper and easing tokens equal the spec strings, that `--wall-*` are defined only in `:root` and reference `var(--color-*)` with no literal hex colors (AC5);
-  - checks that `--font-mono` is exact (AC9).
-    (AC1, AC2, AC3, AC5, AC9)
-- **T3. Contrast test.** Add `tests/contrast.test.ts`. It loops over both themes, over the AC4 text tokens on surface and on bg, and over the AC17 tag pairs. It asserts `>= 4.5`, and each case is named like `light: neutral-500 on bg`. (AC4, AC17)
-- **T4. Static font checks.** Add `tests/fonts.test.ts`, which checks:
-  - `src/main.tsx` imports exactly `@fontsource/inter/400.css`, `500.css` and `600.css` (no other weight and no italic);
-  - `src/theme.css` has no `@import`, no `@font-face` and no `googleapis`/`gstatic`;
-  - `index.html` has no font `<link>` and no `googleapis`/`gstatic`;
-  - `--font-body` and `--font-heading` start with `'Inter'`.
-    (AC6, AC7, AC8, AC9 static guard)
-- **T5. Theme-init logic test.** Add `tests/theme-init.test.ts`. It extracts the non-module `<script>` from `index.html?raw` and runs it with `new Function('localStorage', 'matchMedia', 'document', src)` against stubs. Cases:
-  - no stored value with OS light or OS dark;
-  - stored `dark` or `light` with the opposite OS scheme;
-  - stored `blue`, `''`, or a markup string;
-  - `getItem` throws, or `matchMedia` throws, which gives `dark` with no exception escaping.
-    It also asserts that `<html>` in `index.html` has no `data-theme` attribute, that the only storage key used is `tanzi-os:theme`, and that the script runs before the module script tag. (AC10, AC11, AC12, AC13, AC15)
-- **T6. Playwright preview project.** Update `playwright.config.ts` as in section 3. This commit adds no new spec, and the existing smoke test runs unchanged in the `chromium` project. (AC14, AC8 infrastructure, AC16)
-- **T7. Dev e2e specs.**
-  - `tests/e2e/theme-init.spec.ts`:
-    - uses `page.emulateMedia({ colorScheme })` and `addInitScript` to seed storage, covering AC10, AC11 and AC12;
-    - for AC13, overrides `Storage.prototype.getItem` to throw and asserts `dark` with no `pageerror` and no console errors;
-    - in light mode, checks that `getComputedStyle(html).getPropertyValue('--color-neutral-500')` is `#626679` and `--color-accent-400` is `#6558ad` (AC2, AC4 runtime spot check);
-    - for AC5, a probe element with `background: var(--wall-plain)` changes color when `data-theme` is switched.
-  - `tests/e2e/fonts.spec.ts`:
-    - records all requests and asserts they share the page's origin (AC6, dev);
-    - `document.fonts.load` then `check` for 400, 500 and 600 (AC7);
-    - `body` `font-family` matches `/^"?Inter"?/` (AC7);
-    - every entry in `document.fonts` has family Inter (AC9).
-      (AC2, AC5, AC6, AC7, AC9, AC10, AC11, AC12, AC13)
-- **T8. Preview e2e spec.** Add `tests/e2e/build.preview.spec.ts`:
-  - for dark and light (via `emulateMedia`), abort `**/assets/*.js` and assert `data-theme` and that the `body` background is `rgb(22, 24, 38)` or `rgb(228, 231, 245)` (AC14);
-  - without blocking, all requests are same-origin (AC6, build);
-  - fetch every built stylesheet and parse its `@font-face` blocks. Every block must have family Inter, `font-weight` in {400, 500, 600} and `font-style: normal`, all three weights must be present, and every `url()` must be under `/assets/` (AC8).
-    (AC6, AC8, AC14)
-- **T9. Full verification.** Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` and `npm run format:check`. Fix only what breaks (never weaken tests), and confirm `tests/e2e/smoke.spec.ts` is unchanged. (AC16)
+| Task | Owner  | Files                                                    | Work                                                                                                                                                                                                                                                                                                                                                                                                                                                      | ACs              |
+| ---- | ------ | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| T1   | coder  | `src/types.ts`, `src/data.ts`                            | Add `Tone`, and replace `Line.color` with `tone`. Add `NAME`, `ROLE`, `EMAIL`, `VERSION`, and derive the `LINKS` Email href from `EMAIL`. Existing `tests/data.test.ts` stays green.                                                                                                                                                                                                                                                                      | AC22, AC31, AC32 |
+| T2   | coder  | `src/logic/windows.ts`                                   | `WIN_IDS`, `WinMeta`, `WIN_META` (widths, nominal heights from section 3, dock flag), `DOCK_IDS`.                                                                                                                                                                                                                                                                                                                                                         | AC2, AC3         |
+| T3   | coder  | `src/logic/layout.ts`                                    | `MENUBAR_H`, `DOCK_CLEARANCE`, `layout` (xClamp, yFit, site rule, `-0` normalization), `INITIAL_ORDER`, `initialWindows`.                                                                                                                                                                                                                                                                                                                                 | AC1-AC8          |
+| T4   | coder  | `src/logic/zorder.ts`, `src/logic/dock.ts`               | `raise` (same reference when already last), `topMost`, `zIndexFor`, `SITE_Z`, `DockAction`, `dockClickAction`.                                                                                                                                                                                                                                                                                                                                            | AC9-AC13         |
+| T5   | coder  | `src/logic/drag.ts`                                      | `Point`, `clampPosition`, `dragPosition`, `tiltFor`. Remove nothing from `src/hooks/useDrag.ts` (T04 owns it).                                                                                                                                                                                                                                                                                                                                            | AC15-AC18        |
+| T6   | coder  | `src/logic/terminal.ts`                                  | `PROMPT`, `TerminalEffect`, `TERMINAL_BANNER`, `runCommand` with Map-based lookups and every output string from AC22-AC31.                                                                                                                                                                                                                                                                                                                                | AC19-AC32        |
+| T7   | coder  | `src/logic/history.ts`                                   | `History`, `emptyHistory`, `pushHistory`, `historyUp`, `historyDown`. Return the same `History` reference whenever nothing changes.                                                                                                                                                                                                                                                                                                                       | AC33-AC36        |
+| T8   | tests  | `tests/logic/windows.test.ts`                            | `WIN_IDS` order and contents, spec widths, `DOCK_IDS` excludes `site`, every height a positive integer.                                                                                                                                                                                                                                                                                                                                                   | AC2, AC3         |
+| T9   | tests  | `tests/logic/layout.test.ts`                             | AC1 grid (0 to 4000 in steps, plus fractional values and `Number.isInteger`, `Object.is(v, -0) === false`); AC2 bounds; AC3 at the five sizes using `WIN_META` heights; AC4 expected values computed from the spec formula and capped by AC3; AC5; AC6; AC7 (fresh copy: mutating the result does not change `INITIAL_ORDER`); AC8.                                                                                                                       | AC1-AC8          |
+| T10  | tests  | `tests/logic/zorder.test.ts`, `tests/logic/dock.test.ts` | Cover `raise` (move, append `site`, same reference with `toBe`, frozen input), `topMost` (null, skips minimized and closed, ignores ids not in `order`), and `zIndexFor` (`site` 800, missing id 10 or more, all below 900). The dock table holds the 4 branches plus the 3 AC14 cases.                                                                                                                                                                   | AC9-AC14         |
+| T11  | tests  | `tests/logic/drag.test.ts`                               | AC15 edges (each bound, unchanged inside the range, `vh < 96`), idempotence over a grid, `dragPosition` equal to `clampPosition`, and no drift: repeated large deltas from one origin end where expected. Tilt: ±7 caps, 0 when disabled, NaN and Infinity give 0, `Object.is(tiltFor(-0, true), 0)`.                                                                                                                                                     | AC15-AC18        |
+| T12  | tests  | `tests/logic/terminal.test.ts`                           | Every command and its exact lines and tones (`help`, `whoami`, `ls`, `experience`, `projects`, `contact`, `open` x8 and its failures, `theme`, `wallpaper`, `tidy`, `restart`, `clear`, `sudo`, `rm`, not-found), echo rules, whitespace normalization, case sensitivity (`HELP` not found), at most one effect, banner. Also R1 to R3 inputs, AC32 (contact and sudo contain the `LINKS` email, and a source scan finds `EMAIL` exactly once in `src/`). | AC19-AC32        |
+| T13  | tests  | `tests/logic/history.test.ts`                            | Push rules (trim, blank ignored, duplicates kept, navigation reset, `clear` recorded), Up and Down edges, the AC36 sequence, and frozen-input non-mutation.                                                                                                                                                                                                                                                                                               | AC33-AC36        |
+| T14  | tests  | `tests/logic/purity.test.ts`                             | Raw-glob `src/logic/*.ts` and assert all seven files are present. Forbid `from 'react'`, `react-dom`, `@phosphor-icons`, and the words `window`, `document`, `localStorage`, `Math.random`, `setTimeout`, `setInterval`, `Date` (word-boundary regex). The only allowed non-type imports are `./*` siblings and `../data`.                                                                                                                                | AC37, AC38       |
+| T15  | either | `docs/plans/plan.md` (status), `docs/qa/` report         | Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` and `npm run format:check`. Confirm `git diff` shows no changes to existing test files.                                                                                                                                                                                                                                                                          | AC37, AC39       |
 
 ## 8. Open questions
 
-None blocking. Resolved with the simplest option:
+None blocking. This was an unattended run, so each item was resolved with the simplest option:
 
-1. A3 is adopted: light `--color-accent-400` is `#6558ad`. It is recorded in a `theme.css` comment. The human may want to add it to the Decisions log in `docs/design-decisions.md` later, since this plan only edits `docs/plans/`.
-2. The theme-init script stays inline and unchanged (A7). It is tested by extracting it rather than refactoring it.
-3. AC8 and AC14 are verified against a real build through a second Playwright project on port 4173, not by adding `@types/node` to read `dist/` directly.
+1. **`raise` return type.** It returns `readonly WinId[]` so it can satisfy AC10. T03 types `State.order` as readonly (section 3).
+2. **Nominal heights.** hello 420, about 460, exp 300, proj 330, term 310, site 340, kept in `WIN_META`. T07 may tune them, and AC3 must keep passing.
+3. **`TONE_COLOR` map.** Not added in T02. The tone-to-token mapping belongs to the Terminal component (T03/T07).
+4. **Purity guard.** A test, not an eslint rule. This means no config change.
+5. **Coverage.** Not added, since `@vitest/coverage-v8` is not installed (AC37).
+6. **For later human confirmation, not blocking:** whether to record `NAME`, `ROLE`, `EMAIL` and `VERSION` in the Decisions log as the answer to the "Version string" and "Hard-coded email" spec gaps, and whether `open` should accept `terminal` or `site` (currently no, per decision 8).
