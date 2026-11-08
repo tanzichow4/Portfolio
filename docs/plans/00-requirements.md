@@ -1,103 +1,115 @@
-# T03 requirements: `Desktop` reducer and wiring
+# T04 requirements: `Window` chrome (drag, minimize/genie, close, wobble, reduced motion)
 
 ## Goal
 
-Add a pure, unit-tested reducer that owns only each window's position, open and minimized flags plus the z-order (and the viewport size it needs for layout and clamping), and wire it into `Desktop` through `useReducer` with a resize listener that re-clamps windows. `Desktop` renders a minimal, accessible placeholder per open window, so the wiring can be checked end to end before the real chrome, dock and menubar arrive in T04-T08.
+Replace the T03 placeholder boxes with a shared, accessible `Window` chrome (titlebar with icon, title, labelled minimize and close buttons, and a content slot) that the user can focus, drag with pointer events, minimize with a genie-style animation and close. Wobble tilt while dragging, the fly-out on open and the genie are all disabled under `prefers-reduced-motion`, and minimized windows are inert; window contents stay placeholders until T07.
 
 ## Current state (observed, so the planner does not redo finished work)
 
-- **T02 logic is done and frozen** (`docs/plans/T02-plan.md` section 3, verified in `docs/qa/T02-qa.md`):
-  - `src/logic/windows.ts`: `WIN_IDS`, `WIN_META` (width, nominal height, dock flag), `DOCK_IDS`.
-  - `src/logic/layout.ts`: `MENUBAR_H`, `DOCK_CLEARANCE`, `layout(vw, vh)`, `INITIAL_ORDER`, `initialWindows(vw, vh)` (five dock windows open, `site` closed).
-  - `src/logic/zorder.ts`: `raise` (returns `readonly WinId[]`, same reference if already last), `topMost`, `zIndexFor` (`site` pinned at `SITE_Z = 800`, others `index + 10`).
-  - `src/logic/dock.ts`: `dockClickAction` returns `open | restore | focus | minimize`.
-  - `src/logic/drag.ts`: `clampPosition(pos, width, vw, vh)` (x in `[80 - width, vw - 80]`, y in `[36, vh - 60]`), `dragPosition`, `tiltFor`.
-  - `src/logic/terminal.ts` and `src/logic/history.ts` exist but are not used by this ticket.
-  - Layout already fits between the menubar and the dock at 1280x720 and above (decision 7), using estimated window heights (T07 may tune them).
-- `src/types.ts`: `WinId`, `Win { x, y, open, min }`, `MenuId`, `Theme`, `Wall`, `Tone`, `Line` are fine. `State` still holds `menu`, `theme`, `wall`, `wobble`, `drag`, `tilt`, `verb`, `tab`, `cmd`, `lines`, `booting`, `bootPct`, and types `order` as a mutable `WinId[]`. Nothing in `src/` imports `State` today.
-- `src/Desktop.tsx` is a stub: one fixed, full-viewport `div` with the nebula wallpaper and a TODO. `Window.tsx`, `Dock.tsx`, `MenuBar.tsx`, `BootScreen.tsx`, `hooks/useDrag.ts` and `windows/*` are stubs (null or empty).
-- `src/main.tsx` renders `<Desktop />` inside `StrictMode`.
-- `src/data.ts` has no window titles (`hello.txt`, `about.md`, ...). They exist only as terminal `open` aliases in `terminal.ts`.
-- Tests: `tests/Desktop.test.tsx` (smoke: renders without crashing), `tests/logic/*.test.ts` (T02), and `tests/logic/purity.test.ts`, which globs `src/logic/*.ts` and asserts the file list is exactly the seven T02 modules. `tests/e2e/smoke.spec.ts` checks the title, `data-theme` and no console errors.
-- Prototype reference behaviour: `open()`, `dockClick()`, `allWins()`, `tidy()`, `restart()`, `close`, `focus`, the drag clamp and the resize handler in `design_handoff_tanzi_os/Tanzi OS.dc.html` lines 246-360. The prototype never re-clamps on resize (decision 6 changes that).
+- **Pure logic is done and tested (T02, T03):**
+  - `src/logic/drag.ts`: `clampPosition(pos, width, vw, vh)` (x in `[80 - width, vw - 80]`, y in `[36, vh - 60]`), `dragPosition(origin, {dx, dy}, width, vw, vh)`, `tiltFor(movementX, enabled)` (clamped to +/-7 deg, factor 0.7, returns 0 when disabled or non-finite).
+  - `src/logic/zorder.ts`: `raise`, `topMost(order, wins)`, `zIndexFor` (`site` pinned at 800).
+  - `src/logic/windows.ts`: `WIN_IDS`, `WIN_META` (width, nominal height, `dock` flag; `site` has `dock: false`), `DOCK_IDS`.
+  - `src/logic/desktop.ts`: `desktopReducer` already supports `focus`, `minimize`, `restore`, `close`, `open`, `move` (clamps defensively), `dockClick`, `minimizeAll`, `showAll`, `tidy`, `restart`, `resize`. `open` sets `min: false` immediately; the fly-out animation is this ticket's job.
+- `src/types.ts`: `State` is `{ wins, order, vw, vh }`. No `wobble`, `drag` or `tilt` in it (T03 assumption 1: drag and tilt stay local to the window).
+- `src/data.ts`: `WIN_TITLES` exists. There are no window icons and no button labels in it yet.
+- `src/Desktop.tsx`: renders one `<section aria-label={title} data-win data-min hidden={min}>` per open window, absolutely positioned at `x, y`, width from `WIN_META`, `minHeight` from `WIN_META`, `zIndex` from `zIndexFor`, surface background, radius-lg. No border, shadow, buttons or transform.
+- `src/Window.tsx` returns `null`; `src/hooks/useDrag.ts` is an empty stub with a TODO.
+- `src/theme.css`: easing tokens `--ease-spring`, `--ease-bouncy`, `--ease-minimize`; `--shadow-md`/`--shadow-lg` for both themes; `.btn` and `.btn-icon` (36px, so the 24px size needs an override); a global `:focus-visible` outline; a reduced-motion rule that only shortens durations (design-decisions D says that is not enough).
+- Tests that this ticket touches:
+  - `tests/Desktop.wiring.test.tsx` "AC22: placeholders hold only their title, no buttons" asserts zero buttons and `textContent === title`. That T03 criterion is superseded by this ticket's chrome (see Assumption 14).
+  - `tests/e2e/desktop.spec.ts` locates windows by `[data-win="id"]`, reads `boundingBox()` at rest, and finds windows by `getByRole('region', { name })`. These must keep passing.
+  - T03 AC21 (a minimized window is mounted, not visible, not focusable, not exposed to assistive tech) has no component or e2e test yet. It is picked up here (AC17-AC19).
 
 ## Acceptance criteria
 
-### State shape (decision 5)
+### Chrome and layout
 
-- **AC1.** The desktop state type contains exactly: `wins: Record<WinId, Win>` (each `Win` is only `x`, `y`, `open`, `min`), `order: readonly WinId[]` (back to front), and the current viewport width and height. It has no `verb`, `tab`, `cmd`, `lines`, `drag`, `tilt`, `menu`, `theme`, `wall`, `wobble`, `booting` or `bootPct` field. `npm run typecheck` fails if code tries to read any of those from it.
-- **AC2.** The initial state for a viewport `vw x vh` equals `initialWindows(vw, vh)` (positions from `layout`, the five dock windows open and not minimized, `site` closed and not minimized, `order` equal to `INITIAL_ORDER`) plus that viewport.
+- **AC1.** Each open window renders through a shared `Window` component as an element with role `region` whose accessible name is its title from `WIN_TITLES`, and it keeps the `data-win="<id>"` and `data-min="true|false"` attributes.
+- **AC2.** The window root is absolutely positioned at its `x, y`, has the width from `WIN_META`, `--radius-lg` corners, `--color-surface` background, `overflow: hidden`, `transform-origin: top center`, and the z-index from `zIndexFor`.
+- **AC3.** The top-most visible window (`topMost(order, wins)`) has `box-shadow: var(--shadow-lg)`; every other open window has `var(--shadow-md)`. Focusing another window moves the large shadow to it.
+- **AC4.** The titlebar has padding `8px 8px 8px 16px`, 12px text in `--color-neutral-400`, background `--color-bg`, `cursor: grab`, and shows, left to right: the window's accent-colored Phosphor icon (hello: HandWaving, about: User, exp: Briefcase, proj: Folder, term: TerminalWindow, site: Info), the title, then right-aligned buttons. The icon is hidden from assistive technology.
+- **AC5.** The five dock windows show a minimize button (Phosphor Minus) and a close button (Phosphor X). The `site` window shows only a close button.
+- **AC6.** Each button is a native `<button type="button">` using `.btn .btn-icon`, renders at 24x24 CSS pixels, has icon color `--color-neutral-400`, and has an accessible name that includes the action and the window title (for example "Minimize hello.txt", "Close hello.txt"). The label strings come from `src/data.ts`.
+- **AC7.** Below the titlebar, the window renders a content slot. In this ticket `Desktop` passes placeholder content, and the window keeps at least its `WIN_META` nominal height so it is a visible box.
+- **AC8.** At 1280x720 and 1920x1080, with no interaction, the windows' bounding boxes are at the same positions and widths as in T03 (the existing `tests/e2e/desktop.spec.ts` passes unchanged), and the at-rest transform is the identity (no rotation or scale).
 
-### Reducer behaviour (pure, unit tested)
+### Focus and z-order
 
-- **AC3.** The reducer is a pure function in its own module. It imports no React, Phosphor, DOM, storage, timer, random or `Date` API, never mutates its input (tests deep-freeze the input state), and is covered by the existing purity guard in `tests/logic/purity.test.ts`.
-- **AC4.** **open `id`.** A closed window becomes `open: true, min: false` and is raised to the end of `order`. A minimized open window becomes `min: false` and is raised. A visible window is only raised. Its position is never changed by `open`. Opening `site` appends it to `order`, and `zIndexFor('site', order)` stays 800.
-- **AC5.** **close `id`.** The window becomes `open: false, min: false` and keeps its `x`, `y`. `order` is unchanged. Closing an already closed window returns the same state reference.
-- **AC6.** **minimize `id`.** An open, visible window becomes `min: true`. Position and `order` are unchanged. Minimizing a closed or already minimized window returns the same state reference.
-- **AC7.** **restore `id`.** An open, minimized window becomes `min: false` and is raised. On a closed or already visible window it returns the same state reference.
-- **AC8.** **focus `id`.** An open, visible window is raised (the others keep their relative order). If it is already last in `order`, or the window is closed or minimized, the same state reference is returned.
-- **AC9.** **dockClick `id`.** The result equals applying the action named by `dockClickAction(id, wins, order)`: `open` -> AC4, `restore` -> AC7, `focus` -> AC8, `minimize` -> AC6. A table test covers all four branches, including "clicking the top-most visible window minimizes it" and "clicking it again restores and raises it".
-- **AC10.** **move `id` to `{ x, y }`.** Stores `clampPosition({ x, y }, WIN_META[id].width, vw, vh)` for the stored viewport. `open`, `min` and `order` are unchanged. A move to the current position, or with a non-finite `x` or `y`, returns the same state reference.
-- **AC11.** **minimizeAll / showAll.** Every open window gets `min: true` (minimizeAll) or `min: false` (showAll). Closed windows and `order` are unchanged. If nothing changes, the same state reference is returned.
-- **AC12.** **tidy.** For the stored viewport, every window gets its `layout` position, the five dock windows are open and not minimized, `site` is closed, and `order` equals `INITIAL_ORDER` (matches the prototype `tidy()`).
-- **AC13.** **restart.** Produces the same window state as AC2 for the stored viewport (layout positions, five dock windows open, `site` closed, `INITIAL_ORDER`). The viewport is kept. Theme, wallpaper and wobble are not in this state, so they are untouched by construction (decision 3).
-- **AC14.** **resize to `vw x vh`** (decision 6). Stores the new viewport and replaces every window's position (open, minimized and closed) with `clampPosition(pos, WIN_META[id].width, vw, vh)`. `open`, `min` and `order` are unchanged. Positions already inside the bounds do not move, so growing the viewport never moves a window. Resizing to the stored size, or with non-finite or negative values, returns the same state reference.
-- **AC15.** Concrete resize check: starting from the initial state at 1920x1080 (term at 1450,694), resize to 1280x720 puts term at 1200,660, and resizing back to 1920x1080 leaves it at 1200,660. A window already within bounds at 1280x720 (for example hello at 115,72) is unchanged.
-- **AC16.** After any sequence of actions, `order` contains no duplicates, and every id in it is a valid `WinId`. `topMost` of the resulting state is never a closed or minimized window.
+- **AC9.** A `pointerdown` anywhere on an open, non-minimized window (titlebar, body or buttons) brings it to the front: its z-index becomes the highest among non-`site` windows and it gets the large shadow.
+- **AC10.** Moving keyboard focus into a window (Tab onto one of its buttons) also brings it to the front.
 
-### Wiring into `Desktop`
+### Drag
 
-- **AC17.** `Desktop` creates its state with `useReducer`, initialised lazily from `window.innerWidth` and `window.innerHeight`. No other component or module holds window position, open or minimized state.
-- **AC18.** `Desktop` listens for the window `resize` event and dispatches the resize action with the new inner size. The listener is removed on unmount, so under `StrictMode` (and in a component test that unmounts) exactly one listener is active and no error or warning is logged.
-- **AC19.** `Desktop` keeps the current root behaviour: a fixed, full-viewport element with `overflow: hidden`, `user-select: none` and the nebula wallpaper (wallpaper switching is T05). The existing smoke test passes unchanged.
-- **AC20.** For each open window, `Desktop` renders one placeholder element, positioned absolutely at the window's `x`, `y`, with the window's width from `WIN_META` and `z-index` from `zIndexFor(id, order)`. Each placeholder is a labelled region whose accessible name is the window title (`hello.txt`, `about.md`, `experience.log`, `projects`, `terminal`, `About this site`), with the titles read from `src/data.ts`. Closed windows render nothing (they unmount, decision 5).
-- **AC21.** A minimized window's placeholder stays mounted but is not visible, not focusable and not exposed to assistive technology.
-- **AC22.** The placeholder carries no copy beyond its title, no buttons and no drag handling. Its markup exposes the window id and minimized state in a stable way (for example `data-win` and `data-min` attributes) so tests can find it.
-- **AC23.** Component test (Testing Library, jsdom): at the default jsdom viewport, the five dock windows' placeholders are present with the `layout` positions and `site` is absent. After setting a smaller `innerWidth`/`innerHeight` and firing `resize`, the positions match AC14.
-- **AC24.** E2E (Playwright, Chromium): at 1280x720 the five placeholders render at the T02 reference positions (hello 77,72; about 640,64; exp 64,344; proj 538,300; term 810,334), `site` is absent, and there are no console errors. Starting at 1920x1080 and resizing the page to 1280x720 moves term to 1200,660 and leaves the others inside the clamp bounds.
+- **AC11.** Pressing the primary pointer button (mouse button 0, or any touch/pen contact) on the titlebar, outside its buttons, and moving the pointer moves the window by the same delta, clamped with `dragPosition`/`clampPosition` (at least 80px stays on screen horizontally, `y` within `[36, vh - 60]`). Pressing on a titlebar button never starts a drag. Pressing on the window body never starts a drag.
+- **AC12.** Drag uses pointer events (no `mousedown`/`mousemove`/`mouseup` listeners), captures the pointer so the drag continues when the pointer leaves the titlebar or the window, and the titlebar has `touch-action: none`.
+- **AC13.** Releasing the pointer (`pointerup`), `pointercancel` or losing pointer capture ends the drag. After the drag ends the window stays where it was dropped, and that final position is in `Desktop` state: closing the window and opening it again (via a reducer `open` dispatch) shows it at the dropped position.
+- **AC14.** During one drag, the `Desktop` reducer receives at most one `move` action (on release). A press and release with no movement dispatches no `move` that changes state. Other windows do not change position or z-order during a drag.
+- **AC15.** Dragging does not select text on the page.
 
-### Quality gates
+### Wobble
 
-- **AC25.** `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` and `npm run format:check` all pass. No existing test is deleted or weakened. The only allowed change to an existing test is extending the purity test's expected module list if the reducer lives in `src/logic/` (this adds coverage, it does not remove any).
+- **AC16.** While dragging with wobble enabled and reduced motion off, the window's transform is `rotate(<tiltFor(movementX, true)>deg) scale(1.015)`: rotation is within +/-7 degrees and its sign follows the horizontal pointer direction (moving right tilts positive). On release the transform returns to the identity with the transition `transform .45s var(--ease-spring)`. With wobble disabled (prop false), dragging applies no rotation.
+
+### Minimize, genie, restore and open fly-out
+
+- **AC17.** Clicking the minimize button, or double-clicking the titlebar outside its buttons, dispatches `minimize` for that window. The window stays mounted with `data-min="true"`. Double-clicking the `site` titlebar does nothing.
+- **AC18.** With reduced motion off, a minimizing window animates to `translate(vw/2 - (x + width/2), vh - 40 - y) scale(0.06)` with opacity 0, using `transform .45s var(--ease-minimize), opacity .4s ease-in`. Restoring (reducer `restore` or `open`) animates back to the identity transform and opacity 1 using the spring curve (`transform .45s var(--ease-spring), opacity .25s ease-out`).
+- **AC19.** A minimized window has `pointer-events: none` and the `inert` attribute from the moment it is minimized: it cannot be clicked, Tab never reaches its buttons, and it is absent from the accessibility tree (`getByRole('region', { name })` does not find it). After restore, `inert` is removed and its buttons are reachable by Tab again.
+- **AC20.** When a window becomes open after `Desktop` first mounted (closed to open), it first renders in the minimized pose and moves to the normal pose on a later animation frame, so it flies out of the dock. Windows open at first load appear in place with no fly-out. No `setTimeout` is used for this, and it works under `StrictMode`.
+
+### Close
+
+- **AC21.** Clicking the close button dispatches `close`: the window unmounts (its `[data-win]` element is gone) and its content's internal state is discarded. Its last position is kept in `Desktop` state.
+
+### Reduced motion
+
+- **AC22.** With `prefers-reduced-motion: reduce` (checked at the time of the interaction): dragging applies no rotation and no scale; minimizing and restoring use opacity only with no translate or scale (the genie is off); a newly opened window appears in place with no fly-out. Inertness and position behaviour are unchanged.
+
+### Keyboard and accessibility
+
+- **AC23.** Every minimize and close button of a non-minimized window is reachable with Tab in DOM order and activates with Enter and Space. The focused button shows the `:focus-visible` outline, and the outline is not clipped by the window's `overflow: hidden`.
+- **AC24.** Titlebar text (`--color-neutral-400` on `--color-bg`) meets WCAG AA (at least 4.5:1) in both dark and light themes, and the button icon color against `--color-bg` meets at least 3:1 in both themes, verified by a test that uses the existing contrast helpers. No new color tokens are introduced; if one is needed, it meets the same thresholds.
+- **AC25.** No mouse-only behaviour: all chrome actions (minimize, close) are available as buttons; double-click and drag are pointer conveniences only.
+
+### Quality
+
+- **AC26.** Logic that can be pure (for example the genie transform from `x, y, width, vw, vh`, and the window transform for a given drag/min/reduced-motion state) lives in `src/logic/` and has unit tests. `useDrag` lives in `src/hooks/useDrag.ts`.
+- **AC27.** Under `StrictMode`, mounting and unmounting `Desktop` and running a drag leaves no stray `window` or `document` listeners, pending animation frames or console errors or warnings.
+- **AC28.** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass. No existing test is deleted or weakened; the T03 "no buttons" test is updated to the new chrome as described in Assumption 14.
 
 ## Out of scope
 
-- `Window` chrome: titlebar, minimize and close buttons, drag with pointer events, double-click minimize, wobble and tilt, genie animation and the fly-out from the dock on open, shadows for the top-most window (T04). `useDrag` stays a stub.
-- Menubar, menus, menu open state, Esc handling, clock, theme toggle, theme/wallpaper/wobble state and localStorage (T05).
-- Dock UI and indicator dots (T06). The reducer exposes `dockClick`, but nothing renders a dock yet.
-- Window contents (Hello, About, Experience, Projects, Terminal, About this site), the terminal UI and applying `TerminalEffect`s (T07).
-- Boot screen, boot progress and remounting windows on restart to reset their internal state (T08). This ticket only provides the `restart` reducer action.
-- Full accessibility pass, focus management on open and close (T09).
-- Content changes other than adding window titles to `src/data.ts` (T10).
-- Mobile and any special layout or "unsupported size" message below 1280x720 (decision 1). Below that size, positions are only clamped.
-- Persisting window layout (decision 4: not persisted).
-- Changes to the T02 logic signatures, window widths or nominal heights.
-- Any edit to `design_handoff_tanzi_os/`.
+- Window contents (Hello, About, Experience, Projects, Terminal, About this site bodies): T07. Real window heights and re-tuning `WIN_META.height`: T07.
+- The Wobbly windows toggle, adding `wobble` to `State`, and reading or writing `tanzi-os:wobble` in localStorage: T05 (menus). Restart keeping wobble: T08.
+- Menubar, menus and closing menus on window pointerdown: T05.
+- Dock, dock buttons and aiming the genie at the real dock button: T06. The genie keeps the prototype target (viewport center x, `vh - 40`).
+- Any UI to restore or open a window: none exists until T05/T06. Restore and open are exercised in tests by dispatching reducer actions or by rendering `Window` with changed props.
+- Moving or resizing windows with the keyboard, focus return after minimize or close, Escape handling, and window resizing by the user: T09 (accessibility pass) or later.
+- Boot screen and Restart: T08.
+- Mobile and touch-specific layout below 760px: later epic (decision 1). Pointer events still work with touch on desktop sizes.
+- Re-clamping on resize: already done in T03.
+- Changes to `design_handoff_tanzi_os/`.
 
 ## Assumptions
 
-Unattended run, so each open point was resolved with the simplest option that fits the decisions log, the spec and CLAUDE.md.
-
-1. **State scope.** The reducer state holds only `wins`, `order` and the viewport. `menu`, `theme`, `wall`, `wobble`, `booting` and `bootPct` are removed from `State` in `src/types.ts` now and are added back by the tickets that own them (T05, T08). `drag` and `tilt` move out for good (T04 keeps them local, per section C of the design decisions). `verb`, `tab`, `cmd`, `lines` are removed (decision 5). `MenuId`, `Theme`, `Wall`, `Tone`, `Line` stay as types.
-2. **`order` is `readonly WinId[]`,** as agreed in the T02 plan, so `raise`'s same-reference return can be stored directly.
-3. **Viewport lives in reducer state.** `tidy`, `restart` and `move` need it, and storing it means menus and the terminal can dispatch those actions without knowing the size. The reducer never reads `window`; the size arrives through the initializer and the resize action.
-4. **Re-clamp rule on resize** is the drag clamp `clampPosition` (at least 80px visible horizontally, y in `[36, vh - 60]`), applied to every window including closed and minimized ones, so a reopened window is also on screen. It does not re-run `layout` and does not try to keep windows clear of the dock. "Tidy up" still restores the full layout.
-5. **No resize throttling is required.** Every `resize` event may dispatch, and the reducer returns the same reference when nothing changes. The planner may coalesce with `requestAnimationFrame` if it wants.
-6. **`open` sets `min: false` immediately.** The prototype's "mount minimized, then un-minimize next frame" fly-out is a visual effect owned by the `Window` component in T04, not reducer state.
-7. **`focus` on a closed or minimized window is a no-op** (the prototype raised unconditionally, but those windows cannot receive pointer events anyway).
-8. **`tidy` closes `site`,** matching the prototype (`open: id !== 'site'`). `tidy` and `restart` produce the same window state. They stay separate actions because T08 will hang the boot screen and internal-state reset off `restart`.
-9. **`minimizeAll`, `showAll` and `dockClick` are included** even though their UI comes later (T05, T06). They only touch open and minimized flags, so they belong in this reducer and are cheap to test now.
-10. **`move` clamps defensively** with the stored viewport, even though T04's drag already clamps, so no caller can push a window off-screen.
-11. **Window titles go in `src/data.ts`** (CLAUDE.md: no hard-coded copy elsewhere): `hello.txt`, `about.md`, `experience.log`, `projects`, `terminal`, `About this site`, taken from the spec's menu and section headings. T04-T06 reuse them.
-12. **Placeholder semantics.** Each placeholder is a labelled region (`role="region"` or `<section>` with `aria-label`), not `role="dialog"`, following design-decisions section D (non-modal windows). T04 replaces the placeholder with the real `Window` component.
-13. **Minimized placeholders** are hidden from focus and assistive technology (for example `inert` plus `aria-hidden`, or `hidden`). T04 will refine this around the genie animation.
-14. **Reducer location.** It may live in `src/logic/` (preferred, so the purity guard covers it). In that case the purity test's expected list gains the new module name, which strengthens the test. If the planner puts it elsewhere, it must add an equivalent purity check.
-15. **Non-finite or negative resize sizes and non-finite move coordinates are ignored** (same state returned), so a bad event can never produce NaN positions.
-16. **Minimum size (decision 7)** needs no new work beyond T02's layout. This ticket verifies it end to end at 1280x720 (AC24).
+1. **Window semantics.** Windows stay `role="region"` (a `<section>` with an accessible name), not `role="dialog"`, as decided in T03 (assumption 12) and design-decisions D (windows are non-modal). This also keeps the T03 e2e tests valid.
+2. **Wobble ownership.** `Window` takes a `wobble: boolean` input. In T04, `Desktop` passes `true` (the spec default "on by default"). T05 adds `wobble` to `State`, the toggle and the `tanzi-os:wobble` persistence, and passes the real value. T04 does not touch localStorage.
+3. **Wobble off keeps the lift scale.** With wobble disabled but reduced motion off, dragging still applies `scale(1.015)` and no rotation, matching the prototype. Under reduced motion there is neither.
+4. **Genie target** follows the prototype, not the spec's "dock center": x is the viewport center (`vw / 2`), y is `vh - 40` (design-decisions B, simplest option; T06 may refine).
+5. **`site` has close only.** It is not in the dock and the Windows menu does not list it, so a minimized `site` window would be unrecoverable. Following the prototype it has no minimize button and no double-click minimize.
+6. **Inert immediately.** `inert` and `pointer-events: none` are applied as soon as `min` becomes true, not after the animation ends. The genie still plays because the element stays mounted with opacity transitioning to 0. `inert` replaces T03's `hidden`, which would cut the animation. `aria-hidden` is optional because `inert` already removes the subtree from the accessibility tree.
+7. **Fly-out scope.** Only a closed-to-open transition after `Desktop`'s first mount flies out. This includes windows reopened by `tidy`. Windows open at first load do not animate (the prototype starts with them open and not minimized). The next-frame step uses `requestAnimationFrame` (double rAF is fine), per design-decisions C.
+8. **Drag commits on release.** The window follows the pointer locally (ref or local state plus a transform or position style) and `Desktop` gets a single `move` on release, per design-decisions C ("keep the reducer for discrete events only"). The clamp during the drag uses the viewport size at drag time.
+9. **Focus on keyboard focus.** Bringing a window to the front on `focusin` is added to the spec's "mousedown brings to front", so a keyboard-focused window is not hidden behind others (WCAG 2.4.11). This has no effect on dock click logic, because dock buttons are outside windows.
+10. **Reduced motion detection** uses `matchMedia('(prefers-reduced-motion: reduce)')`. Reading it at interaction or render time is enough; live updates without a re-render are not required. Transitions also stay short under the existing global theme.css rule, so "keep fades" from the spec effectively means an instant opacity change. That is acceptable.
+11. **Button labels and window icons are content**, so they live in `src/data.ts` (CLAUDE.md: no copy outside `data.ts`). The icons are stored as component references (design-decisions C).
+12. **Primary button only.** Right-click or middle-click on the titlebar does not start a drag. Touch and pen contacts do.
+13. **Cursor.** The titlebar uses `cursor: grab` per the spec. Showing `grabbing` while dragging is allowed but not required.
+14. **T03 AC22 test.** The T03 criterion "placeholders hold only their title, no buttons" is replaced by this ticket's AC5-AC7. Updating that test to assert the new chrome (title text present, the expected labelled buttons per window, `data-min="false"`, visible) is a requirement change, not a weakening. Every other T03 test stays as is.
+15. **Placeholder body.** The content slot holds an empty or minimal placeholder that adds no new copy (the title already appears in the titlebar). It is not focusable, so Tab order is only the chrome buttons.
+16. **Button size.** 24x24 meets the WCAG 2.2 AA target size minimum (2.5.8). It overrides `.btn-icon`'s 36px just for the chrome.
 
 ## Open questions
 
-None blocking. Items a human may want to confirm later (all resolved above for now):
-
-1. Whether the resize re-clamp should also keep windows above the dock (currently no; only the drag clamp, Assumption 4).
-2. Whether `tidy` should close an open "About this site" window (currently yes, matching the prototype, Assumption 8).
+No blocking questions.
