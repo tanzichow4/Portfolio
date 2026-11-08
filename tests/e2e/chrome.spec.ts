@@ -72,6 +72,32 @@ const tabLabels = async (page: Page, n: number) => {
   return out;
 };
 
+const focusedName = (page: Page) =>
+  page.evaluate(
+    () =>
+      document.activeElement?.getAttribute('aria-label') ??
+      document.activeElement?.textContent?.trim() ??
+      '',
+  );
+
+// DELIBERATE REQUIREMENT CHANGE (T05 AC40): the menubar adds five tab stops before the first
+// window control. This helper pins them exactly, so any drift in count or order fails loudly.
+const tabPastMenubar = async (page: Page) => {
+  const theme = await page.evaluate(() => document.documentElement.dataset.theme);
+  const names: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    await page.keyboard.press('Tab');
+    names.push(await focusedName(page));
+  }
+  expect(names).toEqual([
+    'tanzi.os',
+    'GitHub',
+    'LinkedIn',
+    'Email',
+    theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode',
+  ]);
+};
+
 const zOf = (page: Page, id: string) => win(page, id).evaluate((el) => Number(el.style.zIndex));
 
 test.describe('window chrome', () => {
@@ -127,7 +153,10 @@ test.describe('window chrome', () => {
         1,
       );
     }
-    await expect(page.getByRole('button')).toHaveCount(10);
+    // DELIBERATE REQUIREMENT CHANGE (T05 AC40): the menubar adds one button (the theme toggle).
+    await expect(page.locator('[data-win]').getByRole('button')).toHaveCount(10);
+    await expect(page.getByRole('banner').getByRole('button')).toHaveCount(1);
+    await expect(page.getByRole('button')).toHaveCount(11);
   });
 
   test('AC11/AC16: dragging tilts right then left, scales up, and springs flat on release', async ({
@@ -272,7 +301,8 @@ test.describe('window chrome', () => {
     await expect(page.getByRole('button', { name: 'Close terminal' })).toHaveCount(0);
     await expect(term).toHaveCSS('pointer-events', 'none');
     await expect(term).toHaveCSS('opacity', '0');
-    const labels = await tabLabels(page, 12);
+    // DELIBERATE REQUIREMENT CHANGE (T05 AC40): 5 menubar stops + 8 window stops + 5 margin.
+    const labels = await tabLabels(page, 18);
     expect(labels.filter((l) => l.includes('terminal'))).toEqual([]);
     expect(labels).toContain('Close projects');
   });
@@ -295,12 +325,16 @@ test.describe('window chrome', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
+    await tabPastMenubar(page);
     const want = DOCK5.flatMap((id) => [`Minimize ${TITLES[id]}`, `Close ${TITLES[id]}`]);
     expect(await tabLabels(page, 10)).toEqual(want);
   });
 
   test('AC23: Enter activates Minimize', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
+    await tabPastMenubar(page);
     await page.keyboard.press('Tab');
     expect(await focusedLabel(page)).toBe('Minimize hello.txt');
     await page.keyboard.press('Enter');
@@ -309,6 +343,8 @@ test.describe('window chrome', () => {
 
   test('AC23: Space activates Close', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
+    await tabPastMenubar(page);
     expect(await tabLabels(page, 4)).toEqual([
       'Minimize hello.txt',
       'Close hello.txt',
@@ -321,6 +357,8 @@ test.describe('window chrome', () => {
 
   test('AC10: keyboard focus on a back window raises it', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
+    await tabPastMenubar(page);
     await tabLabels(page, 7); // reaches "Minimize projects"
     expect(await focusedLabel(page)).toBe('Minimize projects');
     for (const id of DOCK5.filter((i) => i !== 'proj')) {
@@ -330,6 +368,8 @@ test.describe('window chrome', () => {
 
   test('AC23: the focus ring is visible and stays inside the window box', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
+    await tabPastMenubar(page);
     await page.keyboard.press('Tab');
     await page.keyboard.press('Tab'); // Close hello.txt, nearest the clipped corner
     expect(await focusedLabel(page)).toBe('Close hello.txt');

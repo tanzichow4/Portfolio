@@ -5,6 +5,7 @@ VERDICT: PASS
 Scope: docs/plans/T04-plan.md section 2 (AC1-AC29), docs/plans/T04-requirements.md. Driven in the project's bundled Playwright Chromium (scratch script, scratchpad qa.cjs, screenshots reviewed) against `npm run dev` at 1280x720 and 1920x1080. Also ran `npx vitest run`: 21 files, 451 tests pass. Playwright e2e, lint, build were not re-run.
 
 ## Passed (browser, both sizes unless noted)
+
 - Five windows with titlebar, accent icon (aria-hidden), title, labelled buttons "Minimize <title>" / "Close <title>", 24x24. Titlebar padding 8px 8px 8px 16px, 12px, cursor grab, touch-action none, radius 14px. At-rest transform none; positions equal T03 (hello 77,72 at 1280; 115,72 at 1920). (AC1-AC8)
 - Large shadow on the front window only; clicking a back window (projects) raises it and moves the shadow. (AC3, AC9)
 - Drag by titlebar: window follows, rotate(+7deg / -7deg) scale(1.015) with direction, springs to `none` on release; moved by the net delta; other windows unchanged; selection empty during and after. (AC11, AC14-AC16)
@@ -18,14 +19,17 @@ Scope: docs/plans/T04-plan.md section 2 (AC1-AC29), docs/plans/T04-requirements.
 - Restore/open: no UI exists yet (T05/T06), so not drivable in the browser. Covered by tests/WindowLayer.test.tsx (reducer harness), which pass; fly-out on open was not visually checked.
 
 ## Failures
+
 None.
 
 ## Observations (not defects)
+
 - Tilt saturates at +/-7deg for any fast move (20px steps), so tilt magnitude is not graduated in practice. Matches clamp spec.
 - Window bodies are empty placeholders (T07). Menubar and dock absent (T05/T06).
 - vite.config.ts changed (`css.include` adds /Window\.css/) so the CSS is processed in tests. Harmless, not listed in the plan's files.
 
 ## Test diff review (git diff HEAD~2 -- tests)
+
 - Only existing-test edits: the `within` import added, the T03 "AC22 no buttons" test replaced, and `'motion'` added to purity `EXPECTED`. No test deleted or skipped; nothing else weakened.
 - Replacement is at least as strict for the new requirement: exactly 10 buttons, each region by name, `.win-title` text, exact button names in order, type=button, data-min false, visible, not inert. One mild loosening: the old test asserted the whole element text equals the title; the new one checks only `.win-title`, which is necessary because the old assertion would be impossible with labelled buttons (aria-label, so textContent would still equal the title; body is empty). The old "equals title" check could have been kept. Low risk.
 - Purity `EXPECTED` change is sanctioned and correct.

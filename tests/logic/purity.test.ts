@@ -6,13 +6,18 @@ const sources = import.meta.glob('/src/logic/*.ts', {
   eager: true,
 }) as Record<string, string>;
 
+// DELIBERATE REQUIREMENT CHANGE (T05 AC40): T05 adds the clock, menu, settings and system logic modules.
 const EXPECTED = [
+  'clock',
   'desktop',
   'dock',
   'drag',
   'history',
   'layout',
+  'menu',
   'motion',
+  'settings',
+  'system',
   'terminal',
   'windows',
   'zorder',

@@ -142,3 +142,30 @@ export const WIN_ICONS: Readonly<Record<WinId, Icon>> = {
 };
 
 export const CHROME_LABELS = { minimize: 'Minimize', close: 'Close' } as const;
+
+export const MENU_TITLES = { os: 'tanzi.os', win: 'Windows', view: 'View', help: 'Help' } as const;
+
+export const MENU_ITEMS = {
+  restart: 'Restart…',
+  minimizeAll: 'Minimize all',
+  showAll: 'Show all',
+  tidy: 'Tidy up',
+  dark: 'Dark mode',
+  light: 'Light mode',
+  wallNebula: 'Wallpaper: Nebula',
+  wallGrid: 'Wallpaper: Grid',
+  wallPlain: 'Wallpaper: Plain',
+  wobble: 'Wobbly windows',
+  termCommands: 'Terminal commands',
+  resume: 'Résumé (PDF)',
+  sayHi: 'Say hi',
+  sayHiHint: 'email',
+} as const;
+
+export const MENUBAR_LABELS = {
+  landmark: 'System menu bar',
+  menubar: 'Menus',
+  toLight: 'Switch to light mode',
+  toDark: 'Switch to dark mode',
+  toggleTitle: 'Toggle theme',
+} as const;

@@ -72,7 +72,14 @@ describe('Desktop wiring', () => {
   // superseded by this stricter test (title, labelled region, exactly two labelled buttons).
   it('AC22 -> T04 AC5-AC7 (deliberate requirement change, supersedes the T03 no-buttons criterion): each window shows its title, a labelled region and exactly its labelled minimize and close buttons', () => {
     render(<Desktop />);
-    expect(screen.getAllByRole('button')).toHaveLength(10);
+    // DELIBERATE REQUIREMENT CHANGE (T05 AC40): the menubar adds exactly one native button (the
+    // theme toggle). The window count stays 10 and every other button on the page is pinned.
+    const winButtons = Array.from(document.querySelectorAll<HTMLElement>('[data-win]')).flatMap(
+      (w) => within(w).getAllByRole('button'),
+    );
+    expect(winButtons).toHaveLength(10);
+    const outside = screen.getAllByRole('button').filter((b) => !b.closest('[data-win]'));
+    expect(outside.map((b) => b.getAttribute('aria-label'))).toEqual(['Switch to light mode']);
     for (const id of DOCK5) {
       const title = WIN_TITLES[id];
       const el = screen.getByRole('region', { name: title });

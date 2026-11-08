@@ -1,114 +1,197 @@
-# T04 requirements: `Window` chrome (drag, minimize/genie, close, wobble, reduced motion)
+# T05 requirements: `MenuBar` and menus
 
 ## Goal
 
-Replace the T03 placeholder boxes with a shared, accessible `Window` chrome (titlebar with icon, title, labelled minimize and close buttons, and a content slot) that the user can focus, drag with pointer events, minimize with a genie-style animation and close. Wobble tilt while dragging, the fly-out on open and the genie are all disabled under `prefers-reduced-motion`, and minimized windows are inert; window contents stay placeholders until T07.
+Add the fixed 36px menubar: four keyboard-operable menus (tanzi.os, Windows, View, Help), the GitHub/LinkedIn/Email links, a theme toggle and a clock always shown in the en-US "Sat 3:42 PM" format (decision 12). The menus open, restore and arrange windows and change theme, wallpaper and wobble. Those three settings persist in `localStorage` (decision 4), are kept by Restart (decision 3), and are applied through the same single path that the terminal's `TerminalEffect`s will use in T07.
 
 ## Current state (observed, so the planner does not redo finished work)
 
-- **Pure logic is done and tested (T02, T03):**
-  - `src/logic/drag.ts`: `clampPosition(pos, width, vw, vh)` (x in `[80 - width, vw - 80]`, y in `[36, vh - 60]`), `dragPosition(origin, {dx, dy}, width, vw, vh)`, `tiltFor(movementX, enabled)` (clamped to +/-7 deg, factor 0.7, returns 0 when disabled or non-finite).
-  - `src/logic/zorder.ts`: `raise`, `topMost(order, wins)`, `zIndexFor` (`site` pinned at 800).
-  - `src/logic/windows.ts`: `WIN_IDS`, `WIN_META` (width, nominal height, `dock` flag; `site` has `dock: false`), `DOCK_IDS`.
-  - `src/logic/desktop.ts`: `desktopReducer` already supports `focus`, `minimize`, `restore`, `close`, `open`, `move` (clamps defensively), `dockClick`, `minimizeAll`, `showAll`, `tidy`, `restart`, `resize`. `open` sets `min: false` immediately; the fly-out animation is this ticket's job.
-- `src/types.ts`: `State` is `{ wins, order, vw, vh }`. No `wobble`, `drag` or `tilt` in it (T03 assumption 1: drag and tilt stay local to the window).
-- `src/data.ts`: `WIN_TITLES` exists. There are no window icons and no button labels in it yet.
-- `src/Desktop.tsx`: renders one `<section aria-label={title} data-win data-min hidden={min}>` per open window, absolutely positioned at `x, y`, width from `WIN_META`, `minHeight` from `WIN_META`, `zIndex` from `zIndexFor`, surface background, radius-lg. No border, shadow, buttons or transform.
-- `src/Window.tsx` returns `null`; `src/hooks/useDrag.ts` is an empty stub with a TODO.
-- `src/theme.css`: easing tokens `--ease-spring`, `--ease-bouncy`, `--ease-minimize`; `--shadow-md`/`--shadow-lg` for both themes; `.btn` and `.btn-icon` (36px, so the 24px size needs an override); a global `:focus-visible` outline; a reduced-motion rule that only shortens durations (design-decisions D says that is not enough).
-- Tests that this ticket touches:
-  - `tests/Desktop.wiring.test.tsx` "AC22: placeholders hold only their title, no buttons" asserts zero buttons and `textContent === title`. That T03 criterion is superseded by this ticket's chrome (see Assumption 14).
-  - `tests/e2e/desktop.spec.ts` locates windows by `[data-win="id"]`, reads `boundingBox()` at rest, and finds windows by `getByRole('region', { name })`. These must keep passing.
-  - T03 AC21 (a minimized window is mounted, not visible, not focusable, not exposed to assistive tech) has no component or e2e test yet. It is picked up here (AC17-AC19).
+- `src/MenuBar.tsx` is a stub (`return null`). `Desktop` does not render it.
+- `src/types.ts` already has `MenuId = null | 'os' | 'win' | 'view' | 'help'`, `Theme = 'dark' | 'light'`, `Wall = 'nebula' | 'grid' | 'plain'`. `State` is `{ wins, order, vw, vh }`: T03 removed `menu`, `theme`, `wall`, `wobble` and `booting`, and this ticket adds back what it needs.
+- `src/logic/desktop.ts` `desktopReducer` already handles `open` (it opens a closed window, restores a minimized one and raises it), `close`, `minimize`, `restore`, `focus`, `dockClick`, `move`, `minimizeAll`, `showAll`, `tidy`, `restart` and `resize`. `tidy` and `restart` both return `initialDesktop(vw, vh)`, which closes "About this site". This ticket does not need to rebuild any of these window actions.
+- `src/logic/terminal.ts` exports `TerminalEffect` (`open`, `theme`, `wallpaper`, `tidy`, `restart`, `clear`). Nothing applies these effects yet because the Terminal UI is T07.
+- `src/Desktop.tsx` hard-codes `background: var(--wall-nebula)` and passes `wobble={true}` to `WindowLayer`. `Window` already turns tilt off when `wobble` is false or reduced motion is on.
+- `src/theme.css` has `--wall-nebula`, `--wall-grid`, `--wall-plain`, the `[data-theme='light']` overrides, a global `:focus-visible` ring, easing tokens and a reduced-motion rule.
+- `index.html` has an inline script that reads `tanzi-os:theme`. It accepts only `'dark'`/`'light'`, otherwise falls back to `prefers-color-scheme`, and falls back to `'dark'` if anything throws. It sets `<html data-theme>` before first paint.
+- `src/data.ts` has `LINKS` (label, icon, href; Email uses `mailto:${EMAIL}`), `EMAIL`, `RESUME_URL = '/resume.pdf'`, `WIN_TITLES` and `WIN_ICONS`. There are no menu labels yet. `public/resume.pdf` does not exist yet (T10).
+- `src/hooks/reducedMotion.ts` exports `prefersReducedMotion()`.
+- `Window` raises itself on `onPointerDownCapture` and `onFocus`. Windows have y >= 36, so they never sit under a 36px menubar.
+- Test constraints:
+  - `tests/logic/purity.test.ts` forbids `window`, `document`, `localStorage`, `Date`, timers and React imports in `src/logic/*.ts`. Its `EXPECTED` list must name every module, so adding a logic module means extending that list (a sanctioned change, as in T04).
+  - `tests/Desktop.wiring.test.tsx` (line 75) and `tests/e2e/chrome.spec.ts` (line 130) assert exactly 10 buttons page-wide.
+  - Several `chrome.spec.ts` tests assume the first Tab press lands on "Minimize hello.txt".
+  - All of these will change once the menubar exists. See AC40.
 
 ## Acceptance criteria
 
-### Chrome and layout
+### Menubar layout
 
-- **AC1.** Each open window renders through a shared `Window` component as an element with role `region` whose accessible name is its title from `WIN_TITLES`, and it keeps the `data-win="<id>"` and `data-min="true|false"` attributes.
-- **AC2.** The window root is absolutely positioned at its `x, y`, has the width from `WIN_META`, `--radius-lg` corners, `--color-surface` background, `overflow: hidden`, `transform-origin: top center`, and the z-index from `zIndexFor`.
-- **AC3.** The top-most visible window (`topMost(order, wins)`) has `box-shadow: var(--shadow-lg)`; every other open window has `var(--shadow-md)`. Focusing another window moves the large shadow to it.
-- **AC4.** The titlebar has padding `8px 8px 8px 16px`, 12px text in `--color-neutral-400`, background `--color-bg`, `cursor: grab`, and shows, left to right: the window's accent-colored Phosphor icon (hello: HandWaving, about: User, exp: Briefcase, proj: Folder, term: TerminalWindow, site: Info), the title, then right-aligned buttons. The icon is hidden from assistive technology.
-- **AC5.** The five dock windows show a minimize button (Phosphor Minus) and a close button (Phosphor X). The `site` window shows only a close button.
-- **AC6.** Each button is a native `<button type="button">` using `.btn .btn-icon`, renders at 24x24 CSS pixels, has icon color `--color-neutral-400`, and has an accessible name that includes the action and the window title (for example "Minimize hello.txt", "Close hello.txt"). The label strings come from `src/data.ts`.
-- **AC7.** Below the titlebar, the window renders a content slot. In this ticket `Desktop` passes placeholder content, and the window keeps at least its `WIN_META` nominal height so it is a visible box.
-- **AC8.** At 1280x720 and 1920x1080, with no interaction, the windows' bounding boxes are at the same positions and widths as in T03 (the existing `tests/e2e/desktop.spec.ts` passes unchanged), and the at-rest transform is the identity (no rotation or scale).
+- **AC1** Desktop renders the menubar at every supported size (1280x720 and up). Its spec: fixed to the top, full width, 36px tall, horizontal padding 12px, 13px text, background `color-mix(in srgb, var(--color-bg) 72%, transparent)` with `backdrop-filter: blur(10px)`, bottom edge `0 1px 0 var(--color-divider)`, z-index 1000. It sits above every window (window z-indexes stay below 1000).
+- **AC2** The menubar is landmark-reachable (inside a `<header>` or `<nav>` with an accessible name). The left group is an element with `role="menubar"` and an accessible name. It holds four triggers in this order: "tanzi.os" (weight 600, accent color, preceded by a decorative `CircleHalf` icon hidden with `aria-hidden`), then "Windows", "View" and "Help" (weight 400, neutral-300). Trigger padding is 5px 10px with radius 6px. The background is text 8% on hover and text 10% while that trigger's menu is open.
+- **AC3** On the right, in order:
+  - Three links built from `LINKS`, each 30x28 with a 16px icon in neutral-400 that turns to text color on hover. Each has an accessible name equal to its `label`.
+  - A theme toggle button showing a moon in dark mode and a sun in light mode. Its accessible name says what it does ("Switch to light mode" or "Switch to dark mode").
+  - The clock.
+- **AC4** The GitHub and LinkedIn links open in a new tab with `rel="noopener noreferrer"`. The Email link is a plain `mailto:` link with no `target`.
+- **AC5** All visible menubar copy comes from `src/data.ts`: menu and item labels, the "email" hint, the theme-toggle names and the menubar and menu accessible names. No email address or URL is written anywhere outside `data.ts`.
 
-### Focus and z-order
+### Menu behavior (pointer)
 
-- **AC9.** A `pointerdown` anywhere on an open, non-minimized window (titlebar, body or buttons) brings it to the front: its z-index becomes the highest among non-`site` windows and it gets the large shadow.
-- **AC10.** Moving keyboard focus into a window (Tab onto one of its buttons) also brings it to the front.
+- **AC6** Clicking a trigger opens its dropdown. Clicking the same trigger again closes it. At most one menu is open at any time.
+- **AC7** While a menu is open, moving the pointer over another trigger switches to that trigger's menu. When no menu is open, hovering opens nothing.
+- **AC8** These close the open menu:
+  - a pointer-down on the empty desktop (the window under it is otherwise unaffected), or anywhere outside the menubar and the open dropdown
+  - a pointer-down on a window. That window is still raised as usual.
+  - the Escape key
+  - choosing an item
+- **AC9** Dropdown appearance: placed 34px from the menubar top, left-aligned to its trigger, min-width 240px, padding 6px, radius 14px, `--color-surface` background, `--shadow-lg`.
+  - Items: padding 7px 10px, radius 6px, 13px text in the text color.
+  - A 14px check column shows an accent `Check` icon only when the item is checked. The column keeps its width when the item is unchecked.
+  - An optional right-hand hint uses 11px neutral-500.
+  - Hover background is accent 16%. Pressed background is accent 26%.
+  - Dividers are 1px `--color-divider` with a 5px 8px margin.
 
-### Drag
+### Menu behavior (keyboard and ARIA)
 
-- **AC11.** Pressing the primary pointer button (mouse button 0, or any touch/pen contact) on the titlebar, outside its buttons, and moving the pointer moves the window by the same delta, clamped with `dragPosition`/`clampPosition` (at least 80px stays on screen horizontally, `y` within `[36, vh - 60]`). Pressing on a titlebar button never starts a drag. Pressing on the window body never starts a drag.
-- **AC12.** Drag uses pointer events (no `mousedown`/`mousemove`/`mouseup` listeners), captures the pointer so the drag continues when the pointer leaves the titlebar or the window, and the titlebar has `touch-action: none`.
-- **AC13.** Releasing the pointer (`pointerup`), `pointercancel` or losing pointer capture ends the drag. After the drag ends the window stays where it was dropped, and that final position is in `Desktop` state: closing the window and opening it again (via a reducer `open` dispatch) shows it at the dropped position.
-- **AC14.** During one drag, the `Desktop` reducer receives at most one `move` action (on release). A press and release with no movement dispatches no `move` that changes state. Other windows do not change position or z-order during a drag.
-- **AC15.** Dragging does not select text on the page.
+- **AC10** Each trigger has `role="menuitem"`, `aria-haspopup="menu"`, and `aria-expanded` that matches its menu's open state. Each open dropdown has `role="menu"` and is labelled by its trigger.
+- **AC11** Item roles:
+  - Plain actions use `role="menuitem"`.
+  - The five Windows-menu window items and "Wobbly windows" use `role="menuitemcheckbox"`.
+  - "Dark mode"/"Light mode" and the three wallpaper items use `role="menuitemradio"` (two separate radio groups).
+  - Checkable items expose `aria-checked` that matches the visible check.
+  - Dividers are `role="separator"`.
+  - The decorative check icons are hidden from assistive technology.
+- **AC12** The menubar uses roving tabindex, so it adds one tab stop to the sequence. Tab reaches the triggers before any window control. ArrowLeft and ArrowRight move focus between triggers and wrap around. Home and End go to the first and last trigger.
+- **AC13** With focus on a trigger:
+  - Enter, Space or ArrowDown opens its menu and focuses the first item.
+  - ArrowUp opens its menu and focuses the last item.
+- **AC14** Inside an open menu:
+  - ArrowDown and ArrowUp move between items, skip separators and wrap around.
+  - Home and End jump to the first and last item.
+  - Enter or Space activates the focused item.
+  - ArrowRight and ArrowLeft close the menu and open the next or previous menu (wrapping), with its first item focused.
+- **AC15** Escape closes the menu and returns focus to its trigger. Choosing an item, by keyboard or pointer, closes the menu and returns focus to the trigger. The exception is an item that opens or restores a window: focus may then go to that window, but it must not be lost to `<body>`. Tab or Shift+Tab out of an open menu closes it.
+- **AC16** Pressing Escape when no menu is open changes nothing: no window state changes and no error.
+- **AC17** Every trigger, item, link and the theme toggle shows the `:focus-visible` ring when focused by keyboard. Prototype-style `all: unset` resets must not remove it.
 
-### Wobble
+### Menu contents and actions
 
-- **AC16.** While dragging with wobble enabled and reduced motion off, the window's transform is `rotate(<tiltFor(movementX, true)>deg) scale(1.015)`: rotation is within +/-7 degrees and its sign follows the horizontal pointer direction (moving right tilts positive). On release the transform returns to the identity with the transition `transform .45s var(--ease-spring)`. With wobble disabled (prop false), dragging applies no rotation.
+- **AC18 tanzi.os menu.**
+  - "About this site" opens the `site` window and brings it to the front. Its z-index stays pinned per `zIndexFor`.
+  - Then a divider.
+  - Then "Restart…" (with the ellipsis character), which resets the window layout exactly like the reducer's `restart` (default positions, all five dock windows open and not minimized, `site` closed). Theme, wallpaper and wobble keep their current values.
+- **AC19 Windows menu.**
+  - Five items labelled with `WIN_TITLES` for hello, about, exp, proj and term, in that order. Each is checked exactly when that window is open and not minimized.
+  - Choosing one opens it if closed, restores it if minimized, and brings it to the front in every case (the reducer's `open`).
+  - Then a divider.
+  - "Minimize all" minimizes every open window.
+  - "Show all" restores every minimized window.
+  - "Tidy up" applies the reducer's `tidy`: default layout, all five open, `site` closed.
+- **AC20 View menu.**
+  - "Dark mode" and "Light mode", with exactly one checked, matching the current theme.
+  - A divider.
+  - "Wallpaper: Nebula", "Wallpaper: Grid", "Wallpaper: Plain", with exactly one checked, matching the current wallpaper.
+  - A divider.
+  - "Wobbly windows", checked when wobble is on. Choosing it toggles wobble.
+- **AC21 Help menu.**
+  - "Terminal commands" opens or restores the terminal window and brings it to the front.
+  - "Résumé (PDF)" opens `RESUME_URL` in a new tab (`noopener`).
+  - A divider.
+  - "Say hi", with the hint "email", navigates to `mailto:${EMAIL}` using the value from `data.ts`.
+- **AC22** Choosing a radio item that is already checked, such as "Dark mode" while dark, leaves the state unchanged and still closes the menu.
 
-### Minimize, genie, restore and open fly-out
+### Theme, wallpaper, wobble
 
-- **AC17.** Clicking the minimize button, or double-clicking the titlebar outside its buttons, dispatches `minimize` for that window. The window stays mounted with `data-min="true"`. Double-clicking the `site` titlebar does nothing.
-- **AC18.** With reduced motion off, a minimizing window animates to `translate(vw/2 - (x + width/2), vh - 40 - y) scale(0.06)` with opacity 0, using `transform .45s var(--ease-minimize), opacity .4s ease-in`. Restoring (reducer `restore` or `open`) animates back to the identity transform and opacity 1 using the spring curve (`transform .45s var(--ease-spring), opacity .25s ease-out`).
-- **AC19.** A minimized window has `pointer-events: none` and the `inert` attribute from the moment it is minimized: it cannot be clicked, Tab never reaches its buttons, and it is absent from the accessibility tree (`getByRole('region', { name })` does not find it). After restore, `inert` is removed and its buttons are reachable by Tab again.
-- **AC20.** When a window becomes open after `Desktop` first mounted (closed to open), it first renders in the minimized pose and moves to the normal pose on a later animation frame, so it flies out of the dock. Windows open at first load appear in place with no fly-out. No `setTimeout` is used for this, and it works under `StrictMode`.
+- **AC23** On first render, the React theme equals the `data-theme` value that the inline script in `index.html` set on `<html>`. There is no flash of the other theme and no second, conflicting fallback rule.
+  - Startup with a stored `'light'` loads light.
+  - Startup with a stored `'dark'` loads dark.
+  - With nothing stored, or an invalid value, startup follows `prefers-color-scheme`.
+  - If storage throws, startup uses dark.
+- **AC24** Changing the theme from the View menu, the toggle or a `theme` effect does three things: it updates `<html data-theme>` straight away, it updates the toggle icon and label, and it writes `tanzi-os:theme` = `'dark'` or `'light'`. The theme toggle switches dark to light and light to dark.
+- **AC25** The desktop background is `var(--wall-<wall>)` for the current wallpaper. Default is `nebula`. Changing the wallpaper writes `tanzi-os:wallpaper` = `'nebula'`, `'grid'` or `'plain'`. On load, a stored valid value is used. A missing or invalid value, or a storage exception, gives `nebula`.
+- **AC26** Wobble defaults to on. Toggling it writes `tanzi-os:wobble` = `'true'` or `'false'`. On load, a stored `'true'` or `'false'` is used, and anything else (or a storage exception) gives on. The current wobble value is passed to `WindowLayer`. The hard-coded `wobble={true}` is removed, so dragging with wobble off produces no tilt.
+- **AC27** Every `localStorage` read and write sits in try/catch and uses the `tanzi-os:` key prefix. When `getItem` or `setItem` throws, the app still renders and the setting still changes for the session. No other keys are written. Window layout is not persisted.
+- **AC28** One path applies theme, wallpaper, open, tidy and restart changes. Both the menubar and `TerminalEffect` values go through it. A unit test shows that applying the `TerminalEffect`s `{type:'theme'}`, `{type:'wallpaper'}`, `{type:'open'}`, `{type:'tidy'}` and `{type:'restart'}` gives the same state (and the same persistence writes) as the matching menu action. `clear` stays the terminal's own concern.
+- **AC29** Restart (from the menu or a `restart` effect) and Tidy up keep the current theme, wallpaper and wobble. The persisted values stay as they are.
 
-### Close
+### Clock
 
-- **AC21.** Clicking the close button dispatches `close`: the window unmounts (its `[data-win]` element is gone) and its content's internal state is discarded. Its last position is kept in `Desktop` state.
+- **AC30** The clock shows the visitor's local time in the exact format `<Wkd> <h>:<mm> <AM|PM>`. `Wkd` is the en-US three-letter weekday (Sun to Sat). The hour runs 1 to 12 with no leading zero. Minutes are two digits. The parts are separated by single ASCII spaces, not U+202F or U+00A0. The output does not depend on the browser locale. Examples:
+  - Saturday 15:42 gives "Sat 3:42 PM".
+  - Monday 00:05 gives "Mon 12:05 AM".
+  - Friday 12:00 gives "Fri 12:00 PM".
+  - Sunday 09:07 gives "Sun 9:07 AM".
+- **AC31** The formatting is a pure function covered by unit tests, including midnight, noon, 11:59 PM and every weekday. If it lives in `src/logic` it must pass the purity guard, which bans `Date`, so it would have to take plain numbers.
+- **AC32** The clock is visible on first render with no blank frame. It updates on an interval of at most 15s. The interval is cleared on unmount, and StrictMode double mounting does not leak a second interval. It uses tabular numerals, neutral-300 and padding 0 6px 0 10px. It is not focusable. It is exposed as text, ideally a `<time>` element with a machine-readable `dateTime`.
 
-### Reduced motion
+### Motion and accessibility
 
-- **AC22.** With `prefers-reduced-motion: reduce` (checked at the time of the interaction): dragging applies no rotation and no scale; minimizing and restoring use opacity only with no translate or scale (the genie is off); a newly opened window appears in place with no fly-out. Inertness and position behaviour are unchanged.
+- **AC33** Hover motion: links get `translateY(-2px) rotate(-8deg)` with the bouncy spring, and the theme toggle gets `rotate(40deg)`. Under `prefers-reduced-motion: reduce` there is no transform motion; color changes may remain. Menus open and close without animation in both modes.
+- **AC34** Under reduced motion the "Wobbly windows" item still toggles and persists, but dragging never tilts. This behaviour already exists in `Window`, and AC26 must not break it.
+- **AC35** WCAG AA (4.5:1 for normal text) in both dark and light, verified by unit tests using `tests/helpers/contrast.ts`. The pairs to check:
+  - menu item text on `--color-surface`
+  - the same text on accent 16% and accent 26% blended over surface
+  - the hint (neutral-500) on surface
+  - trigger labels (neutral-300) and the "tanzi.os" label (accent)
+  - the clock (neutral-300)
 
-### Keyboard and accessibility
+  Measure menubar text against the menubar background composited (72% `--color-bg`) over each solid wallpaper base color it can sit on: `--color-bg`, `--color-section`, `--color-accent-900`. Icon-only links and the toggle need 3:1 for their icon color against the menubar background.
 
-- **AC23.** Every minimize and close button of a non-minimized window is reachable with Tab in DOM order and activates with Enter and Space. The focused button shows the `:focus-visible` outline, and the outline is not clipped by the window's `overflow: hidden`.
-- **AC24.** Titlebar text (`--color-neutral-400` on `--color-bg`) meets WCAG AA (at least 4.5:1) in both dark and light themes, and the button icon color against `--color-bg` meets at least 3:1 in both themes, verified by a test that uses the existing contrast helpers. No new color tokens are introduced; if one is needed, it meets the same thresholds.
-- **AC25.** No mouse-only behaviour: all chrome actions (minimize, close) are available as buttons; double-click and drag are pointer conveniences only.
+- **AC36** Minimized windows stay unreachable while a menu is open or after menu actions. "Minimize all" leaves no window control in the tab order.
 
-### Quality
+### Structure and tests
 
-- **AC26.** Logic that can be pure (for example the genie transform from `x, y, width, vw, vh`, and the window transform for a given drag/min/reduced-motion state) lives in `src/logic/` and has unit tests. `useDrag` lives in `src/hooks/useDrag.ts`.
-- **AC27.** Under `StrictMode`, mounting and unmounting `Desktop` and running a drag leaves no stray `window` or `document` listeners, pending animation frames or console errors or warnings.
-- **AC28.** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass. No existing test is deleted or weakened; the T03 "no buttons" test is updated to the new chrome as described in Assumption 14.
+- **AC37** Logic that can be pure lives in `src/logic` and is unit tested. That covers next/previous item and trigger index with wrap and separator skipping, the clock formatting, the parsing and validation of stored theme, wallpaper and wobble values, and the settings and menu state transitions. The DOM-touching `localStorage` and `document.documentElement` helpers live in one small module outside `src/logic`, with tests for valid, invalid, missing and throwing storage.
+- **AC38** Component tests (Testing Library) cover AC6-AC8, AC10-AC16 and AC18-AC22. That includes the checked states updating after an action, such as minimizing hello unchecking "hello.txt".
+- **AC39** Playwright e2e at 1280x720 covers:
+  - opening each menu by click and by keyboard
+  - Escape returning focus
+  - click-outside closing the menu
+  - theme switching that survives a reload
+  - wallpaper switching that survives a reload
+  - wobble off giving no tilt while dragging
+  - Tidy up and Restart restoring the default layout while keeping theme and wallpaper
+  - the clock matching `^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) (1[0-2]|[1-9]):[0-5]\d (AM|PM)$`
+- **AC40** Existing tests whose assumptions the menubar breaks are updated without being weakened, and each change is listed in the QA report and autobuild log as a deliberate requirement change. Known cases:
+  - The page-wide "exactly 10 buttons" checks are scoped to the window layer and keep the same strictness.
+  - The Tab-order e2e tests account for the menubar tab stops placed before the windows.
+  - The purity `EXPECTED` list adds any new logic module.
+
+  No test is deleted or skipped.
+
+- **AC41** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass. No console errors or warnings appear during e2e.
 
 ## Out of scope
 
-- Window contents (Hello, About, Experience, Projects, Terminal, About this site bodies): T07. Real window heights and re-tuning `WIN_META.height`: T07.
-- The Wobbly windows toggle, adding `wobble` to `State`, and reading or writing `tanzi-os:wobble` in localStorage: T05 (menus). Restart keeping wobble: T08.
-- Menubar, menus and closing menus on window pointerdown: T05.
-- Dock, dock buttons and aiming the genie at the real dock button: T06. The genie keeps the prototype target (viewport center x, `vh - 40`).
-- Any UI to restore or open a window: none exists until T05/T06. Restore and open are exercised in tests by dispatching reducer actions or by rendering `Window` with changed props.
-- Moving or resizing windows with the keyboard, focus return after minimize or close, Escape handling, and window resizing by the user: T09 (accessibility pass) or later.
-- Boot screen and Restart: T08.
-- Mobile and touch-specific layout below 760px: later epic (decision 1). Pointer events still work with touch on desktop sizes.
-- Re-clamping on resize: already done in T03.
-- Changes to `design_handoff_tanzi_os/`.
+- The boot screen and the boot progress for Restart (T08). In T05, Restart resets the layout straight away.
+- Resetting window internal state on Restart (terminal history, experience tab, verb). Those windows have no content until T07, and T08 owns Restart's full reset.
+- Running `help` inside the terminal from "Terminal commands". T05 only opens and focuses the terminal. T07 adds the Terminal UI and wires the command run, using the same effect path (AC28).
+- Building the Terminal UI or wiring `runCommand` to an input (T07).
+- The Dock (T06).
+- Window contents (T07).
+- The real résumé file and real links (T10). A missing `/resume.pdf` is acceptable.
+- Mobile and responsive layouts (<760px), including the hide-menus-behind-TC-mark behaviour (decision 1, T11).
+- Persisting window layout (decision 4).
+- Hover tooltips beyond accessible names (T09 accessibility pass).
+- Menu open/close animations.
+- Changing `index.html`'s inline theme script. It is kept as-is and the app must agree with it.
 
 ## Assumptions
 
-1. **Window semantics.** Windows stay `role="region"` (a `<section>` with an accessible name), not `role="dialog"`, as decided in T03 (assumption 12) and design-decisions D (windows are non-modal). This also keeps the T03 e2e tests valid.
-2. **Wobble ownership.** `Window` takes a `wobble: boolean` input. In T04, `Desktop` passes `true` (the spec default "on by default"). T05 adds `wobble` to `State`, the toggle and the `tanzi-os:wobble` persistence, and passes the real value. T04 does not touch localStorage.
-3. **Wobble off keeps the lift scale.** With wobble disabled but reduced motion off, dragging still applies `scale(1.015)` and no rotation, matching the prototype. Under reduced motion there is neither.
-4. **Genie target** follows the prototype, not the spec's "dock center": x is the viewport center (`vw / 2`), y is `vh - 40` (design-decisions B, simplest option; T06 may refine).
-5. **`site` has close only.** It is not in the dock and the Windows menu does not list it, so a minimized `site` window would be unrecoverable. Following the prototype it has no minimize button and no double-click minimize.
-6. **Inert immediately.** `inert` and `pointer-events: none` are applied as soon as `min` becomes true, not after the animation ends. The genie still plays because the element stays mounted with opacity transitioning to 0. `inert` replaces T03's `hidden`, which would cut the animation. `aria-hidden` is optional because `inert` already removes the subtree from the accessibility tree.
-7. **Fly-out scope.** Only a closed-to-open transition after `Desktop`'s first mount flies out. This includes windows reopened by `tidy`. Windows open at first load do not animate (the prototype starts with them open and not minimized). The next-frame step uses `requestAnimationFrame` (double rAF is fine), per design-decisions C.
-8. **Drag commits on release.** The window follows the pointer locally (ref or local state plus a transform or position style) and `Desktop` gets a single `move` on release, per design-decisions C ("keep the reducer for discrete events only"). The clamp during the drag uses the viewport size at drag time.
-9. **Focus on keyboard focus.** Bringing a window to the front on `focusin` is added to the spec's "mousedown brings to front", so a keyboard-focused window is not hidden behind others (WCAG 2.4.11). This has no effect on dock click logic, because dock buttons are outside windows.
-10. **Reduced motion detection** uses `matchMedia('(prefers-reduced-motion: reduce)')`. Reading it at interaction or render time is enough; live updates without a re-render are not required. Transitions also stay short under the existing global theme.css rule, so "keep fades" from the spec effectively means an instant opacity change. That is acceptable.
-11. **Button labels and window icons are content**, so they live in `src/data.ts` (CLAUDE.md: no copy outside `data.ts`). The icons are stored as component references (design-decisions C).
-12. **Primary button only.** Right-click or middle-click on the titlebar does not start a drag. Touch and pen contacts do.
-13. **Cursor.** The titlebar uses `cursor: grab` per the spec. Showing `grabbing` while dragging is allowed but not required.
-14. **T03 AC22 test.** The T03 criterion "placeholders hold only their title, no buttons" is replaced by this ticket's AC5-AC7. Updating that test to assert the new chrome (title text present, the expected labelled buttons per window, `data-min="false"`, visible) is a requirement change, not a weakening. Every other T03 test stays as is.
-15. **Placeholder body.** The content slot holds an empty or minimal placeholder that adds no new copy (the title already appears in the titlebar). It is not focusable, so Tab order is only the chrome buttons.
-16. **Button size.** 24x24 meets the WCAG 2.2 AA target size minimum (2.5.8). It overrides `.btn-icon`'s 36px just for the chrome.
+1. **"TC mark menu" means the first menu, "tanzi.os".** The spec and prototype style it as a bold accent label with the `CircleHalf` icon, not the outlined TC monogram, which belongs to "About this site" and the boot screen. Its contents are About this site, a divider and Restart….
+2. **ARIA pattern.** The WAI-ARIA menubar pattern (`menubar` / `menuitem` / `menuitemcheckbox` / `menuitemradio`) is used rather than the disclosure pattern, because the spec's accessibility note names `role="menu"` and `menuitemcheckbox`. Menu triggers are `menuitem`, not `button`, so they do not count as buttons in role queries.
+3. **Focus after choosing an item.** Focus returns to the trigger. Items that open or restore a window may move focus into that window instead, which is the planner's choice, but focus is never lost.
+4. **Restart in T05 resets immediately.** It reuses the reducer's `restart`, with no boot screen. T08 will insert the boot screen in front of the same path.
+5. **Keeping settings across Restart.** Restart and Tidy keep theme, wallpaper and wobble (decision 3), and the prototype's reset of wobble is not copied. How settings live alongside `State` (in it or beside it) is left to the planner, as long as AC28 and AC29 hold.
+6. **Storage formats.** Theme is stored as `'dark'`/`'light'` (matching the inline script), wallpaper as `'nebula'`/`'grid'`/`'plain'`, and wobble as `'true'`/`'false'`. A value is written only when the user changes the setting, so with nothing stored the theme keeps following `prefers-color-scheme` on later loads. No live listener for OS theme changes is added.
+7. **Clock.** The clock uses the visitor's local time zone, a fixed en-US format and ASCII spaces. Modern ICU inserts U+202F before AM/PM, and decision 12's literal "Sat 3:42 PM" uses a plain space. A 15s interval is enough. Aligning ticks to the minute is optional.
+8. **Link targets.** External http(s) links get `target="_blank" rel="noopener noreferrer"`. `mailto:` links have no target. "Résumé (PDF)" opens in a new tab. This settles the open note in design-decisions B for the menubar only.
+9. **Theme toggle naming.** Its accessible name describes the action ("Switch to light mode" / "Switch to dark mode"). It is not `aria-pressed`, since it toggles between two named states. The prototype's tooltip text "Toggle theme" may be kept as the `title`.
+10. **Hover-to-switch is pointer only.** Keyboard switching uses ArrowLeft and ArrowRight (AC14).
+11. **Pointer-down closes the menu.** The prototype closed menus on mousedown, so outside clicks close on pointer-down rather than on click. A pointer-down on a trigger is handled by the trigger's own toggle and is not treated as outside.
+12. **Contrast measurement.** The composite approach in AC35 is used because the menubar is translucent. Gradients are approximated by their solid stops, as T01 did for solid token pairs.
+13. **Copy location.** All menu labels and accessible names go into `src/data.ts`, per CLAUDE.md. `WIN_TITLES` is reused for the Windows-menu items.
+14. **Existing-test edits are sanctioned requirement changes.** The page-wide 10-button checks and the first-Tab-lands-on-hello e2e tests are adjusted (AC40), following the T04 precedent.
 
 ## Open questions
 
