@@ -566,7 +566,7 @@ textarea.input {
   --color-bg: #e4e7f5;
   --color-surface: #f3f5fe;
   --color-text: #292b31;
-  --color-accent: #796cbf;
+  --color-accent: #6558ad; /* darkened from #796cbf (4.1:1) for AA: 5.4:1 on surface, 4.8:1 on bg */
   --color-divider: color-mix(in srgb, #292b31 16%, transparent);
   --color-section: #d2cefd;
   --color-neutral-100: #292b31;

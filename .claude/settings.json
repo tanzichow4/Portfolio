@@ -1,5 +1,6 @@
 {
   "model": "sonnet",
+  "enabledMcpjsonServers": ["playwright"],
   "permissions": {
     "allow": [
       "Bash(npm run *)",
@@ -9,14 +10,19 @@
       "Bash(git diff*)",
       "Bash(git log*)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(npx vitest*)",
+      "Bash(npx tsc*)",
+      "Bash(npx eslint*)",
+      "Bash(npx prettier*)"
     ],
     "deny": [
       "Read(./.env)",
       "Read(./.env.*)",
       "Bash(git push --force*)",
       "Bash(git reset --hard*)",
-      "Bash(rm -rf *)"
+      "Bash(rm -rf *)",
+      "Bash(git push*)"
     ]
   },
   "hooks": {

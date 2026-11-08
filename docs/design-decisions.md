@@ -90,5 +90,5 @@ Nothing to run. To review: open `design_handoff_tanzi_os/Tanzi OS.dc.html` throu
 8. Terminal: add command history and usage messages; no tab completion.
 9. Personal server, static `dist/`; no deep links in v1. Server details still open.
 10. Add `<noscript>` summary and OG/meta tags.
-11. Light mode: darken `neutral-400` (#5c6073) and `neutral-500` (#626679) for AA. Accent (#796cbf, ~4.1:1 on surface, 3.6:1 on bg) is NOT changed yet; needs a designer call.
+11. Light mode: darkened `neutral-400` (#5c6073), `neutral-500` (#626679) and `--color-accent` (#6558ad, was #796cbf) for WCAG AA. Re-check contrast when adding colors.
 12. Clock fixed to "Sat 3:42 PM" format (en-US).
