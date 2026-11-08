@@ -572,8 +572,8 @@ textarea.input {
   --color-neutral-100: #292b31;
   --color-neutral-200: #3f424d;
   --color-neutral-300: #595d6c;
-  --color-neutral-400: #75798c;
-  --color-neutral-500: #9397ab;
+  --color-neutral-400: #5c6073;
+  --color-neutral-500: #626679;
   --color-neutral-600: #b2b6ca;
   --color-neutral-700: #cfd3e5;
   --color-neutral-800: #e4e7f5;
@@ -581,12 +581,23 @@ textarea.input {
   --color-accent-100: #2b2741;
   --color-accent-200: #423a6a;
   --color-accent-300: #5d5294;
-  --color-accent-400: #796cbf;
+  /* Decision 11 / assumption A3: spec #796cbf fails AA as text, so accent-400 uses #6558ad (5.4:1 on surface). */
+  --color-accent-400: #6558ad;
   --color-accent-500: #968ae0;
   --color-accent-600: #b5abfc;
   --color-accent-700: #d2cefd;
   --color-accent-800: #e7e5fe;
   --color-accent-900: #f5f4ff;
+  --color-section-glow: #e7e5fe;
+  --color-accent-2-100: #2b293a;
+  --color-accent-2-200: #423e5d;
+  --color-accent-2-300: #5c5783;
+  --color-accent-2-400: #7972a9;
+  --color-accent-2-500: #9690c9;
+  --color-accent-2-600: #b5afe8;
+  --color-accent-2-700: #d2cefd;
+  --color-accent-2-800: #e7e5fe;
+  --color-accent-2-900: #f5f4ff;
   --shadow-sm: 0 0 0 1px #cfd3e5;
   --shadow-md: 0 0 0 1px #b2b6ca, 0 6px 18px rgba(40, 44, 80, 0.14);
   --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(40, 44, 80, 0.2);
