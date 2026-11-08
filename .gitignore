@@ -39,9 +39,9 @@ service-account*.json
 deploy.env
 *.sshconfig
 
-# Claude Code personal/local files
-.claude/settings.local.json
-.claude/*.local.*
+# Claude Code files (agents, commands, settings, instructions): never committed
+.claude/
+CLAUDE.md
 CLAUDE.local.md
 
 # Logs, coverage, OS junk
