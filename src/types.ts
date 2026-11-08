@@ -15,17 +15,7 @@ export interface Line {
 }
 export interface State {
   wins: Record<WinId, Win>;
-  order: WinId[]; // z-order, back -> front
-  menu: MenuId;
-  theme: Theme;
-  wall: Wall;
-  wobble: boolean;
-  drag: WinId | null;
-  tilt: number;
-  verb: number;
-  tab: number;
-  cmd: string;
-  lines: Line[];
-  booting: boolean;
-  bootPct: number;
+  order: readonly WinId[]; // z-order, back -> front
+  vw: number;
+  vh: number;
 }

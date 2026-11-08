@@ -1,4 +1,5 @@
 import type { Icon } from '@phosphor-icons/react';
+import type { WinId } from './types';
 import {
   Code,
   Coffee,
@@ -115,3 +116,12 @@ export const FACTS: Fact[] = [
 
 export const VERBS = ['build', 'break', 'fix', 'ship', 'debug', 'refactor', 'design'];
 export const RESUME_URL = '/resume.pdf';
+
+export const WIN_TITLES: Readonly<Record<WinId, string>> = {
+  hello: 'hello.txt',
+  about: 'about.md',
+  exp: 'experience.log',
+  proj: 'projects',
+  term: 'terminal',
+  site: 'About this site',
+};
