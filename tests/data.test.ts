@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXP, FACTS, LINKS, PROJECTS, VERBS } from './data';
+import { EXP, FACTS, LINKS, PROJECTS, VERBS } from '../src/data';
 
 describe('data', () => {
   it('has content for every section', () => {

@@ -9,3 +9,44 @@ dist/
 !.vscode/extensions.json
 .idea/
 .DS_Store
+
+# Playwright
+test-results/
+playwright-report/
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+id_rsa*
+id_ed25519*
+*.secret
+*.secrets
+secrets/
+.npmrc
+.netrc
+credentials.json
+service-account*.json
+
+# Deploy (personal server)
+.deploy/
+deploy.env
+*.sshconfig
+
+# Claude Code personal/local files
+.claude/settings.local.json
+.claude/*.local.*
+CLAUDE.local.md
+
+# Logs, coverage, OS junk
+*.log
+npm-debug.log*
+coverage/
+Thumbs.db
+desktop.ini

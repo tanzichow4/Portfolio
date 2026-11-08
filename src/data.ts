@@ -1,3 +1,18 @@
+import type { Icon } from '@phosphor-icons/react';
+import {
+  Code,
+  Coffee,
+  CookingPot,
+  EnvelopeSimple,
+  GithubLogo,
+  Graph,
+  Horse,
+  LinkedinLogo,
+  MapPin,
+  Stack,
+  Terminal,
+} from '@phosphor-icons/react';
+
 // All content lives here. PLACEHOLDER — replace with real data.
 export interface Exp {
   when: string;
@@ -8,18 +23,18 @@ export interface Exp {
 }
 export interface Project {
   name: string;
-  icon: string;
+  icon: Icon;
   href: string;
   desc: string;
   tags: string[];
 }
 export interface LinkItem {
   label: string;
-  icon: string;
+  icon: Icon;
   href: string;
 }
 export interface Fact {
-  icon: string;
+  icon: Icon;
   label: string;
 }
 
@@ -47,32 +62,32 @@ export const EXP: Exp[] = [
   },
 ];
 
-// `icon` is a Phosphor component name from @phosphor-icons/react
+// `icon` is a Phosphor component
 export const PROJECTS: Project[] = [
   {
     name: 'Pathfinder',
-    icon: 'Graph',
+    icon: Graph,
     href: '#',
     desc: 'Graph search, visualized. Draw walls, watch A* think.',
     tags: ['TypeScript', 'Canvas'],
   },
   {
     name: 'Pantry',
-    icon: 'CookingPot',
+    icon: CookingPot,
     href: '#',
     desc: 'Recipes from whatever is already in your fridge.',
     tags: ['React Native', 'SQLite'],
   },
   {
     name: 'tinyq',
-    icon: 'Stack',
+    icon: Stack,
     href: '#',
     desc: 'A durable job queue on Postgres, in 600 lines.',
     tags: ['Go', 'Postgres'],
   },
   {
     name: 'dotfiles',
-    icon: 'Terminal',
+    icon: Terminal,
     href: '#',
     desc: 'My over-tuned setup, bootstrapped in one command.',
     tags: ['Shell', 'Nix'],
@@ -80,17 +95,17 @@ export const PROJECTS: Project[] = [
 ];
 
 export const LINKS: LinkItem[] = [
-  { label: 'GitHub', icon: 'GithubLogo', href: 'https://github.com/' },
-  { label: 'LinkedIn', icon: 'LinkedinLogo', href: 'https://linkedin.com/' },
-  { label: 'Email', icon: 'EnvelopeSimple', href: 'mailto:hello@tanzi.dev' },
+  { label: 'GitHub', icon: GithubLogo, href: 'https://github.com/' },
+  { label: 'LinkedIn', icon: LinkedinLogo, href: 'https://linkedin.com/' },
+  { label: 'Email', icon: EnvelopeSimple, href: 'mailto:hello@tanzi.dev' },
 ];
 
 export const FACTS: Fact[] = [
-  { icon: 'MapPin', label: 'New York' },
-  { icon: 'Code', label: 'TypeScript · Go · Python' },
-  { icon: 'CookingPot', label: 'Ambitious home cook' },
-  { icon: 'Horse', label: 'Mediocre at chess' },
-  { icon: 'Coffee', label: 'Runs on oat lattes' },
+  { icon: MapPin, label: 'New York' },
+  { icon: Code, label: 'TypeScript · Go · Python' },
+  { icon: CookingPot, label: 'Ambitious home cook' },
+  { icon: Horse, label: 'Mediocre at chess' },
+  { icon: Coffee, label: 'Runs on oat lattes' },
 ];
 
 export const VERBS = ['build', 'break', 'fix', 'ship', 'debug', 'refactor', 'design'];
