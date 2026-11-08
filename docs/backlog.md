@@ -12,7 +12,7 @@ Status markers (`/autobuild` updates these):
 
 ## Tickets
 
-- [ ] T01 Theme tokens, fonts, light-mode contrast fixes, no-flash theme init (decisions 4, 11; bundle Inter via `@fontsource/inter`, remove the Google Fonts `@import`)
+- [x] T01 Theme tokens, fonts, light-mode contrast fixes, no-flash theme init (decisions 4, 11; bundle Inter via `@fontsource/inter`, remove the Google Fonts `@import`)
 - [ ] T02 Pure logic modules and unit tests: layout, z-order, dock click logic, drag clamp, terminal `runCommand` (decision 8: history and usage messages, no tab completion)
 - [ ] T03 `Desktop` reducer and wiring (decisions 5, 6, 7: position/open/minimized only, re-clamp on resize, min 1280x720)
 - [ ] T04 `Window` chrome: drag with pointer events, minimize/genie, close, wobble, reduced motion
