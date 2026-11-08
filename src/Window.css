@@ -1,0 +1,43 @@
+.win-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 16px;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  background: var(--color-bg);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.win-icon {
+  color: var(--color-accent);
+  flex: none;
+}
+
+.win-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.win-btns {
+  display: flex;
+  gap: 2px;
+}
+
+.win-btn.btn-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--color-neutral-400);
+}
+
+.win-btn:focus-visible {
+  outline-offset: 1px;
+}
+
+.win-body {
+  flex: 1;
+}

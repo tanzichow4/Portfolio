@@ -1,17 +1,23 @@
 import type { Icon } from '@phosphor-icons/react';
 import type { WinId } from './types';
 import {
+  Briefcase,
   Code,
   Coffee,
   CookingPot,
   EnvelopeSimple,
+  Folder,
   GithubLogo,
   Graph,
+  HandWaving,
   Horse,
+  Info,
   LinkedinLogo,
   MapPin,
   Stack,
   Terminal,
+  TerminalWindow,
+  User,
 } from '@phosphor-icons/react';
 
 // All content lives here. PLACEHOLDER — replace with real data.
@@ -125,3 +131,14 @@ export const WIN_TITLES: Readonly<Record<WinId, string>> = {
   term: 'terminal',
   site: 'About this site',
 };
+
+export const WIN_ICONS: Readonly<Record<WinId, Icon>> = {
+  hello: HandWaving,
+  about: User,
+  exp: Briefcase,
+  proj: Folder,
+  term: TerminalWindow,
+  site: Info,
+};
+
+export const CHROME_LABELS = { minimize: 'Minimize', close: 'Close' } as const;

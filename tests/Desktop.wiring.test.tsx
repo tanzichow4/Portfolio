@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Desktop from '../src/Desktop';
 import { WIN_TITLES } from '../src/data';
@@ -67,14 +67,28 @@ describe('Desktop wiring', () => {
     expect(screen.queryByRole('region', { name: 'About this site' })).toBeNull();
   });
 
-  it('AC22: placeholders hold only their title, no buttons, and expose data-min', () => {
+  // DELIBERATE REQUIREMENT CHANGE (00-requirements Assumption 14): T04 adds the window
+  // chrome, so the T03 criterion "placeholders hold only their title, no buttons" is
+  // superseded by this stricter test (title, labelled region, exactly two labelled buttons).
+  it('AC22 -> T04 AC5-AC7 (deliberate requirement change, supersedes the T03 no-buttons criterion): each window shows its title, a labelled region and exactly its labelled minimize and close buttons', () => {
     render(<Desktop />);
-    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.getAllByRole('button')).toHaveLength(10);
     for (const id of DOCK5) {
-      const el = box(id)!;
-      expect(el.textContent).toBe(WIN_TITLES[id]);
+      const title = WIN_TITLES[id];
+      const el = screen.getByRole('region', { name: title });
+      expect(el).toBe(box(id));
+      expect(el.querySelector('.win-title')?.textContent).toBe(title);
       expect(el.getAttribute('data-min')).toBe('false');
       expect(el).toBeVisible();
+      expect(el).not.toHaveAttribute('inert');
+      const buttons = within(el).getAllByRole('button');
+      expect(buttons.map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([
+        `Minimize ${title}`,
+        `Close ${title}`,
+      ]);
+      for (const b of buttons) expect(b).toHaveAttribute('type', 'button');
+      expect(within(el).getByRole('button', { name: `Minimize ${title}` })).toBeInTheDocument();
+      expect(within(el).getByRole('button', { name: `Close ${title}` })).toBeInTheDocument();
     }
   });
 

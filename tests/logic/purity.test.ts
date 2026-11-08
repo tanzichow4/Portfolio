@@ -6,7 +6,17 @@ const sources = import.meta.glob('/src/logic/*.ts', {
   eager: true,
 }) as Record<string, string>;
 
-const EXPECTED = ['desktop', 'dock', 'drag', 'history', 'layout', 'terminal', 'windows', 'zorder'];
+const EXPECTED = [
+  'desktop',
+  'dock',
+  'drag',
+  'history',
+  'layout',
+  'motion',
+  'terminal',
+  'windows',
+  'zorder',
+];
 
 // Drop comments so words inside them are not flagged.
 const stripComments = (src: string): string =>
