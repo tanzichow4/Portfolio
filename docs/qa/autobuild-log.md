@@ -17,3 +17,10 @@ Baseline: lint, typecheck, unit tests green (3 tests).
 - Results: lint, typecheck, 285 unit tests, build, format:check, 22 e2e all green. QA: PASS (docs/qa/T02-qa.md). No fix rounds.
 - Assumptions: window heights are estimates in `WIN_META` (hello 420, about 460, exp 300, proj 330, term 310, site 340), the dock top is `vh - 76`, tidy closes "About this site", terminal sits 6px above its formula so it clears the dock, `raise` returns `readonly WinId[]` (T03 must type `State.order` as readonly), `open` with no argument prints a usage line, VERSION = '1.0'.
 - Gaps: heights must be re-checked against real windows in T07; `State` in `types.ts` still has `verb`, `tab`, `cmd`, `lines` (conflicts with decision 5, left for T03); NAME/ROLE/EMAIL/VERSION not yet in the Decisions log; no mutation checks on new tests; no coverage tool installed.
+
+### T03 done
+
+- Shipped: `State` is now `{ wins, order, vw, vh }` (verb/tab/cmd/lines/drag/tilt removed per decision 5); pure `desktopReducer` and `initialDesktop` in `src/logic/desktop.ts` (open, close, minimize, restore, focus, dockClick, move, minimizeAll, showAll, tidy, restart, resize); `WIN_TITLES` in `data.ts`; `Desktop` wired with `useReducer`, lazy init from the viewport, one resize listener, and labelled placeholder windows.
+- Results: lint, typecheck, 341 unit tests, build, format:check, 25 e2e all green. QA: PASS (docs/qa/T03-qa.md). No fix rounds.
+- Assumptions: resize re-clamps with the drag clamp only (windows can end up under the dock; Tidy up restores layout); `tidy` and `restart` produce identical state and both close "About this site"; invalid ids and non-finite sizes return the same state; minimized placeholders use `hidden`; `menu`, `theme`, `wall`, `wobble`, `booting` removed from `State` for now (T05/T08 add them back).
+- Gaps: AC21 (minimized placeholder is mounted, hidden, not focusable) has no component/e2e test yet, add it once T04-T06 can minimize; purity test title still says "seven" modules; no mutation checks on new tests; resize to 0x0 is accepted (clamps cleanly); placeholders have no border or shadow until T04.
