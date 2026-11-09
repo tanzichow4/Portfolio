@@ -75,3 +75,28 @@
   margin: 0 4px 6px;
   background: var(--color-divider);
 }
+
+.dock-win:hover .dock-face {
+  transform: translateY(-10px) scale(1.15);
+}
+
+.dock-win:active .dock-face {
+  transform: translateY(-4px) scale(0.95);
+}
+
+.dock-link:hover .dock-face {
+  transform: translateY(-10px) scale(1.15) rotate(-8deg);
+  color: var(--color-text);
+}
+
+.dock-item:hover {
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-win:hover .dock-face,
+  .dock-win:active .dock-face,
+  .dock-link:hover .dock-face {
+    transform: none;
+  }
+}

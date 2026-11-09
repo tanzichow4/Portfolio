@@ -151,3 +151,65 @@ describe('T06 Dock.css at-rest styles', () => {
     expect(theme).toMatch(/:focus-visible[^{]*\{[^}]*outline:\s*2px solid var\(--color-accent\)/);
   });
 });
+
+describe('T06 Dock.css hover and press motion', () => {
+  const tf = (selector: string) => rule(selector).transform.replace(/\s+/g, ' ');
+  const media = /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*)\}\s*$/.exec(clean);
+
+  it('T06 AC17: window button hover lifts the face by translateY(-10px) scale(1.15)', () => {
+    expect(tf('.dock-win:hover .dock-face')).toBe('translateY(-10px) scale(1.15)');
+  });
+
+  it('T06 AC17: window button pressed pose is translateY(-4px) scale(.95)', () => {
+    expect(tf('.dock-win:active .dock-face')).toMatch(/^translateY\(-4px\) scale\(0?\.95\)$/);
+  });
+
+  it('T06 AC17: link hover adds rotate(-8deg)', () => {
+    expect(tf('.dock-link:hover .dock-face')).toBe('translateY(-10px) scale(1.15) rotate(-8deg)');
+  });
+
+  it('T06 AC17: the pressed rule comes after the hover rule so it wins', () => {
+    const h = clean.indexOf('.dock-win:hover .dock-face {');
+    const a = clean.indexOf('.dock-win:active .dock-face {');
+    expect(h).toBeGreaterThan(-1);
+    expect(a).toBeGreaterThan(h);
+  });
+
+  it('T06 AC17: face transitions transform over .35s with --ease-bouncy', () => {
+    const t = rule('.dock-face').transition.replace(/\s+/g, ' ');
+    expect(t).toMatch(/transform 0?\.35s var\(--ease-bouncy\)/);
+  });
+
+  it('T06 AC5: link hover turns the icon colour to --color-text', () => {
+    expect(rule('.dock-link:hover .dock-face').color).toBe('var(--color-text)');
+  });
+
+  it('T06 AC18: the face ignores pointer events so hover is decided by the fixed host box', () => {
+    expect(rule('.dock-face')['pointer-events']).toBe('none');
+  });
+
+  it('T06 AC18: the hover and press transforms are never applied to the host', () => {
+    expect(clean).not.toMatch(/\.dock-(win|link|item):(hover|active)\s*\{[^}]*transform/);
+    expect(rule('.dock-item').transform).toBeUndefined();
+  });
+
+  it('T06 AC18: a hovered item is raised so the lifted face paints over neighbours', () => {
+    expect(rule('.dock-item:hover')['z-index']).toBe('1');
+  });
+
+  it('T06 AC19: a reduced-motion block is last and sets transform none on all three face selectors', () => {
+    expect(media).not.toBeNull();
+    const body = media![1];
+    const m = /([^{}]+)\{([^{}]*)\}/.exec(body)!;
+    const sels = m[1].split(',').map((x) => x.replace(/\s+/g, ' ').trim());
+    expect(sels).toEqual(
+      expect.arrayContaining([
+        '.dock-win:hover .dock-face',
+        '.dock-win:active .dock-face',
+        '.dock-link:hover .dock-face',
+      ]),
+    );
+    expect(m[2]).toMatch(/transform:\s*none/);
+    expect(clean.indexOf('@media')).toBeGreaterThan(clean.indexOf('.dock-link:hover .dock-face {'));
+  });
+});
