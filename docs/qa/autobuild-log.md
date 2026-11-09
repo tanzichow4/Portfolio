@@ -67,3 +67,15 @@ Baseline: lint and typecheck green; unit tests 752 of 753, the one failure is AC
 Baseline before T08 task T2: see the T08 entry. T08 tasks T1 and earlier were already committed; nothing partial was left in the tree.
 
 Direction from Tanzi during this run: finish T08, defer T09 until after the MVP, add a simple phone fallback (T13, decision 13), and skip terminal admin editing for now (T14).
+
+### T08 done
+
+- Shipped: `BootScreen` (dialog, TC mark, progress bar, 90ms ticks) on Restart only, skipped under reduced motion; a full reset by remounting windows, with theme, wallpaper and wobble kept and nothing written to storage; the desktop inert during the boot; no fly-in after a reset; focus returned to the tanzi.os trigger through `focusSignal`; a polite live region announcing "tanzi.os restarted". `appReducer` and the `restart` action are unchanged.
+- Results: lint, typecheck, 1275 unit tests, build, format:check, 197 e2e all green. QA: PASS (docs/qa/T08-qa.md). No fix rounds.
+- **Existing tests changed (review these):** two edits, each commented `DELIBERATE REQUIREMENT CHANGE (T08 AC32)`: the Restart cases in `tests/Desktop.dock.test.tsx` and `tests/Desktop.menubar.test.tsx` now wait for the real boot; assertions unchanged and Tidy up still immediate. No test was deleted or skipped.
+- Assumptions: decision 3 overrides the README and prototype, so wobble is kept; the reset happens at the end of the boot and 100% is never painted; the boot is a named modal dialog holding focus; copy is "Restarting tanzi.os", "Restart progress" and "tanzi.os restarted"; focus goes to the tanzi.os trigger afterwards.
+- Gaps: in light mode the progress track matches the background so only the fill shows, as specified (for T09). Most new tests had no mutation check. QA used scripted bundled Chromium, and its report was saved by the orchestrator because the agent's file write was rejected. The run paused partway through on a usage limit and resumed with nothing lost.
+
+### T10 needs a human
+
+- The code half (about and hello copy in `data.ts`) was done in T07. The rest is real content only Tanzi has: email, GitHub and LinkedIn links, experience and project text and links, and `public/resume.pdf`, which does not exist yet, so the Résumé link is currently broken. Nothing was invented.
