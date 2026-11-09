@@ -1,0 +1,81 @@
+.proj-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  list-style: none;
+}
+
+.proj-item {
+  display: block;
+  min-width: 0;
+}
+
+.proj-tile {
+  display: block;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  appearance: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+}
+
+.proj-face {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 100%;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.proj-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.proj-icon {
+  color: var(--color-accent);
+}
+
+.proj-arrow {
+  color: var(--color-neutral-500);
+}
+
+.proj-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: normal;
+  line-height: inherit;
+  color: var(--color-text);
+}
+
+.proj-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-neutral-500);
+}
+
+.proj-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.proj-tag {
+  font-size: 10px;
+  padding: 2px 7px;
+}

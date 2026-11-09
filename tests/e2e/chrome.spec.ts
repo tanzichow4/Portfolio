@@ -369,6 +369,8 @@ test.describe('window chrome', () => {
     // primary button and the "Say hi" link) after its two window controls.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): experience's body adds two stops (the selected
     // tab 'Northwind' and the panel) after its two window controls, so 13 -> 15 stops.
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): projects' body adds four tile links after its
+    // two window controls, so 15 -> 19 stops.
     const want = [
       'Minimize hello.txt',
       'Close hello.txt',
@@ -379,9 +381,10 @@ test.describe('window chrome', () => {
         `Minimize ${TITLES[id]}`,
         `Close ${TITLES[id]}`,
         ...(id === 'exp' ? ['Northwind', 'tabpanel'] : []),
+        ...(id === 'proj' ? ['Pathfinder', 'Pantry', 'tinyq', 'dotfiles'] : []),
       ]),
     ];
-    expect(await stopNames(page, 15)).toEqual(want);
+    expect(await stopNames(page, 19)).toEqual(want);
   });
 
   test('AC23: Enter activates Minimize', async ({ page }) => {

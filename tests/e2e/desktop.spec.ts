@@ -22,7 +22,8 @@ test('AC24: at 1280x720 the five windows sit at the reference positions and site
     about: { x: 640, y: 64 },
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): exp height 300 -> 290, so y 344 -> 354.
     exp: { x: 64, y: 354 },
-    proj: { x: 538, y: 300 },
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): proj height 330 -> 385, so y 300 -> 644 - 385 = 259.
+    proj: { x: 538, y: 259 },
     term: { x: 810, y: 334 },
   };
   for (const [id, p] of Object.entries(want)) {

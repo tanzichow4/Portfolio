@@ -62,6 +62,17 @@ for (const theme of ['dark', 'light'] as const) {
       });
     }
 
+    // Project description sits on the tile background, --color-bg, not on the surface.
+    const bg = get('bg');
+    it(`T07 AC12: ${theme}: project description (neutral-500) on bg is at least 4.5:1`, () => {
+      const r = contrastRatio(get('neutral-500'), bg);
+      expect(r, r.toFixed(2)).toBeGreaterThanOrEqual(4.5);
+    });
+    it(`T07 AC12: ${theme}: project name (text) on bg is at least 4.5:1`, () => {
+      const r = contrastRatio(get('text'), bg);
+      expect(r, r.toFixed(2)).toBeGreaterThanOrEqual(4.5);
+    });
+
     const composited: [string, string, string, number][] = [
       [
         'experience active tab label (accent-400) on accent 12% over surface',

@@ -95,7 +95,11 @@ describe('Desktop wiring', () => {
       const title = WIN_TITLES[id];
       const el = screen.getByRole('region', { name: title });
       expect(el).toBe(box(id));
-      expect(el.querySelector('.win-title')?.textContent).toBe(title);
+      // DELIBERATE REQUIREMENT CHANGE (T07 AC52): AC34 makes the projects titlebar read
+      // `~/projects`; its region name and button labels stay `projects`.
+      expect(el.querySelector('.win-title')?.textContent).toBe(
+        id === 'proj' ? '~/projects' : title,
+      );
       expect(el.getAttribute('data-min')).toBe('false');
       expect(el).toBeVisible();
       expect(el).not.toHaveAttribute('inert');

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import { Minus, X } from '@phosphor-icons/react';
-import { CHROME_LABELS, WIN_ICONS, WIN_TITLES } from './data';
+import { CHROME_LABELS, WIN_BAR_TITLES, WIN_ICONS, WIN_TITLES } from './data';
 import { prefersReducedMotion } from './hooks/reducedMotion';
 import { useDrag } from './hooks/useDrag';
 import { chromePose } from './logic/motion';
@@ -120,7 +120,7 @@ export default function Window({
     >
       <div className="win-titlebar" {...handlers} onDoubleClick={onTitleDouble}>
         <Icon className="win-icon" size={14} aria-hidden />
-        <span className="win-title">{title}</span>
+        <span className="win-title">{WIN_BAR_TITLES[id] ?? title}</span>
         <div className="win-btns">
           {meta.dock && (
             <button
