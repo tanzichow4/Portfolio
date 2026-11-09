@@ -4,10 +4,10 @@ import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
 import './theme.css';
-import Desktop from './Desktop';
+import App from './App';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Desktop />
+    <App />
   </StrictMode>,
 );
