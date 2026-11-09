@@ -18,7 +18,7 @@ Status markers (`/autobuild` updates these):
 - [x] T04 `Window` chrome: drag with pointer events, minimize/genie, close, wobble, reduced motion
 - [x] T05 `MenuBar` and menus (decision 12: clock "Sat 3:42 PM", en-US)
 - [x] T06 `Dock`
-- [ ] T07 Windows: Hello, About, Experience, Projects, Terminal, About this site (group sensibly, content from `src/data.ts`)
+- [x] T07 Windows: Hello, About, Experience, Projects, Terminal, About this site (group sensibly, content from `src/data.ts`)
 - [ ] T08 `BootScreen` and Restart (decisions 2, 3: boot only on Restart, skipped under reduced motion, keeps theme/wallpaper/wobble)
 - [ ] T09 Accessibility pass (semantic HTML, labelled controls, keyboard reachable, minimized windows not focusable, WCAG AA light and dark)
 - [ ] T10 Content: real data, résumé, extract about copy and hello text into `src/data.ts`
