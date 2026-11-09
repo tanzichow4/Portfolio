@@ -36,6 +36,25 @@
   border-radius: var(--radius-md);
   background: var(--color-bg);
   color: var(--color-text);
+  transition:
+    transform 0.35s var(--ease-spring),
+    box-shadow 0.35s var(--ease-spring);
+}
+
+.proj-tile:hover .proj-face {
+  transform: translateY(-5px) rotate(-1.5deg);
+  box-shadow: var(--shadow-md);
+}
+
+.proj-tile:active .proj-face {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proj-tile:hover .proj-face,
+  .proj-tile:active .proj-face {
+    transform: none;
+  }
 }
 
 .proj-top {

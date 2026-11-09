@@ -5,6 +5,7 @@ import Projects from '../../src/windows/Projects';
 import css from '../../src/windows/Projects.css?raw';
 import Desktop from '../../src/Desktop';
 import { stripComments } from '../helpers/cssTokens';
+import { topRule, reducedRule } from '../helpers/cssScope';
 import { PROJECTS, WIN_BAR_TITLES } from '../../src/data';
 import { WIN_META } from '../../src/logic/windows';
 import { linkAttrs } from '../../src/logic/menu';
@@ -215,5 +216,35 @@ describe('T07 Projects body: CSS values', () => {
   it('T07 AC7: the stylesheet uses tokens only, with no hard-coded colours', () => {
     expect(clean).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(clean).not.toMatch(/\b(rgb|rgba|hsl|hsla)\(/);
+  });
+});
+
+describe('T07 Projects tile motion CSS', () => {
+  it('T07 AC33: hovering a tile lifts and tilts its face and applies --shadow-md', () => {
+    const r = topRule(css, '.proj-tile:hover .proj-face');
+    expect(r?.transform).toBe('translateY(-5px) rotate(-1.5deg)');
+    expect(r?.['box-shadow']).toBe('var(--shadow-md)');
+  });
+
+  it('T07 AC33: a pressed tile face is scale(.97)', () => {
+    expect(topRule(css, '.proj-tile:active .proj-face')?.transform).toMatch(/^scale\(0?\.97\)$/);
+  });
+
+  it('T07 AC33: the face transitions transform and box-shadow', () => {
+    const t = topRule(css, '.proj-face')?.transition ?? '';
+    expect(t).toMatch(/transform/);
+    expect(t).toMatch(/box-shadow/);
+  });
+
+  it('T07 AC9: the tile host never transforms, only the face', () => {
+    expect(topRule(css, '.proj-tile')?.transform).toBeUndefined();
+    expect(topRule(css, '.proj-tile:hover')?.transform).toBeUndefined();
+    expect(topRule(css, '.proj-tile:active')?.transform).toBeUndefined();
+    expect(topRule(css, '.proj-item')?.transform).toBeUndefined();
+  });
+
+  it('T07 AC8: reduced motion sets the tile hover and pressed transforms to none', () => {
+    expect(reducedRule(css, '.proj-tile:hover .proj-face')?.transform).toBe('none');
+    expect(reducedRule(css, '.proj-tile:active .proj-face')?.transform).toBe('none');
   });
 });

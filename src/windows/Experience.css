@@ -38,12 +38,23 @@
   line-height: 1.3;
   color: var(--color-neutral-500);
   pointer-events: none;
+  transition: transform 0.35s var(--ease-spring);
 }
 
 .exp-tab-active .exp-tab-face {
   color: var(--color-accent-400);
   background: color-mix(in srgb, var(--color-accent) 12%, transparent);
   box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+.exp-tab:hover .exp-tab-face {
+  transform: translateX(4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exp-tab:hover .exp-tab-face {
+    transform: none;
+  }
 }
 
 .exp-panel {

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import Experience from '../../src/windows/Experience';
 import css from '../../src/windows/Experience.css?raw';
 import { stripComments } from '../helpers/cssTokens';
+import { topRule, reducedRule } from '../helpers/cssScope';
 import { EXP, EXPERIENCE_LABELS } from '../../src/data';
 import { WIN_META } from '../../src/logic/windows';
 
@@ -309,5 +310,24 @@ describe('T07 Experience body: CSS and layout', () => {
   it('T07 AC29 at rest: no hover or reduced-motion rules yet (T8 adds them)', () => {
     // Intentionally only checks the at-rest file does not set a transform on the tab face.
     expect(decls('.exp-tab-face').transform).toBeUndefined();
+  });
+});
+
+describe('T07 Experience tab motion CSS', () => {
+  it('T07 AC29: hovering a tab translates its face 4px right on --ease-spring', () => {
+    expect(topRule(css, '.exp-tab:hover .exp-tab-face')?.transform).toBe('translateX(4px)');
+    expect(topRule(css, '.exp-tab-face')?.transition).toMatch(
+      /transform[^,;]*var\(--ease-spring\)/,
+    );
+  });
+
+  it('T07 AC9: the tab host never transforms, only the face, which ignores the pointer', () => {
+    expect(topRule(css, '.exp-tab')?.transform).toBeUndefined();
+    expect(topRule(css, '.exp-tab:hover')?.transform).toBeUndefined();
+    expect(topRule(css, '.exp-tab-face')?.['pointer-events']).toBe('none');
+  });
+
+  it('T07 AC8: reduced motion sets the tab hover transform to none', () => {
+    expect(reducedRule(css, '.exp-tab:hover .exp-tab-face')?.transform).toBe('none');
   });
 });
