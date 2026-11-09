@@ -4,6 +4,21 @@ import { WIN_IDS, WIN_META } from './windows';
 export const MENUBAR_H = 36;
 export const DOCK_CLEARANCE = 76;
 
+export const PHONE_BREAKPOINT = 760;
+export const DESKTOP_QUERY = `(min-width: ${PHONE_BREAKPOINT}px)`;
+
+export type View = 'phone' | 'desktop';
+
+export function viewForWidth(width: number): View {
+  return width < PHONE_BREAKPOINT ? 'phone' : 'desktop';
+}
+
+/** `null` means no media query is available, so fall back to the measured width. */
+export function resolveView(desktopMatches: boolean | null, width: number): View {
+  if (desktopMatches === null) return viewForWidth(width);
+  return desktopMatches ? 'desktop' : 'phone';
+}
+
 export const INITIAL_ORDER: readonly WinId[] = ['proj', 'exp', 'term', 'about', 'hello'];
 
 export function layout(vw: number, vh: number): Record<WinId, { x: number; y: number }> {

@@ -171,6 +171,8 @@ export const BOOT_COPY = {
 
 export const EXPERIENCE_LABELS = { tablist: 'Experience', at: '@' } as const;
 
+export const PHONE_HEADINGS = { about: 'About', projects: 'Projects', links: 'Links' } as const;
+
 export const TERMINAL_LABELS = { input: 'Terminal command', log: 'Terminal output' } as const;
 
 // Visible titlebar text where it differs from the window's accessible title.
