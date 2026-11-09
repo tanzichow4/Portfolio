@@ -1,5 +1,13 @@
 import { StrictMode } from 'react';
-import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  act,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Desktop from '../src/Desktop';
@@ -277,6 +285,9 @@ describe('Restart and Tidy keep the settings (AC29)', () => {
       expect(document.querySelector('[data-win="hello"]')).toBeNull();
       const set = vi.spyOn(Storage.prototype, 'setItem');
       await choose(user, menu, item);
+      // DELIBERATE REQUIREMENT CHANGE (T08 AC32): Restart now applies when the boot ends. Wait on the real boot path: a reduced-motion stub would make the wobble-off rotation check below vacuous.
+      if (item === 'Restart…')
+        await waitFor(() => expect(winEl('hello')).not.toBeNull(), { timeout: 3000 });
       expect(winEl('hello')).not.toBeNull();
       expect(html.dataset.theme).toBe('light');
       expect(bg(container)).toContain('--wall-grid');

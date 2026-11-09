@@ -1,4 +1,4 @@
-import { createEvent, fireEvent, render, screen, within } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Desktop from '../src/Desktop';
@@ -280,6 +280,8 @@ describe('T06 AC15 dock stays in sync with every other route', () => {
       await user.click(screen.getByRole('button', { name: 'Minimize about.md' }));
       expectAll(states({ term: 'Closed', about: 'Minimized' }));
       await choose(user, label === 'Restart…' ? 'tanzi.os' : 'Windows', label);
+      // DELIBERATE REQUIREMENT CHANGE (T08 AC32): Restart now applies when the boot ends.
+      if (label === 'Restart…') await waitFor(() => expectAll(states()), { timeout: 3000 });
       expectAll(states());
     }
   });

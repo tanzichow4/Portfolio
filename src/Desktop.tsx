@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import BootScreen from './BootScreen';
 import Dock from './Dock';
+import { prefersReducedMotion } from './hooks/reducedMotion';
 import MenuBar from './MenuBar';
 import WindowLayer from './WindowLayer';
 import { createHelpChannel } from './logic/terminal';
@@ -21,12 +23,30 @@ export default function Desktop() {
     dispatch({ type: 'restart' });
     setEpoch((e) => e + 1);
   }, []);
+  // Booting is shell state local to Desktop. The ref is the synchronous re-entry guard.
+  const [booting, setBooting] = useState(false);
+  const bootingRef = useRef(false);
+  const beginBoot = useCallback(() => {
+    if (bootingRef.current) return;
+    if (prefersReducedMotion()) {
+      resetDesktop();
+      return;
+    }
+    bootingRef.current = true;
+    setBooting(true);
+  }, [resetDesktop]);
+  // Stable, so a re-render during a boot does not restart BootScreen's interval.
+  const finishBoot = useCallback(() => {
+    bootingRef.current = false;
+    setBooting(false);
+    resetDesktop();
+  }, [resetDesktop]);
   const appDispatch = useCallback(
     (action: AppAction) => {
-      if (action.type === 'restart') resetDesktop();
+      if (action.type === 'restart') beginBoot();
       else dispatch(action);
     },
-    [resetDesktop],
+    [beginBoot],
   );
 
   const [ready, setReady] = useState(false);
@@ -52,30 +72,36 @@ export default function Desktop() {
   }, [settings]);
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        overflow: 'hidden',
-        userSelect: 'none',
-        background: `var(--wall-${settings.wall})`,
-      }}
-    >
-      <MenuBar
-        wins={state.desk.wins}
-        settings={settings}
-        dispatch={appDispatch}
-        onTerminalHelp={() => helpChannel.request()}
-      />
-      <WindowLayer
-        key={epoch}
-        state={state.desk}
-        dispatch={dispatch}
-        flyIn={ready}
-        wobble={settings.wobble}
-        renderBody={(id) => <WindowBody id={id} dispatch={appDispatch} helpChannel={helpChannel} />}
-      />
-      <Dock wins={state.desk.wins} dispatch={dispatch} />
-    </div>
+    <>
+      <div
+        inert={booting}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          overflow: 'hidden',
+          userSelect: 'none',
+          background: `var(--wall-${settings.wall})`,
+        }}
+      >
+        <MenuBar
+          wins={state.desk.wins}
+          settings={settings}
+          dispatch={appDispatch}
+          onTerminalHelp={() => helpChannel.request()}
+        />
+        <WindowLayer
+          key={epoch}
+          state={state.desk}
+          dispatch={dispatch}
+          flyIn={ready}
+          wobble={settings.wobble}
+          renderBody={(id) => (
+            <WindowBody id={id} dispatch={appDispatch} helpChannel={helpChannel} />
+          )}
+        />
+        <Dock wins={state.desk.wins} dispatch={dispatch} />
+      </div>
+      {booting && <BootScreen onDone={finishBoot} />}
+    </>
   );
 }

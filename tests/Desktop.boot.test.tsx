@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Desktop from '../src/Desktop';
@@ -447,5 +447,462 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
     expect(winEl('hello')).not.toBeNull();
     await user.click(screen.getByRole('button', { name: 'hello.txt' }));
     expect(winEl('hello')).toHaveAttribute('data-min', 'true');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// T4: the boot path. Real (non-reduced) motion, fake timers, fireEvent only.
+// ---------------------------------------------------------------------------------------------
+
+const stubMotion = (reduce: boolean) =>
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((q: string) => ({
+      matches: reduce && q.includes('prefers-reduced-motion'),
+      media: q,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+    })),
+  );
+
+const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
+const bar = () => document.querySelector<HTMLElement>('[role="progressbar"]');
+const rootOf = (c: HTMLElement) => c.firstElementChild as HTMLElement;
+const isInert = (el: Element) => el.hasAttribute('inert');
+const tick = (n = 1) =>
+  act(() => {
+    vi.advanceTimersByTime(90 * n);
+  });
+const rotation = (id: string) => {
+  const m = winEl(id)!.style.transform.match(/rotate\((-?[\d.]+)deg\)/);
+  return m ? Number(m[1]) : 0;
+};
+const dragStart = (id: string) => {
+  const b = winEl(id)!.querySelector<HTMLElement>('.win-titlebar')!;
+  fireEvent.pointerDown(b, { pointerId: 1, button: 0, clientX: 300, clientY: 150 });
+  const ev = createEvent.pointerMove(b, { pointerId: 1, clientX: 340, clientY: 150 });
+  Object.defineProperty(ev, 'movementX', { value: 40 });
+  fireEvent(b, ev);
+  return b;
+};
+
+function menuRestart() {
+  fireEvent.click(trigger('tanzi.os'));
+  const item = Array.from(
+    screen.getByRole('menu').querySelectorAll<HTMLElement>('[role^="menuitem"]'),
+  ).find((e) => e.textContent === 'Restart…')!;
+  fireEvent.click(item);
+}
+const termRestart = async () => act(async () => typeCommand('restart'));
+const request = async (via: Via) => {
+  if (via === 'menu') menuRestart();
+  else await termRestart();
+};
+
+/** Records every mutation batch; `take()` returns the records since the last call, synchronously. */
+function watch() {
+  const mo = new MutationObserver(() => {});
+  mo.observe(document.body, { subtree: true, childList: true, attributes: true });
+  return { take: () => mo.takeRecords(), stop: () => mo.disconnect() };
+}
+const added = (recs: MutationRecord[], sel: string) =>
+  recs
+    .flatMap((r) => Array.from(r.addedNodes))
+    .filter((n) => n instanceof Element && (n.matches(sel) || n.querySelector(sel)));
+const removed = (recs: MutationRecord[], sel: string) =>
+  recs
+    .flatMap((r) => Array.from(r.removedNodes))
+    .filter((n) => n instanceof Element && (n.matches(sel) || n.querySelector(sel)));
+
+describe('T08 boot path (T4)', () => {
+  beforeEach(() => {
+    stubMotion(false);
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe('when the boot screen runs', () => {
+    it('T08 AC1: first load shows no boot screen, at mount or after a frame, under StrictMode with stored settings', () => {
+      localStorage.setItem('tanzi-os:wallpaper', 'grid');
+      localStorage.setItem('tanzi-os:wobble', 'false');
+      localStorage.setItem('tanzi-os:theme', 'light');
+      const w = watch();
+      const { container } = render(
+        <StrictMode>
+          <Desktop />
+        </StrictMode>,
+      );
+      expect(dialog()).toBeNull();
+      expect(isInert(rootOf(container))).toBe(false);
+      tick(2);
+      expect(dialog()).toBeNull();
+      expect(added(w.take(), '[role="dialog"]')).toHaveLength(0);
+      w.stop();
+    });
+
+    it('T08 AC1: reloading during a boot (fresh mount) gives a normal first load without a boot screen', async () => {
+      const first = render(<Desktop />);
+      await request('terminal');
+      expect(dialog()).not.toBeNull();
+      first.unmount();
+      render(<Desktop />);
+      expect(dialog()).toBeNull();
+      tick(20);
+      expect(dialog()).toBeNull();
+    });
+
+    for (const via of ['menu', 'terminal'] as const) {
+      it(`T08 AC2: Restart from the ${via} shows the boot screen straight away, with a name saying it is restarting`, async () => {
+        render(<Desktop />);
+        expect(dialog()).toBeNull();
+        await request(via);
+        const d = dialog()!;
+        expect(d).not.toBeNull();
+        expect(d).toHaveAttribute('aria-modal', 'true');
+        expect(d).toHaveAttribute('aria-label', 'Restarting tanzi.os');
+        expect(bar()).toHaveAttribute('aria-valuenow', '0');
+      });
+    }
+
+    for (const via of ['menu', 'terminal'] as const) {
+      it(`T08 AC3: under reduced motion, Restart from the ${via} shows no dialog in any commit, starts no interval, and resets at once`, async () => {
+        stubMotion(true);
+        render(<Desktop />);
+        const before = winEl('hello');
+        const setI = vi.spyOn(globalThis, 'setInterval');
+        const w = watch();
+        await request(via);
+        expect(winEl('hello')).not.toBe(before);
+        expect(winEl('hello')).not.toBeNull();
+        expect(dialog()).toBeNull();
+        tick(20);
+        expect(added(w.take(), '[role="dialog"]')).toHaveLength(0);
+        expect(setI).not.toHaveBeenCalled();
+        w.stop();
+      });
+    }
+
+    it('T08 AC3: the preference is re-read on every request, and a change mid-boot does not interrupt the boot', async () => {
+      stubMotion(true);
+      render(<Desktop />);
+      await request('terminal');
+      expect(dialog()).toBeNull();
+      // Preference turned off: the next Restart boots.
+      stubMotion(false);
+      await request('terminal');
+      expect(dialog()).not.toBeNull();
+      const helloMid = winEl('hello');
+      // Preference turned on mid-boot: the boot carries on to its normal end.
+      stubMotion(true);
+      tick(14);
+      expect(dialog()).not.toBeNull();
+      expect(winEl('hello')).toBe(helloMid);
+      tick(1);
+      expect(dialog()).toBeNull();
+      expect(winEl('hello')).not.toBe(helloMid);
+      // And turned back on, the next Restart is immediate again.
+      const setI = vi.spyOn(globalThis, 'setInterval');
+      await request('menu');
+      expect(dialog()).toBeNull();
+      expect(setI).not.toHaveBeenCalled();
+    });
+
+    it('T08 AC4: Tidy up, Close, Minimize, dock clicks and the tidy and clear commands show no boot screen', async () => {
+      render(<Desktop />);
+      const w = watch();
+      fireEvent.click(screen.getByRole('button', { name: 'Close hello.txt' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Minimize about.md' }));
+      fireEvent.click(screen.getByRole('button', { name: 'hello.txt' }));
+      fireEvent.click(trigger('Windows'));
+      const tidy = Array.from(
+        screen.getByRole('menu').querySelectorAll<HTMLElement>('[role^="menuitem"]'),
+      ).find((e) => e.textContent === 'Tidy up')!;
+      fireEvent.click(tidy);
+      act(() => typeCommand('tidy'));
+      act(() => typeCommand('clear'));
+      act(() => typeCommand('whoami'));
+      act(() => typeCommand('theme light'));
+      tick(20);
+      expect(dialog()).toBeNull();
+      expect(added(w.take(), '[role="dialog"]')).toHaveLength(0);
+      w.stop();
+    });
+  });
+
+  describe('progress and lifecycle', () => {
+    it('T08 AC9: a second boot in the same session starts at 0%', async () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      render(<Desktop />);
+      await request('terminal');
+      tick(3);
+      expect(Number(bar()!.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+      tick(20);
+      expect(dialog()).toBeNull();
+      await request('menu');
+      expect(bar()).toHaveAttribute('aria-valuenow', '0');
+      tick(1);
+      expect(bar()).toHaveAttribute('aria-valuenow', '14');
+    });
+
+    for (const via of ['menu', 'terminal'] as const) {
+      it(`T08 AC10: with r at 0 the desktop is not reset on tick 14 and is reset on tick 15 (${via})`, async () => {
+        render(<Desktop />);
+        fireEvent.click(verbBtn());
+        const helloBefore = winEl('hello');
+        await request(via);
+        tick(14);
+        expect(dialog()).not.toBeNull();
+        expect(winEl('hello')).toBe(helloBefore);
+        expect(verbBtn().textContent).toBe(VERBS[1]);
+        tick(1);
+        expect(dialog()).toBeNull();
+        expect(winEl('hello')).not.toBe(helloBefore);
+        expect(verbBtn().textContent).toBe(VERBS[0]);
+      });
+    }
+
+    it('T08 AC10: with r just below 1 the boot is not done on tick 4 and is done on tick 5', async () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.999999);
+      render(<Desktop />);
+      const helloBefore = winEl('hello');
+      await request('terminal');
+      tick(4);
+      expect(dialog()).not.toBeNull();
+      expect(winEl('hello')).toBe(helloBefore);
+      tick(1);
+      expect(dialog()).toBeNull();
+      expect(winEl('hello')).not.toBe(helloBefore);
+    });
+
+    it('T08 AC10: dialog removal, window remount and inert removal land in the same batch, never apart', async () => {
+      const { container } = render(<Desktop />);
+      await request('terminal');
+      const w = watch();
+      w.take();
+      tick(14);
+      const early = w.take();
+      expect(removed(early, '[role="dialog"]')).toHaveLength(0);
+      expect(added(early, '[data-win="hello"]')).toHaveLength(0);
+      expect(early.filter((r) => r.attributeName === 'inert')).toHaveLength(0);
+      expect(isInert(rootOf(container))).toBe(true);
+      tick(1);
+      const last = w.take();
+      expect(removed(last, '[role="dialog"]')).toHaveLength(1);
+      expect(added(last, '[data-win="hello"]').length).toBeGreaterThan(0);
+      expect(last.some((r) => r.attributeName === 'inert')).toBe(true);
+      expect(isInert(rootOf(container))).toBe(false);
+      w.stop();
+    });
+
+    it('T08 AC12: under StrictMode the reset happens exactly once and the boot ends on tick 15', async () => {
+      render(
+        <StrictMode>
+          <Desktop />
+        </StrictMode>,
+      );
+      await request('terminal');
+      const w = watch();
+      tick(14);
+      expect(dialog()).not.toBeNull();
+      expect(added(w.take(), '[data-win="hello"]')).toHaveLength(0);
+      tick(1);
+      expect(dialog()).toBeNull();
+      expect(added(w.take(), '[data-win="hello"]')).toHaveLength(1);
+      tick(30);
+      expect(added(w.take(), '[data-win="hello"]')).toHaveLength(0);
+      w.stop();
+    });
+
+    it('T08 AC12: unmounting mid-boot stops everything and logs no warning', async () => {
+      const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { unmount } = render(<Desktop />);
+      await request('terminal');
+      tick(3);
+      unmount();
+      expect(() => tick(30)).not.toThrow();
+      expect(dialog()).toBeNull();
+      expect(err).not.toHaveBeenCalled();
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    for (const [name, strict] of [
+      ['', false],
+      [' (StrictMode)', true],
+    ] as const) {
+      it(`T08 AC13: a second Restart mid-boot neither lengthens the boot nor resets twice${name}`, async () => {
+        const ui = strict ? (
+          <StrictMode>
+            <Desktop />
+          </StrictMode>
+        ) : (
+          <Desktop />
+        );
+        render(ui);
+        await request('terminal');
+        tick(5);
+        const w = watch();
+        w.take();
+        await request('terminal');
+        await request('menu');
+        tick(1);
+        expect(bar()).toHaveAttribute('aria-valuenow', '42');
+        tick(8);
+        expect(dialog()).not.toBeNull();
+        tick(1); // tick 15 counted from the FIRST request
+        expect(dialog()).toBeNull();
+        expect(added(w.take(), '[data-win="hello"]')).toHaveLength(1);
+        tick(40);
+        expect(dialog()).toBeNull();
+        expect(added(w.take(), '[data-win="hello"]')).toHaveLength(0);
+        w.stop();
+      });
+    }
+
+    it('T08 AC13: after a boot ends a new Restart boots again', async () => {
+      render(<Desktop />);
+      await request('terminal');
+      tick(15);
+      expect(dialog()).toBeNull();
+      await request('terminal');
+      expect(dialog()).not.toBeNull();
+      tick(15);
+      expect(dialog()).toBeNull();
+    });
+
+    it('T08 AC15: a resize mid-boot still ends on tick 15 and the layout uses the latest viewport', async () => {
+      const { innerWidth: w0, innerHeight: h0 } = window;
+      try {
+        window.innerWidth = 1600;
+        window.innerHeight = 900;
+        const expected = freshLayout();
+        window.innerWidth = w0;
+        window.innerHeight = h0;
+        render(<Desktop />);
+        await request('terminal');
+        tick(3);
+        window.innerWidth = 1600;
+        window.innerHeight = 900;
+        act(() => {
+          window.dispatchEvent(new Event('resize'));
+        });
+        tick(11);
+        expect(dialog()).not.toBeNull();
+        tick(1);
+        expect(dialog()).toBeNull();
+        expect(layout()).toEqual(expected);
+      } finally {
+        window.innerWidth = w0;
+        window.innerHeight = h0;
+      }
+    });
+  });
+
+  describe('what Restart resets and keeps on the boot path', () => {
+    for (const via of ['menu', 'terminal'] as const) {
+      it(`T08 AC15 AC16: Restart from the ${via} gives a fresh layout and initial window state once the boot ends`, async () => {
+        const expected = freshLayout();
+        render(<Desktop />);
+        fireEvent.click(winEl('about')!);
+        fireEvent.click(verbBtn());
+        fireEvent.click(tabs()[1]);
+        act(() => typeCommand('whoami'));
+        fireEvent.click(screen.getByRole('button', { name: 'Close projects' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Minimize hello.txt' }));
+        await request(via);
+        tick(15);
+        expect(layout()).toEqual(expected);
+        expect(winEl('site')).toBeNull();
+        expectInitialWindowState();
+      });
+    }
+
+    it('T08 AC17: theme, wallpaper and wobble survive a real boot, and nothing is written', async () => {
+      const { container } = render(<Desktop />);
+      act(() => typeCommand('theme light'));
+      act(() => typeCommand('wallpaper plain'));
+      const set = vi.spyOn(Storage.prototype, 'setItem');
+      const remove = vi.spyOn(Storage.prototype, 'removeItem');
+      await request('menu');
+      expect(html.dataset.theme).toBe('light');
+      tick(15);
+      expect(html.dataset.theme).toBe('light');
+      expect(rootOf(container).style.background).toContain('--wall-plain');
+      expect(set).not.toHaveBeenCalled();
+      expect(remove).not.toHaveBeenCalled();
+    });
+
+    it('T08 AC17: wobble on keeps tilting after a real boot', async () => {
+      render(<Desktop />);
+      await request('terminal');
+      tick(15);
+      // Let the windows settle out of their open pose (T5 owns that animation, not this test).
+      tick(10);
+      dragStart('hello');
+      expect(rotation('hello')).not.toBe(0);
+    });
+
+    it('T08 AC17: wobble off stays off after a real boot (the drag does not tilt)', async () => {
+      localStorage.setItem('tanzi-os:wobble', 'false');
+      render(<Desktop />);
+      dragStart('hello');
+      expect(rotation('hello')).toBe(0);
+      fireEvent.pointerUp(winEl('hello')!.querySelector('.win-titlebar')!, { pointerId: 1 });
+      await request('menu');
+      tick(15);
+      tick(10);
+      dragStart('hello');
+      expect(rotation('hello')).toBe(0);
+    });
+
+    it('T08 AC19: a drag released during the boot or after it cannot change the post-Restart layout', async () => {
+      const expected = freshLayout();
+      render(<Desktop />);
+      const oldBar = dragStart('about');
+      await request('terminal');
+      tick(5);
+      fireEvent.pointerUp(oldBar, { pointerId: 1, clientX: 400, clientY: 200 });
+      tick(10);
+      expect(layout()).toEqual(expected);
+      fireEvent.pointerUp(oldBar, { pointerId: 1, clientX: 420, clientY: 220 });
+      fireEvent.pointerMove(oldBar, { pointerId: 1, clientX: 460, clientY: 260 });
+      fireEvent.pointerUp(document.body, { pointerId: 1 });
+      expect(layout()).toEqual(expected);
+    });
+  });
+
+  describe('the desktop behind the boot screen (AC21)', () => {
+    for (const via of ['menu', 'terminal'] as const) {
+      it(`T08 AC21: during a boot from the ${via} the root is inert, the dialog is outside it and no menu is open`, async () => {
+        const { container } = render(<Desktop />);
+        await request(via);
+        const root = rootOf(container);
+        expect(isInert(root)).toBe(true);
+        expect(dialog()).not.toBeNull();
+        expect(root.contains(dialog())).toBe(false);
+        expect(root.contains(document.activeElement)).toBe(false);
+        expect(screen.queryByRole('menu', { hidden: true })).toBeNull();
+        expect(container.querySelector('header')).toBe(root.querySelector('header'));
+        tick(14);
+        expect(isInert(root)).toBe(true);
+        tick(1);
+        expect(isInert(root)).toBe(false);
+        expect(container.querySelector('[inert]')).toBeNull();
+      });
+    }
+
+    it('T08 AC21: windows minimized before Restart are not inert afterwards', async () => {
+      const { container } = render(<Desktop />);
+      fireEvent.click(screen.getByRole('button', { name: 'Minimize about.md' }));
+      expect(winEl('about')).toHaveAttribute('inert');
+      await request('terminal');
+      tick(15);
+      expect(container.querySelector('[inert]')).toBeNull();
+    });
   });
 });
