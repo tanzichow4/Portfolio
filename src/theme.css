@@ -613,9 +613,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :root:not(.phone-view),
+  :root:not(.phone-view) *,
+  :root:not(.phone-view) *::before,
+  :root:not(.phone-view) *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
