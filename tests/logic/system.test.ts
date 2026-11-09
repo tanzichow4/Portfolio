@@ -178,6 +178,7 @@ describe('appReducer delegation', () => {
     expect(app.settings).toEqual(custom);
     expect(app.desk.vw).toBe(1920);
     expect(app.desk.vh).toBe(1080);
-    expect(app.desk.wins.term).toMatchObject({ x: 1450, y: 694, open: true, min: false });
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so term y at 1920x1080 is 700 (was 694).
+    expect(app.desk.wins.term).toMatchObject({ x: 1450, y: 700, open: true, min: false });
   });
 });

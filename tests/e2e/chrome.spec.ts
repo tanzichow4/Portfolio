@@ -143,7 +143,8 @@ test.describe('window chrome', () => {
     await win(page, 'term').waitFor();
     const b = await box(win(page, 'term'));
     expect(Math.round(b.x)).toBe(1450);
-    expect(Math.round(b.y)).toBe(694);
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so term y at 1920x1080 is 700 (was 694).
+    expect(Math.round(b.y)).toBe(700);
     expect(await computed(win(page, 'term'), 'transform')).toBe('none');
   });
 
@@ -371,6 +372,8 @@ test.describe('window chrome', () => {
     // tab 'Northwind' and the panel) after its two window controls, so 13 -> 15 stops.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): projects' body adds four tile links after its
     // two window controls, so 15 -> 19 stops.
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the terminal body adds its input ('Terminal
+    // command') after Minimize and Close, so 19 -> 20 stops.
     const want = [
       'Minimize hello.txt',
       'Close hello.txt',
@@ -382,9 +385,10 @@ test.describe('window chrome', () => {
         `Close ${TITLES[id]}`,
         ...(id === 'exp' ? ['Northwind', 'tabpanel'] : []),
         ...(id === 'proj' ? ['Pathfinder', 'Pantry', 'tinyq', 'dotfiles'] : []),
+        ...(id === 'term' ? ['Terminal command'] : []),
       ]),
     ];
-    expect(await stopNames(page, 19)).toEqual(want);
+    expect(await stopNames(page, 20)).toEqual(want);
   });
 
   test('AC23: Enter activates Minimize', async ({ page }) => {
@@ -509,8 +513,9 @@ test.describe('window chrome with motion allowed', () => {
       transform: el.style.transform,
       opacity: el.style.opacity,
     }));
-    // term at 810,334 width 440 on 1280x720: dx 640 - 1030 = -390, dy 720 - 40 - 334 = 346
-    expect(inline.transform).toBe('translate(-390px, 346px) scale(0.06)');
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so term is at 810,340.
+    // term at 810,340 width 440 on 1280x720: dx 640 - 1030 = -390, dy 720 - 40 - 340 = 340
+    expect(inline.transform).toBe('translate(-390px, 340px) scale(0.06)');
     expect(inline.opacity).toBe('0');
   });
 });

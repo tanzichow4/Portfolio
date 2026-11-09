@@ -15,7 +15,7 @@ export const WIN_META: Readonly<Record<WinId, WinMeta>> = {
   about: { width: 420, height: 331, dock: true },
   exp: { width: 520, height: 290, dock: true },
   proj: { width: 520, height: 385, dock: true },
-  term: { width: 440, height: 310, dock: true },
+  term: { width: 440, height: 270, dock: true },
   site: { width: 340, height: 282, dock: false },
 };
 

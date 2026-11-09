@@ -366,7 +366,8 @@ describe('desktop reducer: resize', () => {
 
   it('AC15: 1920x1080 -> 1280x720 -> 1920x1080 keeps term at 1200,660', () => {
     const s = fresh(1920, 1080);
-    expect(s.wins.term).toMatchObject({ x: 1450, y: 694 });
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so term y at 1920x1080 is 700 (was 694).
+    expect(s.wins.term).toMatchObject({ x: 1450, y: 700 });
     const small = run(s, { type: 'resize', vw: 1280, vh: 720 });
     expect(small.wins.term).toMatchObject({ x: 1200, y: 660 });
     expect(small.wins.hello).toMatchObject({ x: 115, y: 72 });

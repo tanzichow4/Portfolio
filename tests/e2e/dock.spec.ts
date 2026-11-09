@@ -617,11 +617,13 @@ test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
     // the dock starts at index 20, and the distinct stops after the menubar go 21 -> 23.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the projects body adds four tile stops, so
     // 28 -> 32, the dock starts at index 24, and the distinct stops after the menubar go 23 -> 27.
-    const labels = await tabLabels(page, 32);
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the terminal input adds one stop, so 32 -> 33,
+    // the dock starts at index 25, and the distinct stops after the menubar go 27 -> 28.
+    const labels = await tabLabels(page, 33);
     expect(labels[0]).toBe('tanzi.os');
     expect(labels[5]).toBe('Minimize hello.txt');
-    expect(labels.slice(24)).toEqual([...IDS.map((i) => TITLES[i]), ...LINK_LABELS]);
-    expect(new Set(labels.slice(5)).size).toBe(27);
+    expect(labels.slice(25)).toEqual([...IDS.map((i) => TITLES[i]), ...LINK_LABELS]);
+    expect(new Set(labels.slice(5)).size).toBe(28);
     expect(errors).toEqual([]);
   });
 

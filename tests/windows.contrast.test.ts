@@ -51,6 +51,20 @@ for (const theme of ['dark', 'light'] as const) {
       });
     }
 
+    const termPairs: [string, string][] = [
+      ['terminal cmd line (text)', 'text'],
+      ['terminal out line (neutral-300)', 'neutral-300'],
+      ['terminal dim line (neutral-500)', 'neutral-500'],
+      ['terminal acc line (accent-400)', 'accent-400'],
+      ['terminal prompt (accent)', 'accent'],
+    ];
+    for (const [label, token] of termPairs) {
+      it(`T07 AC12: ${theme}: ${label} on surface is at least 4.5:1`, () => {
+        const r = contrastRatio(get(token), surface);
+        expect(r, r.toFixed(2)).toBeGreaterThanOrEqual(4.5);
+      });
+    }
+
     const tagPairs: [string, string, string][] = [
       ['tag-accent text (accent-100) on accent-800', 'accent-100', 'accent-800'],
       ['tag-neutral text (neutral-100) on neutral-800', 'neutral-100', 'neutral-800'],

@@ -1,0 +1,55 @@
+.term-body {
+  box-sizing: border-box;
+  height: 230px;
+  padding: 14px 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  font: 13px/1.6 var(--font-mono);
+  color: var(--color-text);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.term-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.term-cmd {
+  color: var(--color-text);
+}
+
+.term-out {
+  color: var(--color-neutral-300);
+}
+
+.term-dim {
+  color: var(--color-neutral-500);
+}
+
+.term-acc {
+  color: var(--color-accent-400);
+}
+
+.term-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.term-prompt {
+  flex: none;
+  white-space: pre;
+  color: var(--color-accent);
+}
+
+.term-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  caret-color: var(--color-accent);
+  font: inherit;
+}

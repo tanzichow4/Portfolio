@@ -60,7 +60,8 @@ const REFERENCE = {
   exp: { x: 64, y: 354 },
   // DELIBERATE REQUIREMENT CHANGE (T07 AC52): proj height 330 -> 385, so y 300 -> 644 - 385 = 259.
   proj: { x: 538, y: 259 },
-  term: { x: 810, y: 334 },
+  // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so y 334 -> 340.
+  term: { x: 810, y: 340 },
 };
 const pos = async (page: Page, id: string) => {
   const b = await box(win(page, id));

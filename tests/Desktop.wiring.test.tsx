@@ -167,7 +167,8 @@ describe('Desktop wiring', () => {
     setSize(1920, 1080);
     render(<Desktop />);
     expect(px(box('term')!.style.left)).toBe(1450);
-    expect(px(box('term')!.style.top)).toBe(694);
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so term y at 1920x1080 is 700 (was 694).
+    expect(px(box('term')!.style.top)).toBe(700);
   });
 });
 

@@ -24,7 +24,8 @@ test('AC24: at 1280x720 the five windows sit at the reference positions and site
     exp: { x: 64, y: 354 },
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): proj height 330 -> 385, so y 300 -> 644 - 385 = 259.
     proj: { x: 538, y: 259 },
-    term: { x: 810, y: 334 },
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so y 334 -> 340.
+    term: { x: 810, y: 340 },
   };
   for (const [id, p] of Object.entries(want)) {
     await expect(page.locator(`[data-win="${id}"]`)).toBeVisible();
@@ -49,7 +50,8 @@ test('AC24: 1920x1080 then resize to 1280x720 moves term to 1200,660 and keeps a
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/');
-  expect(await pos(page, 'term')).toMatchObject({ x: 1450, y: 694 });
+  // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so term y at 1920x1080 is 700 (was 694).
+  expect(await pos(page, 'term')).toMatchObject({ x: 1450, y: 700 });
 
   await page.setViewportSize({ width: 1280, height: 720 });
   await expect.poll(() => pos(page, 'term')).toMatchObject({ x: 1200, y: 660 });
