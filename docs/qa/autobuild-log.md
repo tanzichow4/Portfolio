@@ -32,3 +32,15 @@ Baseline: lint, typecheck, unit tests green (3 tests).
 - **Existing tests changed (review these):** (1) `tests/Desktop.wiring.test.tsx` "AC22 placeholders hold only their title, no buttons" was replaced by a stricter chrome test (exactly 10 buttons, region names, "Minimize/Close <title>" button names, `data-min=false`, visible, not inert), titled as a deliberate requirement change. One small loosening: it checks `.win-title` text rather than the whole element's text. (2) `tests/logic/purity.test.ts`: `'motion'` added to `EXPECTED`. (3) `vite.config.ts` test css include now also matches `Window.css`. No test was deleted or skipped.
 - Assumptions: `chromePose` treats tilt as degrees already (no second 0.7 factor); `Desktop` passes `wobble={true}` for now (toggle, state and `tanzi-os:wobble` persistence belong to T05); genie target is viewport centre x and `vh - 40`; fly-out only for windows opened after the first frame; reduced motion keeps a fade on minimize.
 - Gaps: restore and open cannot be triggered from UI until T05/T06, so only unit/component tests cover them and the fly-out was not checked visually; the T03 AC21 deferred test is covered by the new inert tests; tilt saturates at +-7deg on any fast move; window bodies are empty placeholders until T07; no mutation checks on new tests.
+
+## Run 2026-11-08, resumed (branch autobuild/2026-11-08)
+
+Baseline: lint and typecheck green; unit tests 752 of 753, the one failure is AC21 in `tests/MenuBar.test.tsx`, added by the unfinished T05 commit (`cff83c8`), so it was treated as T05 work rather than a broken base.
+
+### T05 done (existing work verified, two bugs fixed)
+
+- Verified rather than built: `cff83c8` already held `MenuBar`, menus, clock, settings and storage, plus plan, requirements and tests. Those files were reused so AC numbers keep matching the tests.
+- Fixed: the Help menu Résumé link had no new-tab attributes (`linkAttrs` only handles http(s), and `RESUME_URL` is a local path), and clicking from one open menu to another closed it because hover had already switched to that menu.
+- Results: lint, typecheck, 753 unit tests, build, format:check, 83 e2e all green. QA: PASS (docs/qa/T05-qa.md). One fix round for e2e.
+- Assumptions: the requirements and plan committed in `cff83c8` were accepted without rerunning requirements-clarifier and planner.
+- Gaps: QA did not check dragging with wobble off, or hover and pressed colours. The "Say hi" accessible name reads "Say hiemail" (for T09). The trigger hover handler does not filter by pointer type, so a tap on another trigger while a menu is open may close it; untested, touch is out of scope until T11. QA used scripted bundled Chromium because the Playwright MCP needs Chrome, which is not installed.
