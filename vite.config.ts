@@ -16,6 +16,7 @@ export default defineConfig({
         /Window\.css/,
         /MenuBar\.css/,
         /Dock\.css/,
+        /PhonePage\.css/,
         /BootScreen\.css/,
         /src\/windows\/\w+\.css/,
       ],

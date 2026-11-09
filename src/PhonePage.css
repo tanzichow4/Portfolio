@@ -1,0 +1,103 @@
+/* Phone fallback page. Overrides for the document are scoped to the class
+   PhonePage adds to <html> while mounted, so the desktop is unaffected. */
+html.phone-view,
+html.phone-view body,
+html.phone-view #root {
+  height: auto;
+}
+
+html.phone-view body {
+  overflow: visible;
+}
+
+.phone {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+  overflow-wrap: anywhere;
+}
+
+.phone-name {
+  font-size: 32px;
+  margin: 0;
+}
+
+.phone-role {
+  color: var(--color-neutral-400);
+  margin: 4px 0 0;
+}
+
+.phone-section {
+  margin-top: 40px;
+}
+
+.phone-h2 {
+  font-size: 20px;
+  margin: 0 0 12px;
+}
+
+.phone-h3 {
+  font-size: 17px;
+  margin: 0;
+}
+
+.phone-para,
+.phone-desc {
+  color: var(--color-neutral-400);
+}
+
+.phone-para {
+  margin: 0 0 12px;
+}
+
+.phone-desc {
+  margin: 8px 0 0;
+}
+
+.phone-em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.phone-meta {
+  font-size: 13px;
+  color: var(--color-neutral-400);
+  margin: 2px 0 0;
+}
+
+.phone-list,
+.phone-facts,
+.phone-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.phone-list {
+  gap: var(--space-8);
+}
+
+.phone-facts {
+  gap: var(--space-2);
+}
+
+.phone-facts li {
+  color: var(--color-neutral-400);
+}
+
+.phone-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.phone-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  max-width: 100%;
+}
