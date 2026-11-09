@@ -318,8 +318,9 @@ describe('minimized windows stay unreachable (AC36)', () => {
     render(<Desktop />);
     await choose(user, 'Windows', 'Minimize all');
     const buttons = Array.from(document.querySelectorAll<HTMLElement>('[data-win] button'));
-    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds two native buttons, 10 -> 12.
-    expect(buttons).toHaveLength(12);
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds two native buttons, 10 -> 12;
+    // the experience body adds three native tab buttons, 12 -> 15.
+    expect(buttons).toHaveLength(15);
     for (const b of buttons) expect(b.closest('[inert]')).not.toBeNull();
     for (const w of document.querySelectorAll<HTMLElement>('[data-win]')) {
       expect(w).toHaveAttribute('aria-hidden', 'true');

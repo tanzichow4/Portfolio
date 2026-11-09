@@ -336,7 +336,10 @@ test.describe('window chrome', () => {
     // DELIBERATE REQUIREMENT CHANGE (T06 AC30): 5 menubar + 8 window + 8 dock stops + 5 margin.
     // The dock's own "terminal" button is a legitimate stop, so only controls other than it are
     // barred; any control inside the window would still fail the first check.
-    const labels = await tabLabels(page, 26);
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the finished page has 30 stops with the terminal
+    // minimized, plus the same 5-stop margin, so 26 -> 35. After the click Chromium's starting
+    // point can sit after the minimized window, so "Close projects" can land at stop 26 or later.
+    const labels = await tabLabels(page, 35);
     expect(labels.filter((l) => l.includes('terminal') && l !== 'terminal')).toEqual([]);
     expect(labels).toContain('terminal');
     expect(labels).toContain('Close projects');
@@ -364,6 +367,8 @@ test.describe('window chrome', () => {
     await tabPastMenubar(page);
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): hello's body adds three stops (the verb, the
     // primary button and the "Say hi" link) after its two window controls.
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): experience's body adds two stops (the selected
+    // tab 'Northwind' and the panel) after its two window controls, so 13 -> 15 stops.
     const want = [
       'Minimize hello.txt',
       'Close hello.txt',
@@ -373,9 +378,10 @@ test.describe('window chrome', () => {
       ...DOCK5.filter((id) => id !== 'hello').flatMap((id) => [
         `Minimize ${TITLES[id]}`,
         `Close ${TITLES[id]}`,
+        ...(id === 'exp' ? ['Northwind', 'tabpanel'] : []),
       ]),
     ];
-    expect(await stopNames(page, 13)).toEqual(want);
+    expect(await stopNames(page, 15)).toEqual(want);
   });
 
   test('AC23: Enter activates Minimize', async ({ page }) => {
@@ -410,8 +416,9 @@ test.describe('window chrome', () => {
     await page.goto('/');
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
     await tabPastMenubar(page);
-    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): three hello body stops, so 7 -> 10.
-    await tabLabels(page, 10); // reaches "Minimize projects"
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): three hello body stops, so 7 -> 10; the
+    // experience body adds two more before projects, so 10 -> 12.
+    await tabLabels(page, 12); // reaches "Minimize projects"
     expect(await focusedLabel(page)).toBe('Minimize projects');
     for (const id of DOCK5.filter((i) => i !== 'proj')) {
       expect(await zOf(page, 'proj')).toBeGreaterThan(await zOf(page, id));

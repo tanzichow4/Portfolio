@@ -20,7 +20,8 @@ test('AC24: at 1280x720 the five windows sit at the reference positions and site
   const want = {
     hello: { x: 77, y: 72 },
     about: { x: 640, y: 64 },
-    exp: { x: 64, y: 344 },
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): exp height 300 -> 290, so y 344 -> 354.
+    exp: { x: 64, y: 354 },
     proj: { x: 538, y: 300 },
     term: { x: 810, y: 334 },
   };
