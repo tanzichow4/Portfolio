@@ -5,6 +5,7 @@ import { DOT_OPACITY, dockWinState } from './logic/dock';
 import { linkAttrs } from './logic/menu';
 import { DOCK_IDS } from './logic/windows';
 import type { State } from './types';
+import './Dock.css';
 
 export default function Dock({
   wins,
