@@ -1,11 +1,11 @@
-import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import Dock from './Dock';
 import MenuBar from './MenuBar';
 import WindowLayer from './WindowLayer';
 import { createHelpChannel } from './logic/terminal';
 import WindowBody from './windows/WindowBody';
 import { persistDiff } from './logic/settings';
-import { appReducer, initialApp } from './logic/system';
+import { appReducer, initialApp, type AppAction } from './logic/system';
 import { applyTheme, readSettings, writeSetting } from './storage';
 
 export default function Desktop() {
@@ -14,6 +14,20 @@ export default function Desktop() {
   );
   const { settings } = state;
   const [helpChannel] = useState(createHelpChannel);
+
+  // Bumping the epoch remounts every window, which discards all window-local state.
+  const [epoch, setEpoch] = useState(0);
+  const resetDesktop = useCallback(() => {
+    dispatch({ type: 'restart' });
+    setEpoch((e) => e + 1);
+  }, []);
+  const appDispatch = useCallback(
+    (action: AppAction) => {
+      if (action.type === 'restart') resetDesktop();
+      else dispatch(action);
+    },
+    [resetDesktop],
+  );
 
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -50,15 +64,16 @@ export default function Desktop() {
       <MenuBar
         wins={state.desk.wins}
         settings={settings}
-        dispatch={dispatch}
+        dispatch={appDispatch}
         onTerminalHelp={() => helpChannel.request()}
       />
       <WindowLayer
+        key={epoch}
         state={state.desk}
         dispatch={dispatch}
         flyIn={ready}
         wobble={settings.wobble}
-        renderBody={(id) => <WindowBody id={id} dispatch={dispatch} helpChannel={helpChannel} />}
+        renderBody={(id) => <WindowBody id={id} dispatch={appDispatch} helpChannel={helpChannel} />}
       />
       <Dock wins={state.desk.wins} dispatch={dispatch} />
     </div>
