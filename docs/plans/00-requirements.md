@@ -1,131 +1,119 @@
-# T08 requirements: `BootScreen` and Restart
+# T13 requirements: phone fallback page (<760px)
 
 ## Goal
 
-Restart… and the terminal's `restart` show a short full-screen boot sequence, then return the desktop to its just-loaded state, including every window's internal state, while keeping theme, wallpaper and wobble (decisions 2, 3). The boot screen never runs on first load, is skipped entirely under reduced motion, and keeps the desktop behind it unreachable while it runs.
+A viewport narrower than 760 CSS px gets a plain, scrolling, single-column page with name, about, experience, projects, links and résumé from `src/data.ts`, and the desktop is not mounted (decision 13). A viewport 760px or wider gets the existing desktop, unchanged.
 
-## Current state (observed, so the planner does not redo finished work)
+## Current state (observed, so the planner does not redo or miss anything)
 
-- `src/BootScreen.tsx` is a stub returning `null`, and `Desktop` does not render it.
-- Both entry points already produce `{ type: 'restart' }`: the menu through `menuModel` in `src/logic/menu.ts`, the terminal through `effectToAction` in `src/logic/system.ts`. `appReducer` applies it at once through `initialDesktop(vw, vh)`.
-- `App.settings` is already untouched by `restart`. The in-memory settings can differ from storage when storage throws (T05 AC27).
-- `WindowLayer` keys windows by `id`, so a window that stays open across `restart` is not remounted and its verb, tab and terminal state survive. This is the gap T05 and T07 left for this ticket.
-- `Window` plays its fly-in when mounted with `flyIn` true, and `Desktop` sets `flyIn` true after the first frame. Any window newly mounted by a Restart would therefore fly in unless handled.
-- `Window` raises itself on focus, so moving focus into a window after Restart would change the z-order.
-- `choose` in `MenuBar` returns focus to the menu trigger. The terminal input keeps focus only as long as it stays mounted.
-- `prefersReducedMotion()` reads the media query live. It returns false when `matchMedia` is missing, as in jsdom, so `<Desktop />` tests run the boot path unless they stub it.
-- The menubar is z-index 1000 and the dock 900. The global `:focus-visible` rule in `src/theme.css` applies to any programmatically focused element after keyboard use.
-- `tests/logic/purity.test.ts` forbids `Math.random`, `setInterval` and `setTimeout` in `src/logic/*.ts`, and its `EXPECTED` list must name every module.
-- `tests/logic/desktop.test.ts` pins that `State` has no `booting` field.
-- These tests pin that both sources emit `{ type: 'restart' }` and that `appReducer` resets immediately on it: `tests/logic/system.test.ts`, `tests/logic/menu.test.ts`, `tests/windows/Terminal.test.tsx`, and the reducer harness in `tests/MenuBar.test.tsx`.
+- `src/main.tsx` statically imports and renders `<Desktop />`. Nothing chooses a view today.
+- `src/theme.css` sets `body { overflow: hidden }` and `html, body, #root { height: 100% }` globally. As it stands, a page taller than the viewport cannot scroll.
+- The inline script in `index.html` sets `<html data-theme>` before first paint, from `tanzi-os:theme` or else `prefers-color-scheme`.
+- `readSettings()` reads the theme from that attribute, not from storage. `Desktop` is the only code that applies the theme or writes settings.
+- `linkAttrs(href)` in `src/logic/menu.ts` gives `http(s)` links `target="_blank"` and `rel="noopener noreferrer"`, and gives anything else no attributes.
+- `MENU_ITEMS.resume` is the only existing résumé link. It uses `newTab: true`, because `linkAttrs` would not open `/resume.pdf` in a new tab.
+- `public/resume.pdf` does not exist and every `PROJECTS` `href` is `#`. Both are T10 placeholders.
+- `prefersReducedMotion()` guards against a missing `matchMedia`, because jsdom has none.
+- `tests/logic/purity.test.ts` forbids `window` and `document` in `src/logic/*.ts`, and its `EXPECTED` list must name every module.
+- Playwright runs Chromium at 1280x720. No test pins what `main.tsx` renders, other than `tests/fonts.test.ts` reading its font imports.
 
 ## Acceptance criteria
 
-### A. When the boot screen runs
+### A. Choosing the view
 
-- **AC1** First load never shows the boot screen, including under React StrictMode and with any stored settings. Nothing about booting is persisted, so reloading during a boot gives a normal first load with no boot screen.
-- **AC2** Without reduced motion, choosing tanzi.os → Restart… or entering `restart` in the terminal shows the boot screen by the next paint. Both entry points behave identically.
-- **AC3** Under `prefers-reduced-motion: reduce`, Restart shows no boot screen, not even for one frame, starts no boot timer, and applies the full reset of section D immediately. The preference is read when Restart is triggered, so changing it without a reload takes effect on the next Restart. A preference change during a running boot does not interrupt it.
-- **AC4** Tidy up, closing, minimizing, and every other menu item or terminal command never show the boot screen.
+- **AC1** The view depends only on viewport width in CSS px. Width below 760 shows the phone page. Width 760 or more shows the desktop. Height, orientation, user agent and touch support are not consulted. Exact boundaries: 759 is phone, 760 is desktop, and a fractional width such as 759.5 is phone.
+- **AC2** The 760 breakpoint is defined in exactly one place in source. The width-to-view rule is a pure, unit-tested function, and any viewport read stays outside `src/logic`.
+- **AC3** On a load below 760px the desktop never mounts. From document start to settled, the DOM never contains the system menu bar, the dock, a window or the boot status region, including under StrictMode. No frame shows the desktop or an empty intermediate view once React has rendered.
+- **AC4** On a load at 760px or wider the phone page never mounts or paints, and the rendered desktop is the same as before this ticket.
+- **AC5** Resizing or rotating across 760 swaps the view with no reload, and the outgoing view is fully unmounted in the same commit that mounts the incoming one. No frame shows both views or neither. After the swap no console error or warning appears.
+- **AC6** Repeated or rapid crossings, including a return within one frame, end on the view matching the final width, with exactly one view mounted. Listeners registered by the switch are removed on unmount.
+- **AC7** Resizing or rotating without crossing 760 does not remount the current view. The phone page keeps its scroll position as the browser allows, and the desktop keeps its window state.
+- **AC8** Crossing into the phone page shows it from the top of the page. Crossing back shows a fresh desktop at the current viewport, with no page scrollbars and no leftover scroll offset visible. Window positions and window-local state are not preserved across a crossing, the same as a reload (decisions 4, 5). A Restart boot running at a crossing is discarded, with no further progress and no warning.
 
-### B. Appearance
+### B. Between 760px and 1280px
 
-- **AC5** The boot screen is fixed to the full viewport with an opaque `--color-bg` background and sits above every other element. During a boot, `document.elementFromPoint` at the four viewport corners, over the menubar and over the dock returns the boot screen or a descendant. It stays full-viewport if the browser is resized during the boot.
-- **AC6** Its content is a centered column with a 22px gap: the mark, then the progress bar. The mark is 64x64, radius 16px, with a 1px solid `--color-accent` border, centered "TC" in `--color-accent`, 22px, weight 600.
-- **AC7** The progress bar is 200x3, radius 2px, on a `--color-neutral-800` track that clips its fill. The fill is `--color-accent`, its width is the current percentage, and it transitions `width .12s linear`.
-- **AC8** The screen shows no other visible text or element, uses tokens only with no hard-coded colours, renders in the current theme in both dark and light, and appears and disappears without a fade.
+- **AC9** The range 760 to 1279px keeps today's behaviour: the desktop renders, with no message, redirect, scaling or layout change. It remains an unsupported size (decision 7). At 1280x720 and up, all existing unit and e2e tests pass unchanged.
 
-### C. Progress and lifecycle
+### C. Content
 
-- **AC9** Every boot starts at 0%, including a second Restart in the same session. Every 90ms the progress increases by `7 + r * 14`, for a random `r` in `[0, 1)`. Displayed progress only increases and never exceeds 100.
-- **AC10** On the tick where the total reaches 100 or more, the section D reset and the removal of the boot screen land in the same commit. Until that tick the desktop behind is not reset. No frame shows the old desktop without the boot screen, or the boot screen removed before the reset. With `r` held at 0 the boot ends on tick 15 (1350ms); with `r` just below 1 it ends on tick 5 (450ms).
-- **AC11** The progress step is a pure, unit-tested function in `src/logic` that takes the random value as an argument. Random numbers and timers stay out of reducers and `src/logic`, so StrictMode's double reducer call cannot change the outcome.
-- **AC12** Under StrictMode, exactly one boot interval is active, the tick rate stays 90ms, and the reset happens exactly once. Unmounting during a boot clears the interval, produces no further progress or completion, and logs no warning.
-- **AC13** A Restart that arrives while a boot is running neither starts a second boot nor restarts or lengthens the current one, and the reset still happens exactly once.
-- **AC14** Progress ticks do not re-render `Desktop`, `MenuBar`, `Dock`, `WindowLayer` or any window (design-decisions section C). `State` in `src/types.ts` gains no boot field or boot percentage.
+- **AC10** The page shows, top to bottom, in this order:
+  1. `NAME` and `ROLE`.
+  2. About: every `ABOUT_COPY` paragraph, with `em` segments emphasized, then every `FACTS` label.
+  3. Experience: every `EXP` entry in array order, all visible at once with no tabs, showing role, `EXPERIENCE_LABELS.at` plus org, `when`, `desc` and all tags.
+  4. Projects: every `PROJECTS` entry in array order, showing name, `desc` and all tags, with the name as the link to `href`.
+  5. Links: every `LINKS` item by its visible text `label`, followed by the résumé link to `RESUME_URL`, labelled with `MENU_ITEMS.resume`.
+- **AC11** All copy comes from `src/data.ts`. Existing constants are reused wherever they fit. Only copy with no existing constant is added, which is expected to be just the section headings. The file-style `WIN_TITLES` values are not used as headings. No email, URL or label is hard-coded elsewhere, and the rendered text changes when the data does.
+- **AC12** The page has no theme toggle, terminal, windows, dock, menubar, boot screen, verb game, wallpaper or wobble.
 
-### D. What Restart resets and keeps
+### D. Layout and scrolling
 
-- **AC15** After Restart the window state equals a fresh load at the current viewport: default positions, the five dock windows open and not minimized, About this site closed, default z-order. If the browser was resized during the boot, the layout uses the latest viewport.
-- **AC16** After Restart every window's internal state is back to its initial value, whether that window was open, minimized or closed beforehand, on both the boot and the reduced-motion path:
-  - the verb is `VERBS[0]`
-  - the experience tab is the first entry
-  - the terminal shows only the banner, with empty input and empty Up/Down history
-- **AC17** Restart keeps the current session's theme, wallpaper and wobble (decision 3), and the prototype's reset of wobble is not copied:
-  - `<html data-theme>`, the wallpaper, the View menu checks and the drag tilt behaviour are unchanged.
-  - Restart writes nothing to `localStorage`, so a setting with nothing stored stays unstored.
-  - Settings are not re-read from storage: when `setItem` throws, a theme changed during the session is still in effect after Restart.
-- **AC18** Windows do not play the open animation as a result of Restart. In the first frame after the boot screen is removed, and immediately after a reduced-motion Restart, every open window has no transform and full opacity. Windows opened after Restart still fly in as usual.
-- **AC19** A window drag in progress when Restart begins cannot change the post-Restart layout, including when the pointer is released during or after the boot.
-- **AC20** Existing behaviour is unchanged:
-  - Tidy up still keeps the internal state of windows that stay open.
-  - Close still resets a window, and minimize still keeps its state.
-  - After Restart the terminal runs commands normally, and Help → Terminal commands still runs `help` exactly once per activation.
-  - Restart can be repeated in the same session.
+- **AC13** The page is a single column on a `--color-bg` background and uses existing tokens only, with no new colours and no change to any token value. Spacing, size and component choices are the planner's, within these criteria.
+- **AC14** The page scrolls vertically by touch, wheel and keyboard, and all content down to the résumé link can be reached.
+- **AC15** At widths 320, 375, 414 and 759, and at short landscape sizes such as 667x375, there is no horizontal scrolling. `document.documentElement.scrollWidth` is at most the viewport width, and long text and tag rows wrap.
+- **AC16** At 760 and up, `body` still does not scroll and all overflow behaviour of the desktop is unchanged. Below 760, text on the page is selectable. The desktop's `user-select: none` does not apply.
 
-### E. Accessibility of the boot screen and focus
+### E. Theme
 
-- **AC21** While the boot screen is showing, the menubar, windows and dock are `inert`, so nothing behind it can be focused, clicked or read by assistive technology. The boot screen and the live region of AC26 are outside the inert content. No menu is open during a boot. `inert` is gone in the same commit that removes the boot screen, and windows minimized before Restart do not stay inert afterwards.
-- **AC22** When the boot starts, focus moves to the boot screen's container, which has `role="dialog"`, `aria-modal="true"` and an accessible name saying the system is restarting. It is focusable only programmatically, adds no tab stop, and shows no visible focus ring on either entry path.
-- **AC23** The bar is exposed as `role="progressbar"` with an accessible name, `aria-valuemin` 0, `aria-valuemax` 100 and an integer `aria-valuenow` matching the rounded displayed percentage. It is not focusable. The "TC" mark is hidden from assistive technology.
-- **AC24** A boot cannot be cancelled or disturbed. Pressing Escape, Enter, Space or Tab, or clicking anywhere, during a boot changes nothing and does not end it early.
-- **AC25** After a completed Restart, on both entry paths and on both the boot and reduced-motion paths:
-  - Focus is on the "tanzi.os" menu trigger, never on `<body>`.
-  - No window is raised by this focus move, so z-order stays at the default.
-  - The Tab sequence matches a fresh load.
-- **AC26** Completion is announced on both the boot and reduced-motion paths through a polite live region:
-  - The region is in the DOM, visually hidden and empty from first load, and outside any inert content.
-  - Each completed Restart sets a completion message.
-  - A repeated Restart is announced again, so the region must be emptied between messages, including on the reduced-motion path where no boot separates them.
-- **AC27** Unit tests using `tests/helpers/contrast.ts` confirm, in dark and light, that the mark text (`--color-accent` on `--color-bg`) is at least 4.5:1 and the fill (`--color-accent` on `--color-neutral-800`) is at least 3:1.
-- **AC28** The mark text and all boot accessible names and announcements come from `src/data.ts`.
+- **AC17** The page renders in whichever theme the existing no-flash init set: the stored preference, else `prefers-color-scheme`, else dark when storage throws. Dark and light both render correctly, with no flash of the other theme on load.
+- **AC18** The page never changes `<html data-theme>` and writes nothing to `localStorage`. Stored theme, wallpaper and wobble are the same after a phone session as before it.
+- **AC19** Crossing 760 in either direction leaves `<html data-theme>` unchanged, including a theme changed on the desktop in the current session while storage is throwing.
 
-### F. Tests and quality
+### F. Semantics and links
 
-- **AC29** Unit and component tests cover AC1-AC4, AC7, AC9-AC13, AC15-AC19, AC20, AC22, AC23, AC25, AC26 and AC28, using fake timers and a controlled random source for AC9 and AC10. AC13 can be exercised in jsdom, which does not enforce `inert`, by submitting `restart` a second time during a boot.
-- **AC30** Playwright at 1280x720 covers:
-  - no boot screen on first load or on reload during a boot (AC1)
-  - the boot from the menu and from the terminal (AC2)
-  - no boot screen under emulated reduced motion, with the full reset applied (AC3)
-  - the overlay covering everything, in both themes (AC5, AC8)
-  - section D end to end: a dirtied verb, tab, terminal, layout and settings, then Restart
-  - no fly-in in the first frame after the boot (AC18)
-  - keyboard and pointer blocked during a boot in a real browser (AC21, AC24)
-  - focus and Tab sequence after Restart (AC25)
+- **AC20** The page has exactly one `h1`, whose text is `NAME`, and one `main` landmark. About, Experience, Projects and Links are each a `section` named by an `h2`. Each experience entry and project is headed by an `h3`. No heading level is skipped.
+- **AC21** Facts, experience entries, projects and links are real lists, and `html lang` stays `en`.
+- **AC22** Every `LINKS` and `PROJECTS` link uses `linkAttrs(href)`, so `http(s)` links open in a new tab with `rel="noopener noreferrer"` and `mailto:` and `#` links get neither attribute. The résumé link matches the existing menu item, with `target="_blank"` and `rel="noopener noreferrer"` (see Assumption 3).
+
+### G. Accessibility and motion
+
+- **AC23** Every link is reachable by Tab in reading order, with the global `:focus-visible` ring visible and not clipped. The page has no positive `tabindex` and no focus trap.
+- **AC24** Icons, if used, are decorative (`aria-hidden`, not focusable), and every link has visible text as its accessible name.
+- **AC25** Each standalone link in the Projects and Links sections has a tap target at least 44 CSS px high.
+- **AC26** All text meets WCAG AA in both themes on the background it sits on, checked by unit tests using `tests/helpers/contrast.ts` for each text and background token pair the page uses, including any `color-mix` or `opacity` applied. Existing muted styles are not assumed to pass (see Assumption 7).
+- **AC27** Essentially no motion, with or without reduced motion: no CSS animation, no transition, no smooth scrolling and no scripted movement. A hover or focus style change is immediate. In e2e, `document.getAnimations()` is empty on the page, with both motion settings.
+- **AC28** The page does not disable pinch zoom, and the existing viewport meta tag stays as it is. Crossing 760 moves no focus programmatically and announces nothing.
+
+### H. Constraints and quality
+
+- **AC29** No new dependency in `package.json`.
+- **AC30** Unit and component tests cover AC1, AC2, AC10-AC12, AC17-AC18, AC20-AC22, AC24 and AC26, plus the view choice in an environment without `matchMedia` (jsdom), which must not throw and must render the desktop at jsdom's default width.
+- **AC31** Playwright, using explicit viewport sizes on top of the 1280x720 config, covers:
+  - no desktop in the DOM at any point on a phone load, using a mutation record from document start (AC3)
+  - the exact 759 and 760 boundary (AC1)
+  - crossing in both directions and a rotation-style swap of width and height, with no frame of both views (AC5, AC8)
+  - rapid crossings (AC6) and non-crossing resize keeping the view (AC7)
+  - vertical scroll and no horizontal overflow (AC14, AC15)
+  - theme from stored value and from emulated colour scheme, with no storage writes (AC17, AC18), and theme kept across a crossing (AC19)
+  - keyboard Tab order and link attributes in a real browser (AC22, AC23)
+  - no animations (AC27)
   - no console errors or warnings
-- **AC31** QA visually compares the boot screen against the prototype in both themes and records the result in the QA report.
-- **AC32** Existing tests broken by Restart no longer being immediate are updated without being weakened. Each change is commented and listed in the QA report and autobuild log as a deliberate requirement change. No test is deleted or skipped. Known cases:
-  - `tests/Desktop.dock.test.tsx` (T06 AC15) and the Restart case in `tests/Desktop.menubar.test.tsx` (AC29) assert the reset right after choosing Restart. They must wait for the boot or run under stubbed reduced motion, and keep every assertion.
-  - `tests/e2e/menubar.spec.ts` (AC29), only if its existing polling is not enough.
-  - The purity `EXPECTED` list, if a logic module is added.
-  - The tests listed under "Current state" that pin `{ type: 'restart' }` and the reducer's immediate reset are expected to keep passing unchanged. If the plan cannot keep them, it must justify each edit under this AC.
-- **AC33** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass. No console errors or warnings appear during e2e.
+- **AC32** QA screenshots the page at 375x667 in dark and light, and records the result in the QA report.
+- **AC33** No existing test is deleted, skipped or weakened. If a new `src/logic` module is added, adding it to the purity `EXPECTED` list is the one expected test edit. It must be commented and listed in the QA report as a deliberate requirement change.
+- **AC34** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass.
 
 ## Out of scope
 
-- A boot screen on first load, or any boot-related persistence (decisions 2, 4).
-- A way to skip or cancel a boot, a confirmation before Restart, or boot text, sounds or logs.
-- The app-wide accessibility pass (T09), including window focus management on open and close, and the items already noted for T09.
-- Replacing placeholder content (T10) and mobile or touch-specific behaviour (T11).
-- Changing `runCommand` output, the Tidy up behaviour, the layout formulas or any token value.
-- The crowded default layout at 1280x720 flagged in the T07 log entry.
+- The OS-style mobile design: window stack, tab-bar dock, TC menu (T11, and the README's responsive note).
+- A theme toggle, terminal, windows or any interactive feature on the phone page.
+- Any change to the 760 to 1279px range, including an "unsupported size" message.
+- A separate rule for phones in landscape wider than 760px, for short viewports, or for touch devices (see Assumption 1).
+- Code-splitting the desktop out of the phone bundle.
+- Preserving window state, scroll position or focus across a crossing.
+- Live following of a changed OS colour scheme on the phone page. The existing init reads it once per load.
+- Real content and the résumé PDF (T10). The `<noscript>` summary and OG tags (decision 10, T12). The app-wide accessibility pass (T09).
 - Editing `docs/design-decisions.md` or `design_handoff_tanzi_os/`.
 
 ## Assumptions
 
-1. **Wobble.** The README says Restart "keeps theme + wallpaper" and the prototype resets wobble. Decision 3 keeps wobble and takes precedence.
-2. **Prototype values.** The README gives the sizes, tick rate and increment. The radius, border, gap, mark text size, track radius, fill transition and the absence of a fade come from the prototype's boot markup.
-3. **No rendered 100%.** The prototype resets on the tick that reaches 100 without ever painting it. The README's "at 100% the desktop resets" is read the same way.
-4. **Reset timing.** The reset happens at the end of the boot, as in the README and prototype, so the old desktop stays behind the opaque screen until then.
-5. **No fly-in.** In the prototype, Restart does not animate windows in, and a Restart reads as a fresh start, which also has no fly-in on first load (AC18).
-6. **Focus target after Restart.** The "tanzi.os" trigger is chosen because it matches T05 AC15 for the menu path, survives the reset, is first in the Tab order, and does not raise a window. The terminal path has no other stable target, because the input is reset with the window.
-7. **Dialog role.** The boot screen blocks the whole page and takes focus, so a named modal dialog gives a reliable spoken cue at the start. A live region inside a newly mounted overlay may not be announced, and focusing the progressbar could read out each tick. The persistent live region covers completion, and is the only cue on the reduced-motion path.
-8. **Copy.** The accessible wording is not specified. The planner may use wording such as "Restarting tanzi.os" and "tanzi.os restarted", stored in `data.ts`. The "TC" text may reuse the existing `SITE_COPY.mark`.
-9. **Reduced motion.** "Skipped" means no boot screen at all, not a shortened one (decision 2).
-10. **Contrast.** By hand calculation, dark mode gives about 5.5:1 for mark text and 3.1:1 for fill on track. Light-mode accent on `--color-bg` is 4.8:1 per the `src/theme.css` comment.
-11. **Light-mode track.** Light `--color-neutral-800` and `--color-bg` are both `#e4e7f5`, so the track is invisible in light mode and only the fill shows. It is kept as specified, following the `.tag-neutral` precedent in T07, because the fill still meets 3:1. QA should note it and T09 may revisit it.
-12. **Background tabs.** Browsers throttle timers in hidden tabs, so a boot in a background tab may take longer. That is accepted, and no wall-clock correction is required.
-13. **Existing-test edits are sanctioned requirement changes,** following the T04-T07 precedent (AC32).
+1. **Width only, so large phones in landscape get the desktop.** The ticket and decision 13 both define phones as `<760px`, and the brief asks for the simplest behaviour above that. A phone wider than 760px in landscape, such as 844x390, is therefore treated like any other 760 to 1279px viewport and shows the desktop at a height below the 720 minimum. "Never mount the desktop on phones" is read as "below 760px". The product owner may want to revisit this, and a later ticket could add a condition without changing anything else here.
+2. **Desktop browsers below 760px also get the phone page.** This includes a narrowed window or high browser zoom, for example 1280px at 200%. No user-agent detection is used.
+3. **Résumé link target is the one exception to `linkAttrs`.** `linkAttrs('/resume.pdf')` would give no new tab, but the only existing résumé link opens one (`newTab: true` in `src/logic/menu.ts`). The same destination should behave the same on both views, and opening a PDF in a new tab keeps the visitor's place on the page.
+4. **Content scope.** "About" includes `FACTS` because the About window shows them. `HELLO_COPY` and `VERBS` are left out, being part of the desktop's playful hello window, and `SITE_COPY.desc` is left out because it describes dragging windows.
+5. **Placeholders are kept as they are.** Project links use `href="#"`, so on a scrolling page a tap jumps to the top until T10 supplies real URLs. `/resume.pdf` does not exist yet, which is already true of the menu item and is T10's job.
+6. **Section heading copy.** "About", "Experience", "Projects" and "Links" are the expected headings. `EXPERIENCE_LABELS.tablist` already holds "Experience" and may be reused.
+7. **Contrast of muted styles.** By hand calculation, `.text-muted` (55% text mix) on the light surface is about 3.3:1, and `.card-meta` (50% mix) on the dark surface is about 4.2:1. Both fail AA, so the planner should not reuse them for text here. `.card-body` also applies opacity and needs the same check.
+8. **Focus at a crossing.** Focus falls to `<body>` when the focused view unmounts. A crossing is a rare, user-initiated change of the viewport, so no focus move or announcement is required (AC28).
+9. **Initial load timing.** `#root` is empty until the script runs, as it is today. AC3 and AC4 apply from React's first commit onward, and that commit must already be the correct view.
 
 ## Open questions
 
