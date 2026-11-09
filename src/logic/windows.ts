@@ -16,7 +16,7 @@ export const WIN_META: Readonly<Record<WinId, WinMeta>> = {
   exp: { width: 520, height: 300, dock: true },
   proj: { width: 520, height: 330, dock: true },
   term: { width: 440, height: 310, dock: true },
-  site: { width: 340, height: 340, dock: false },
+  site: { width: 340, height: 282, dock: false },
 };
 
 export const DOCK_IDS: readonly WinId[] = WIN_IDS.filter((id) => WIN_META[id].dock);

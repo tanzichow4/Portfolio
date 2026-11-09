@@ -66,3 +66,22 @@ test('AC24: 1920x1080 then resize to 1280x720 moves term to 1200,660 and keeps a
   expect(await pos(page, 'term')).toMatchObject({ x: 1200, y: 660 });
   expect(errors).toEqual([]);
 });
+
+test('T07 AC47: the About this site window renders within 2px of its 340x282 height and shows its body', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/');
+  await page.getByRole('menuitem', { name: 'tanzi.os', exact: true }).click();
+  await page.getByRole('menu').locator('[role^="menuitem"]').first().click();
+  const w = page.locator('[data-win="site"]');
+  await expect(w).toHaveCount(1);
+  await expect(w.getByRole('heading', { name: 'tanzi.os' })).toBeVisible();
+  await page.waitForTimeout(700);
+  const b = (await w.boundingBox())!;
+  expect(Math.abs(b.height - 282)).toBeLessThanOrEqual(2);
+  expect(Math.abs(b.x - 470)).toBeLessThanOrEqual(1);
+  expect(Math.abs(b.y - 180)).toBeLessThanOrEqual(1);
+  const dock = (await page.getByRole('navigation', { name: 'Dock' }).boundingBox())!;
+  expect(b.y + b.height).toBeLessThanOrEqual(dock.y);
+});
