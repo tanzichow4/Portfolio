@@ -47,7 +47,12 @@ export default function Desktop() {
         background: `var(--wall-${settings.wall})`,
       }}
     >
-      <MenuBar wins={state.desk.wins} settings={settings} dispatch={dispatch} />
+      <MenuBar
+        wins={state.desk.wins}
+        settings={settings}
+        dispatch={dispatch}
+        onTerminalHelp={() => helpChannel.request()}
+      />
       <WindowLayer
         state={state.desk}
         dispatch={dispatch}

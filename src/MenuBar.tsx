@@ -34,10 +34,12 @@ export default function MenuBar({
   wins,
   settings,
   dispatch,
+  onTerminalHelp,
 }: {
   wins: State['wins'];
   settings: Settings;
   dispatch: Dispatch<AppAction>;
+  onTerminalHelp?: () => void;
 }) {
   const [open, setOpen] = useState<MenuId>(null);
   const [roving, setRoving] = useState<TopMenu>('os');
@@ -165,7 +167,10 @@ export default function MenuBar({
   };
 
   const choose = (item: Item) => {
-    if (item.cmd.type === 'action') dispatch(item.cmd.action);
+    if (item.cmd.type === 'action') {
+      dispatch(item.cmd.action);
+      if (item.cmd.runHelp) onTerminalHelp?.();
+    }
     close(true);
   };
 

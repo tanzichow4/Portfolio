@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Dispatch, KeyboardEvent, MouseEvent } from 'react';
 import { TERMINAL_LABELS } from '../data';
 import { emptyHistory, historyDown, historyUp, pushHistory } from '../logic/history';
@@ -16,8 +16,6 @@ export default function Terminal({
   dispatch: Dispatch<AppAction>;
   helpChannel?: HelpChannel;
 }) {
-  // helpChannel is wired up in T11.
-  void helpChannel;
   const [lines, setLines] = useState<readonly Line[]>(TERMINAL_BANNER);
   const [input, setInput] = useState('');
   const [history, setHistory] = useState(emptyHistory);
@@ -25,6 +23,17 @@ export default function Terminal({
   const bodyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const caretToEnd = useRef(false);
+
+  // Help menu: print the help output without touching input or history.
+  // The channel drains queued requests on subscribe, so StrictMode's
+  // second subscribe runs nothing.
+  useEffect(() => {
+    if (!helpChannel) return;
+    return helpChannel.subscribe(() => {
+      const { lines: out } = runCommand('help');
+      setLines((prev) => [...prev, ...out]);
+    });
+  }, [helpChannel]);
 
   useLayoutEffect(() => {
     const el = bodyRef.current;

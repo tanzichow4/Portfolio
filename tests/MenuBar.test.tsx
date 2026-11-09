@@ -12,14 +12,27 @@ import css from '../src/MenuBar.css?raw';
 const dflt: Settings = { theme: 'dark', wall: 'nebula', wobble: true };
 const latest: { app: App } = { app: initialApp(1280, 720, dflt) };
 
-function Harness({ settings = dflt, extra }: { settings?: Settings; extra?: ReactNode }) {
+function Harness({
+  settings = dflt,
+  extra,
+  onTerminalHelp,
+}: {
+  settings?: Settings;
+  extra?: ReactNode;
+  onTerminalHelp?: () => void;
+}) {
   const [app, dispatch] = useReducer(appReducer, undefined, () => initialApp(1280, 720, settings));
   useLayoutEffect(() => {
     latest.app = app;
   });
   return (
     <div>
-      <MenuBar wins={app.desk.wins} settings={app.settings} dispatch={dispatch} />
+      <MenuBar
+        wins={app.desk.wins}
+        settings={app.settings}
+        dispatch={dispatch}
+        onTerminalHelp={onTerminalHelp}
+      />
       <WindowLayer
         state={app.desk}
         dispatch={dispatch}
@@ -903,6 +916,36 @@ describe('View menu (AC20, AC22)', () => {
 });
 
 describe('Help menu (AC21)', () => {
+  it('T07 AC45: onTerminalHelp fires once for Terminal commands and for no other item', async () => {
+    const stop = (e: Event) => e.preventDefault();
+    document.addEventListener('click', stop);
+    try {
+      const onHelp = vi.fn();
+      const user = userEvent.setup();
+      render(<Harness onTerminalHelp={onHelp} />);
+      for (const t of ['tanzi.os', 'Windows', 'View']) {
+        await user.click(trigger(t));
+        for (const el of anyItems(screen.getByRole('menu'))) {
+          if (el.tagName === 'A') continue;
+          await user.click(el);
+          if (!menu()) continue;
+          await user.keyboard('{Escape}');
+        }
+        if (menu()) await user.keyboard('{Escape}');
+      }
+      await user.click(trigger('Help'));
+      await user.click(screen.getByRole('menuitem', { name: 'Résumé (PDF)' }));
+      await user.click(trigger('Help'));
+      await user.click(screen.getByRole('menuitem', { name: /^Say hi/ }));
+      expect(onHelp).not.toHaveBeenCalled();
+      await user.click(trigger('Help'));
+      await user.click(screen.getByRole('menuitem', { name: 'Terminal commands' }));
+      expect(onHelp).toHaveBeenCalledTimes(1);
+    } finally {
+      document.removeEventListener('click', stop);
+    }
+  });
+
   it('AC21: lists Terminal commands, Résumé (PDF), a divider and Say hi with the hint', async () => {
     const { user } = setup();
     await user.click(trigger('Help'));

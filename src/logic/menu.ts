@@ -7,7 +7,8 @@ export type TopMenu = Exclude<MenuId, null>;
 export const MENU_ORDER: readonly TopMenu[] = ['os', 'win', 'view', 'help'];
 
 export type MenuCmd =
-  { type: 'action'; action: AppAction } | { type: 'link'; href: string; newTab: boolean };
+  | { type: 'action'; action: AppAction; runHelp?: true }
+  | { type: 'link'; href: string; newTab: boolean };
 
 export type MenuEntry =
   | { kind: 'sep'; key: string }
@@ -128,7 +129,13 @@ export function menuModel(
       ];
     case 'help':
       return [
-        act('term', MENU_ITEMS.termCommands, { type: 'open', id: 'term' }),
+        {
+          kind: 'item',
+          key: 'term',
+          role: 'menuitem',
+          label: MENU_ITEMS.termCommands,
+          cmd: { type: 'action', action: { type: 'open', id: 'term' }, runHelp: true },
+        },
         {
           kind: 'item',
           key: 'resume',
