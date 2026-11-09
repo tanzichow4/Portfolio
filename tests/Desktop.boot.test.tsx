@@ -1004,3 +1004,76 @@ describe('T08 boot path (T4)', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// T6: focus after Restart (AC25).
+// ---------------------------------------------------------------------------------------------
+
+describe('T08 focus after Restart (T6)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  for (const reduce of [true, false]) {
+    for (const via of ['menu', 'terminal'] as const) {
+      const path = reduce ? 'reduced motion' : 'boot';
+      it(`T08 AC25: after a Restart from the ${via} on the ${path} path focus is on the tanzi.os trigger, not body`, async () => {
+        stubMotion(reduce);
+        if (!reduce) {
+          vi.useFakeTimers();
+          vi.spyOn(Math, 'random').mockReturnValue(0);
+        }
+        const expected = freshLayout();
+        render(<Desktop />);
+        if (via === 'terminal') act(() => input().focus());
+        if (reduce) {
+          const user = userEvent.setup();
+          await restart(via, user);
+        } else {
+          await request(via);
+          tick(15);
+          expect(dialog()).toBeNull();
+        }
+        expect(document.activeElement).not.toBe(document.body);
+        expect(document.activeElement).toBe(trigger('tanzi.os'));
+        // The focus move raises no window: z-order is the default layout.
+        expect(layout()).toEqual(expected);
+      });
+    }
+  }
+
+  it('T08 AC25: z-order stays default after a Restart that follows a raise', async () => {
+    stubMotion(true);
+    const expected = freshLayout();
+    const user = userEvent.setup();
+    render(<Desktop />);
+    await user.click(winEl('about')!);
+    await restartFromMenu(user);
+    expect(layout().map((l) => l.z)).toEqual(expected.map((l) => l.z));
+  });
+
+  it('T08 AC25: the tanzi.os trigger is the tab stop after Restart even if another trigger was roving', async () => {
+    stubMotion(true);
+    const user = userEvent.setup();
+    render(<Desktop />);
+    await user.click(trigger('tanzi.os'));
+    await user.keyboard('{Escape}{ArrowRight}');
+    expect(trigger('Windows').tabIndex).toBe(0);
+    await user.keyboard('{Enter}');
+    const restartItem = Array.from(
+      document.querySelectorAll<HTMLElement>('[role^="menuitem"]'),
+    ).find((e) => e.textContent === 'Restart…');
+    expect(restartItem).toBeUndefined();
+    await user.keyboard('{Escape}');
+    await restartFromMenu(user);
+    expect(trigger('tanzi.os').tabIndex).toBe(0);
+    expect(['Windows', 'View', 'Help'].map((n) => trigger(n).tabIndex)).toEqual([-1, -1, -1]);
+    expect(document.activeElement).toBe(trigger('tanzi.os'));
+  });
+
+  it('T08 AC25: a fresh load does not move focus on mount', () => {
+    stubMotion(true);
+    render(<Desktop />);
+    expect(document.activeElement).toBe(document.body);
+  });
+});

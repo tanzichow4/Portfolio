@@ -91,6 +91,7 @@ export default function Desktop() {
           settings={settings}
           dispatch={appDispatch}
           onTerminalHelp={() => helpChannel.request()}
+          focusSignal={epoch}
         />
         <WindowLayer
           key={epoch}

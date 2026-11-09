@@ -1220,3 +1220,58 @@ describe('source checks (AC5, AC9, AC17, AC33)', () => {
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
 });
+
+describe('T08 focusSignal (AC25)', () => {
+  const bare = (focusSignal?: number) => (
+    <MenuBar
+      wins={initialApp(1280, 720, dflt).desk.wins}
+      settings={dflt}
+      dispatch={() => {}}
+      focusSignal={focusSignal}
+    />
+  );
+
+  it('T08 AC25: focusSignal 0 does not move focus on mount', () => {
+    render(bare(0));
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('T08 AC25: an undefined focusSignal does not move focus on mount', () => {
+    render(bare());
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('T08 AC25: with focusSignal 0 the first Tab still reaches tanzi.os', async () => {
+    const user = userEvent.setup();
+    render(bare(0));
+    await user.tab();
+    expect(document.activeElement).toBe(trigger('tanzi.os'));
+  });
+
+  it('T08 AC25: a bumped focusSignal focuses the tanzi.os trigger', () => {
+    const { rerender } = render(bare(0));
+    rerender(bare(1));
+    expect(document.activeElement).toBe(trigger('tanzi.os'));
+  });
+
+  it('T08 AC25: a bump pulls focus back from elsewhere and makes tanzi.os the tab stop after another trigger roved', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(bare(0));
+    await user.tab();
+    await user.keyboard('{ArrowRight}');
+    expect(trigger('Windows').tabIndex).toBe(0);
+    rerender(bare(1));
+    expect(document.activeElement).toBe(trigger('tanzi.os'));
+    expect(trigger('tanzi.os').tabIndex).toBe(0);
+  });
+
+  it('T08 AC25: an unchanged focusSignal on re-render does not steal focus', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(bare(0));
+    rerender(bare(1));
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'GitHub' }));
+    rerender(bare(1));
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'GitHub' }));
+  });
+});

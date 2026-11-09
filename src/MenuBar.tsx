@@ -35,11 +35,13 @@ export default function MenuBar({
   settings,
   dispatch,
   onTerminalHelp,
+  focusSignal,
 }: {
   wins: State['wins'];
   settings: Settings;
   dispatch: Dispatch<AppAction>;
   onTerminalHelp?: () => void;
+  focusSignal?: number;
 }) {
   const [open, setOpen] = useState<MenuId>(null);
   const [roving, setRoving] = useState<TopMenu>('os');
@@ -62,6 +64,11 @@ export default function MenuBar({
     const index = want === 'first' ? firstItem(entries) : lastItem(entries);
     menuRef.current?.querySelector<HTMLElement>(`[data-index="${index}"]`)?.focus();
   });
+
+  // A changed, truthy signal sends focus to the first trigger. Zero or undefined does nothing.
+  useLayoutEffect(() => {
+    if (focusSignal) triggers.current.os?.focus();
+  }, [focusSignal]);
 
   const close = useCallback(
     (refocus: boolean) => {
