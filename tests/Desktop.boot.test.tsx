@@ -905,4 +905,102 @@ describe('T08 boot path (T4)', () => {
       expect(container.querySelector('[inert]')).toBeNull();
     });
   });
+  describe('no fly-in after Restart (T5, AC18)', () => {
+    const FLY = /scale\(0\.06\)/;
+    const allWins = () => Array.from(document.querySelectorAll<HTMLElement>('[data-win]'));
+    const frame = () =>
+      act(() => {
+        vi.advanceTimersByTime(40);
+      });
+    const expectInPlace = () => {
+      expect(allWins().length).toBeGreaterThan(0);
+      for (const w of allWins()) {
+        expect(w.style.transform, w.dataset.win).toBe('none');
+        expect(w.style.opacity, w.dataset.win).toBe('1');
+      }
+    };
+
+    it('T08 AC18: first load behaves as before: in place at mount, and a reopened window flies in after a frame', () => {
+      render(<Desktop />);
+      expectInPlace();
+      tick(3);
+      expectInPlace();
+      fireEvent.click(screen.getByRole('button', { name: 'Close about.md' }));
+      tick(3);
+      fireEvent.click(screen.getByRole('button', { name: 'about.md' }));
+      expect(winEl('about')!.style.transform).toMatch(FLY);
+    });
+
+    for (const via of ['menu', 'terminal'] as const) {
+      it(`T08 AC18: in the commit that removes the dialog after a ${via} Restart every window is in place`, async () => {
+        render(<Desktop />);
+        tick(3);
+        await request(via);
+        tick(14);
+        expect(dialog()).not.toBeNull();
+        tick(1);
+        expect(dialog()).toBeNull();
+        expectInPlace();
+        tick(3);
+        expectInPlace();
+      });
+    }
+
+    it('T08 AC18: a window closed before Restart is also in place in the first commit after the boot', async () => {
+      render(<Desktop />);
+      tick(3);
+      fireEvent.click(screen.getByRole('button', { name: 'Close hello.txt' }));
+      tick(3);
+      await request('menu');
+      tick(15);
+      expect(dialog()).toBeNull();
+      expect(winEl('hello')).not.toBeNull();
+      expectInPlace();
+    });
+
+    it('T08 AC18: after a frame, closing and reopening a window flies it in again, in its first commit', async () => {
+      render(<Desktop />);
+      tick(3);
+      await request('terminal');
+      tick(15);
+      expectInPlace();
+      frame();
+      fireEvent.click(screen.getByRole('button', { name: 'Close about.md' }));
+      tick(3);
+      fireEvent.click(screen.getByRole('button', { name: 'about.md' }));
+      const w = winEl('about')!;
+      expect(w.style.transform).toMatch(FLY);
+      expect(w.style.opacity).toBe('0');
+      tick(3);
+      expect(winEl('about')!.style.transform).toBe('none');
+      expect(winEl('about')!.style.opacity).toBe('1');
+    });
+
+    it('T08 AC18: a second Restart is also in place, and a window opened after it still flies in', async () => {
+      render(<Desktop />);
+      tick(3);
+      await request('menu');
+      tick(15);
+      frame();
+      await request('terminal');
+      tick(15);
+      expectInPlace();
+      frame();
+      fireEvent.click(screen.getByRole('button', { name: 'Close experience.log' }));
+      tick(3);
+      fireEvent.click(screen.getByRole('button', { name: 'experience.log' }));
+      expect(winEl('exp')!.style.transform).toMatch(FLY);
+    });
+
+    for (const via of ['menu', 'terminal'] as const) {
+      it(`T08 AC18: under reduced motion every open window is in place right after a ${via} Restart`, async () => {
+        stubMotion(true);
+        render(<Desktop />);
+        tick(3);
+        await request(via);
+        expect(dialog()).toBeNull();
+        expectInPlace();
+      });
+    }
+  });
 });

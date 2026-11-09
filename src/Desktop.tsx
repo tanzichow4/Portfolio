@@ -49,11 +49,14 @@ export default function Desktop() {
     [beginBoot],
   );
 
-  const [ready, setReady] = useState(false);
+  // Windows may fly in only once a frame has passed in the current epoch, so windows
+  // remounted by a reset appear in place, while windows opened later still fly in.
+  const [readyEpoch, setReadyEpoch] = useState(-1);
+  const ready = readyEpoch === epoch;
   useEffect(() => {
-    const raf = requestAnimationFrame(() => setReady(true));
+    const raf = requestAnimationFrame(() => setReadyEpoch(epoch));
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [epoch]);
 
   useEffect(() => {
     const onResize = () =>
