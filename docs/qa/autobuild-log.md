@@ -61,3 +61,9 @@ Baseline: lint and typecheck green; unit tests 752 of 753, the one failure is AC
 - Assumptions: `WIN_META` heights are hello 420, about 331, exp 290, proj 385, term 270, site 282; `clear` removes the banner too and keeps Up/Down history; Help > Terminal commands is not added to history; Tidy up keeps open windows' internal state; `.btn-primary` hover and pressed labels and the active tab label use a lighter accent token to reach AA, without changing token values; dots and focus follow T06.
 - Decision for you: at 1280x720 the default layout is crowded. Hello covers Experience's titlebar buttons and two of its tabs; About and Terminal cover Projects' buttons and tiles. The dock, Windows menu and Tab all still reach them, and 1920x1080 is fine. This comes from the prototype's `layout()` formula, and fitting above the dock adds 26px of overlap on Experience. Screenshots were taken in QA but not committed.
 - Gaps: Restart does not yet reset verb, tab or terminal (T08). In light mode `.tag-neutral` matches its tile background so the chip shape disappears, text passes AA (T09). Clicking the bare desktop does not clear a text selection. Most new tests had no mutation check. QA used scripted bundled Chromium.
+
+## Run resumed after a usage-limit stop (branch autobuild/2026-11-08)
+
+Baseline before T08 task T2: see the T08 entry. T08 tasks T1 and earlier were already committed; nothing partial was left in the tree.
+
+Direction from Tanzi during this run: finish T08, defer T09 until after the MVP, add a simple phone fallback (T13, decision 13), and skip terminal admin editing for now (T14).

@@ -92,3 +92,4 @@ Nothing to run. To review: open `design_handoff_tanzi_os/Tanzi OS.dc.html` throu
 10. Add `<noscript>` summary and OG/meta tags.
 11. Light mode: darkened `neutral-400` (#5c6073), `neutral-500` (#626679) and `--color-accent` (#6558ad, was #796cbf) for WCAG AA. Re-check contrast when adding colors.
 12. Clock fixed to "Sat 3:42 PM" format (en-US).
+13. Phones (<760px) get a simple single-column fallback page in the MVP, using the same content. This replaces decision 1 for the MVP; the OS-style mobile design stays a later epic (T11).
