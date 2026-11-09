@@ -163,6 +163,12 @@ export const SITE_COPY = {
   desc: 'A tiny desktop that happens to be a portfolio. Drag the windows, poke the dock, try the terminal.',
 } as const;
 
+export const BOOT_COPY = {
+  dialog: 'Restarting tanzi.os',
+  progress: 'Restart progress',
+  done: 'tanzi.os restarted',
+} as const;
+
 export const EXPERIENCE_LABELS = { tablist: 'Experience', at: '@' } as const;
 
 export const TERMINAL_LABELS = { input: 'Terminal command', log: 'Terminal output' } as const;

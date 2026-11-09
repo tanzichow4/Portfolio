@@ -11,7 +11,14 @@ export default defineConfig({
     include: ['tests/**/*.test.{ts,tsx}'],
     exclude: ['tests/e2e/**', 'node_modules/**'],
     css: {
-      include: [/theme\.css/, /Window\.css/, /MenuBar\.css/, /Dock\.css/, /src\/windows\/\w+\.css/],
+      include: [
+        /theme\.css/,
+        /Window\.css/,
+        /MenuBar\.css/,
+        /Dock\.css/,
+        /BootScreen\.css/,
+        /src\/windows\/\w+\.css/,
+      ],
     },
   },
 });

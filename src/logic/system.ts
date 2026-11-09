@@ -46,3 +46,12 @@ export function effectToAction(e: TerminalEffect): AppAction | null {
     }
   }
 }
+
+export const BOOT_TICK_MS = 90;
+export const ANNOUNCE_DELAY_MS = 100;
+
+// One boot tick. The caller supplies the random value r in [0, 1).
+export function bootStep(total: number, r: number): { pct: number; done: boolean } {
+  const sum = total + 7 + r * 14;
+  return { pct: Math.min(100, sum), done: sum >= 100 };
+}

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { appReducer, effectToAction, initialApp, type App } from '../../src/logic/system';
+import {
+  ANNOUNCE_DELAY_MS,
+  BOOT_TICK_MS,
+  appReducer,
+  bootStep,
+  effectToAction,
+  initialApp,
+  type App,
+} from '../../src/logic/system';
 import { menuModel, type MenuEntry } from '../../src/logic/menu';
 import { persistDiff, type Settings } from '../../src/logic/settings';
 import type { TerminalEffect } from '../../src/logic/terminal';
@@ -180,5 +188,66 @@ describe('appReducer delegation', () => {
     expect(app.desk.vh).toBe(1080);
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so term y at 1920x1080 is 700 (was 694).
     expect(app.desk.wins.term).toMatchObject({ x: 1450, y: 700, open: true, min: false });
+  });
+});
+
+/** Ticks until done with a constant r, starting at 0. */
+function ticksWith(r: number): number {
+  let total = 0;
+  for (let n = 1; n <= 100; n++) {
+    const s = bootStep(total, r);
+    if (s.done) return n;
+    total = s.pct;
+  }
+  return -1;
+}
+
+describe('T08 bootStep', () => {
+  it('T08 AC28: the tick is 90ms and the announcement delay is 100ms', () => {
+    expect(BOOT_TICK_MS).toBe(90);
+    expect(ANNOUNCE_DELAY_MS).toBe(100);
+  });
+
+  it('T08 AC10: with r at 0 the boot is done on call 15 and not 14', () => {
+    expect(ticksWith(0)).toBe(15);
+  });
+
+  it('T08 AC10: with r just below 1 the boot is done on call 5 and not 4', () => {
+    expect(ticksWith(0.999999)).toBe(5);
+  });
+
+  it('T08 AC9: each step adds 7 + r * 14', () => {
+    expect(bootStep(0, 0).pct).toBeCloseTo(7);
+    expect(bootStep(0, 0.5).pct).toBeCloseTo(14);
+    expect(bootStep(10, 1).pct).toBeCloseTo(31);
+    expect(bootStep(0, 0).done).toBe(false);
+  });
+
+  it('T08 AC9: pct strictly increases across a run for any r', () => {
+    for (const r of [0, 0.25, 0.5, 0.999999]) {
+      let total = 0;
+      for (let i = 0; i < 15; i++) {
+        const s = bootStep(total, r);
+        if (s.done) break;
+        expect(s.pct).toBeGreaterThan(total);
+        total = s.pct;
+      }
+    }
+  });
+
+  it('T08 AC9: pct is capped at 100', () => {
+    expect(bootStep(99, 0.999999)).toEqual({ pct: 100, done: true });
+    expect(bootStep(98, 0).pct).toBe(100);
+    expect(bootStep(100, 0.5).pct).toBe(100);
+  });
+
+  it('T08 AC10: a total of exactly 100 is done, just under is not', () => {
+    expect(bootStep(93, 0)).toEqual({ pct: 100, done: true });
+    expect(bootStep(92.9, 0).done).toBe(false);
+  });
+
+  it('T08 AC11: bootStep is pure and takes r as an argument', () => {
+    expect(bootStep(40, 0.3)).toEqual(bootStep(40, 0.3));
+    expect(bootStep.length).toBe(2);
   });
 });
