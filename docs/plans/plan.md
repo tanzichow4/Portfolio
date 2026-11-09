@@ -1,295 +1,428 @@
-# T06 plan: `Dock`
+# T07 plan: window contents
 
-Source: `docs/plans/00-requirements.md` (Current state, Assumptions 1-14, AC1-AC34), `CLAUDE.md`, `docs/design-decisions.md` (decisions 1, 11; sections B, C, D), `design_handoff_tanzi_os/README.md` ("Dock", "Interactions") and the prototype's dock markup. Existing code read: `src/Desktop.tsx`, `src/Dock.tsx`, `src/MenuBar.tsx`, `src/MenuBar.css`, `src/Window.tsx`, `src/WindowLayer.tsx`, `src/data.ts`, `src/theme.css`, `src/logic/{dock,windows,desktop,layout,motion}.ts`, `tests/logic/purity.test.ts`, `tests/menubar.contrast.test.ts`, `tests/Desktop.wiring.test.tsx`, `tests/Desktop.menubar.test.tsx`, `tests/e2e/{chrome,menubar,desktop}.spec.ts`.
+Source: `docs/plans/00-requirements.md` (Current state, Assumptions 1-17, AC1-AC53), `CLAUDE.md`, `docs/design-decisions.md` (decisions 1, 3, 5, 7, 8, 11; sections B, C, D), `design_handoff_tanzi_os/README.md` and the prototype's window markup. Existing code read: `src/{Desktop,Window,WindowLayer,MenuBar,data,theme.css,types}`, `src/logic/{terminal,history,system,menu,layout,windows,desktop,drag,motion}.ts`, `src/hooks/useDrag.ts`, `eslint.config.js`, `vite.config.ts`, and every test that pins buttons, Tab order, heights or positions.
 
-T1-T5 below are tasks inside ticket T06, not backlog tickets.
+T1-T12 below are tasks inside ticket T07, not backlog tickets.
 
 ## 1. Goal and scope
 
-**Goal.** Add the bottom-centre dock: five window buttons that open, restore, focus or minimize their windows through the existing click logic, a divider, three link icons, and an indicator dot showing each window's state. It must be fully keyboard and screen-reader usable, respect reduced motion, and give the open and restore flows left unverified by T04 a real UI path that is tested end to end.
+**Goal.** Fill the six window bodies (Hello, About, Experience, Projects, Terminal, About this site) with the spec's content and interactions, all copy coming from `src/data.ts` and all internal state living in the window components. Connect the terminal to the existing `runCommand`, history and effect path, including Help → Terminal commands, and correct the estimated window heights against the real windows at 1280x720.
 
 **Out of scope** (carried over):
 
-- Window contents (T07), and re-checking nominal window heights against real content (T07).
-- `BootScreen` and hiding the dock during boot (T08).
-- The app-wide accessibility pass (T09), including moving focus into a window when it opens or restores from the dock.
-- Real link URLs and real content (T10).
-- The mobile tab-bar dock and touch-specific hover handling (decision 1, T11).
-- Custom styled tooltips, and adding tooltips to the menubar links.
-- Aiming the genie at each window's own dock button.
-- Magnifying neighbouring dock items, dock drag or reorder, or context menus.
-- Changing `dockClickAction`, the reducer's dock logic or the z-order rules.
-- Keeping windows from being dragged or re-clamped under the dock (accepted in T03; Tidy up restores the layout).
+- `BootScreen`, and Restart's full reset of internal window state (T08). Until then `restart` runs the existing layout reset, and terminal, tab and verb state may survive it. Tests must not pin that state surviving.
+- The app-wide accessibility pass (T09), including moving focus into a window when it opens or returning focus when it closes.
+- Replacing placeholder content, the real résumé, real URLs, and re-measuring heights after real content lands (T10).
+- Mobile and touch-specific behaviour (T11).
+- Tab completion (decision 8), and any new terminal command or new argument to `open`, such as `terminal` or `site`.
+- Changing `runCommand` output, moving terminal strings out of `src/logic/terminal.ts`, or changing token values.
+- A scrollback or history length cap.
+- Window resizing, internal scrolling for windows other than the terminal, and changes to drag, genie or z-order rules.
 - Editing `docs/design-decisions.md`.
 
 ## 2. Acceptance criteria
 
-Copied from `00-requirements.md` with the same numbers. No ACs were added: the gaps found are handled by decisions in section 8 and by the extra test edit in section 7a, which AC30's general rule already covers.
+Copied from `00-requirements.md` with the same numbers. One AC is added (AC54, marked). Other gaps are handled by the decisions in section 8 and by the extra test edits in section 7a, which AC52's general rule already covers.
 
-### Layout and appearance
+### A. Shared: content source, mounting, state
 
-- **AC1** `Desktop` renders the dock at every supported size (1280x720 and up). It is horizontally centred in the viewport (within 1px), 14px from the bottom, with padding 8px, radius 18px, gap 6px between items, background `color-mix(in srgb, var(--color-surface) 78%, transparent)`, `backdrop-filter: blur(12px)`, `--shadow-md` and z-index 900. It stays centred and 14px from the bottom after a viewport resize.
-- **AC2** At rest the dock's top edge is at `vh - 76` (within 1px), matching `DOCK_CLEARANCE`. At 1280x720, no default window's nominal rectangle intersects the dock.
-- **AC3** The dock contains, left to right: exactly five window buttons (hello.txt, about.md, experience.log, projects, terminal, in `DOCK_IDS` order), one divider, then three links in `LINKS` order (GitHub, LinkedIn, Email). There is no button for "About this site".
-- **AC4** Each window button is 46x46, radius 12px, background `--color-bg`, with its `WIN_ICONS` icon at 22px in `--color-accent-400`, and `cursor: pointer`.
-- **AC5** Each link is 46x46, radius 12px, background `--color-bg`, with a 22px icon in `--color-neutral-300`. On hover the icon becomes `--color-text`.
-- **AC6** The divider is 1px wide and 34px tall, `--color-divider`, with margin `0 4px 6px`. It is hidden from assistive technology and is not focusable.
-- **AC7** The indicator dot sits under each window button: 4px, `--color-accent`, horizontally centred on the button, within the dock's padding. Its opacity is 1 when the window is open and not minimized, 0.4 when minimized, and 0 when closed, with a 0.2s opacity transition. The dot is hidden from assistive technology. Links have no dot.
-- **AC8** The dock renders correctly in both themes using tokens only, with no hard-coded colours.
+- **AC1** Each open window renders its own body inside its `Window`. No placeholder or empty body remains.
+- **AC2** All visible copy, accessible labels and hrefs in the window bodies come from `src/data.ts`. This includes the new hello copy, about copy (with its emphasized phrases) and About this site copy, plus the labels added by this ticket. T10 can replace the copy by editing `data.ts` alone. The email is used only through `EMAIL` or `LINKS`, and the existing email-appears-once test still passes.
+- **AC3** Internal state resets on close and survives minimize:
+  - Close then reopen returns the verb to `VERBS[0]`, the experience tab to the first entry, and the terminal to the banner alone with empty input and empty command history.
+  - Minimize then restore, Minimize all then Show all, and Tidy up on a window that stays open all keep that state, including text typed but not yet submitted.
+- **AC4** `State` in `types.ts` and the `Desktop` reducer gain no field holding terminal lines, command history, input text, selected tab or verb.
+- **AC5** Typing in the terminal input dispatches no `Desktop` action and does not re-render `Desktop`, `MenuBar` or `Dock`.
+- **AC6** A pointer drag that starts in any window body does not move the window. Pointer-down in a body still raises the window (existing behaviour).
+- **AC7** The body of every window uses tokens only, with no hard-coded colours, and renders correctly in both themes.
+- **AC8** Under `prefers-reduced-motion: reduce`, no transform is applied on hover or press to any element in AC15, AC17, AC21, AC24, AC29 or AC33. Colour, background and shadow changes may remain.
+- **AC9** Every element that translates on hover (name letters, hello buttons, fact chips, experience tabs, project tiles) is hover-stable. With the pointer resting anywhere in its at-rest box, including the bottom edge, it settles in its hover pose and does not flicker. A click anywhere in the at-rest box of an interactive element activates it.
+- **AC10** Every interactive element in the window bodies is reachable by keyboard in visual order and shows the `:focus-visible` ring, not clipped by the window's `overflow: hidden`. Controls styled without native chrome (the verb, the tabs, the terminal input) keep the ring. Minimized windows contribute no tab stops.
+- **AC11** Tab stops in DOM order are:
+  - hello: Minimize, Close, verb, See what I've built, Say hi
+  - about: Minimize, Close
+  - experience: Minimize, Close, selected tab, tab panel
+  - projects: Minimize, Close, four tiles
+  - terminal: Minimize, Close, input
+- **AC12** Text contrast is verified by unit tests using `tests/helpers/contrast.ts`, in dark and light, at 4.5:1 or better for every text pair added here, including composited backgrounds:
+  - each terminal tone (`cmd`, `out`, `dim`, `acc`) and the prompt on `--color-surface`
+  - the active experience tab label on its tinted background
+  - inactive tab, date and description on `--color-surface`
+  - project description on `--color-bg`
+  - `tag-accent` and `tag-neutral` text on their backgrounds
+  - hello accent line, hint and verb on `--color-surface`
+  - "See what I've built" label at rest, hovered and pressed
+  - The active tab and the primary button's hover and pressed states fail with the spec's `--color-accent` on a tint (about 4.0:1 for the dark active tab by hand calculation). They must be corrected with existing tokens, without changing token values.
 
-### Click behaviour
+### B. Hello
 
-- **AC9** Clicking a window button produces the outcome the spec requires in each state:
-  - closed: the window opens and becomes front-most
-  - minimized: the window restores and becomes front-most
-  - open but not front-most: the window becomes front-most, with position unchanged
-  - open and front-most: the window minimizes
-- **AC10** The dock has no click logic of its own. Each click goes through the existing `dockClick` reducer action exactly once.
-- **AC11** Repeated clicks stay consistent. Clicking a front-most window's button alternates minimize and restore. Rapid clicks, including during the genie animation, leave the window in the state the reducer reports, never stuck invisible while `data-min="false"` or visible while `data-min="true"`.
-- **AC12** A window that has moved keeps its position across minimize and restore, and across close and reopen from the dock.
-- **AC13** A pointer-down on the dock does not start a drag and does not raise any window under it. Only the resulting button action changes the window state. Windows that overlap the dock stay behind it, and its controls stay clickable.
-- **AC14** Clicking the dock while a menu is open closes the menu, and the clicked button or link still performs its action.
-- **AC15** Dots, `aria-pressed` and the description (AC20, AC21) stay in sync with every other way of changing a window: its own Minimize and Close buttons, title-bar double-click, each Windows menu item, Minimize all, Show all, Tidy up and Restart. In the other direction, the Windows menu checks update after a dock click.
+- **AC13** The body has padding 34px 38px. The greeting "Hi, my name is" is 15px accent, preceded by a 22px waving hand. The hand rotates −28° on hover and is hidden from assistive technology.
+- **AC14** The name is an `<h1>` at 58px, weight 500, −0.04em, line-height 1.02, on exactly two lines: the first word of `NAME`, then the rest of `NAME` followed by a period. Its accessible name is exactly `NAME`. Each letter is its own inline-block element hidden from assistive technology.
+- **AC15** Hovering a letter gives `translateY(-12px) rotate(-6deg)` and `--color-accent-400`, with `transform .45s` on `--ease-bouncy`.
+- **AC16** The line "I &lt;verb&gt; stuff." is 30px, weight 500, neutral-400, and stays on one line for every entry in `VERBS`. The verb is a native `<button>` in text colour with a 3px accent underline bar. Its accessible name is exactly the current verb.
+- **AC17** Clicking the verb, or pressing Enter or Space on it, advances through `VERBS` in order and wraps from the last to the first. It has `rotate(-4deg) scale(1.06)` on hover and `scale(.92)` while pressed. The window's height does not change as the verb changes.
+- **AC18** The hint "psst — click the verb" is 12px neutral-500 with an aria-hidden cursor-click icon.
+- **AC19** "See what I've built" is a native button (`.btn-primary`) that opens or restores the projects window and brings it to the front. Hello stays open.
+- **AC20** "Say hi" is a link (`.btn-secondary`) to `mailto:` plus `EMAIL`, with no `target`, and changes no window state.
+- **AC21** Both buttons have gap 12px, margin-top 28px, padding 11px 18px, radius 10px. On hover they use `translate(-3px,-3px)` and `box-shadow: 3px 3px 0 0` in accent (primary) or neutral-700 (secondary). While pressed they return to no offset and no shadow. Both animate transform and box-shadow over .35s on `--ease-spring`.
 
-### Links
+### C. About and About this site
 
-- **AC16** Each dock link's `href` comes from `LINKS`. GitHub and LinkedIn open in a new tab with `rel="noopener noreferrer"`. Email is a `mailto:` link with no `target`. Clicking a link changes no window state.
+- **AC22** about.md has padding 22px 24px 24px and 14px/1.65 neutral-400 text, with the emphasized phrases in `--color-text`. The text can really be selected by dragging in a browser, and the selection stays after the pointer is released.
+- **AC23** `FACTS` render as a list of pills in `FACTS` order: padding 6px 11px, radius 999px, `--color-bg`, `--shadow-sm`, 12.5px neutral-300, with an aria-hidden accent icon.
+- **AC24** Hovering a pill gives `rotate(-4deg) translateY(-3px)` on `--ease-bouncy`.
+- **AC25** About this site has body padding 26px 24px 24px and shows, in order: the 52px "TC" mark (radius 14px, 1px accent outline, accent text at 18px weight 600, hidden from assistive technology), the title "tanzi.os" (18px, weight 500, a heading), and "Version " plus `VERSION` plus " · Portfolio edition" (12px neutral-500).
+- **AC26** A short description follows the version line (13px/1.6 neutral-400). Hovering the mark gives `rotate(-14deg) scale(1.1)` over .6s on `--ease-bouncy`.
 
-### Motion
+### D. Experience and Projects
 
-- **AC17** On hover, a window button is transformed by `translateY(-10px) scale(1.15)`, and a link by `translateY(-10px) scale(1.15) rotate(-8deg)`. Both animate as `transform .35s` with `--ease-bouncy`. While pressed, a window button is `translateY(-4px) scale(.95)`.
-- **AC18** Hover is stable. With the pointer resting anywhere inside a control's at-rest 46x46 box, including its bottom edge, the control settles in its hover pose and does not flicker between hover and rest as it lifts away. A click anywhere in that box activates that control. The dock does not clip a lifted control.
-- **AC19** Under `prefers-reduced-motion: reduce`:
-  - Hovering or pressing a dock control applies no transform. Colour and dot opacity changes may remain.
-  - A dock click still opens, restores, focuses and minimizes correctly.
-  - Windows opened or restored from the dock have no genie or fly-out transform. Fades remain.
+- **AC27** experience.log has a 150px tab rail with an inset right divider, and a detail panel with minimum body height 250px. There is one tab per `EXP` entry, in order, labelled with `org`. The first is selected on open.
+- **AC28** Tabs follow the tabs pattern: `tablist` with vertical orientation and an accessible name, `tab` with `aria-selected`, `tabpanel` labelled by its tab and focusable. Only the selected tab is a tab stop. ArrowDown and ArrowUp move and select with wrap-around, Home and End go to the first and last, and focus follows.
+- **AC29** Tabs are padding 9px 12px, radius 8px, 13px weight 500. Active has an accent-family label (AC12), accent background at 12% and `inset 2px 0 0` accent. Inactive is neutral-500. Hover gives `translateX(4px)` on `--ease-spring`.
+- **AC30** The panel shows the selected entry only:
+  - role at 17px weight 500 as a heading, plus "@ org" in accent
+  - date at 11px, uppercase via CSS, 0.08em, weight 600, neutral-500
+  - description at 13.5px/1.6 neutral-400
+  - one `.tag.tag-accent` per technology
+  - Panel text is selectable by dragging. Switching tabs does not change the window's height with the current content.
+- **AC31** The projects window shows `PROJECTS` in `PROJECTS` order as a list in a two-column grid, gap 10px, padding 14px. Each tile is one link: padding 14px, radius 8px, `--color-bg`, a 22px accent icon, a 13px arrow-up-right in neutral-500, name 14px weight 500 as a heading, description 12px neutral-500, and `.tag.tag-neutral` tags at 10px with padding 2px 7px.
+- **AC32** Each tile's `href` comes from `PROJECTS`, and its target and rel come from `linkAttrs`. Icons are hidden from assistive technology. The link's accessible name contains the project name and description with the words separated, never run together.
+- **AC33** Hovering a tile gives `translateY(-5px) rotate(-1.5deg)` and `--shadow-md`. While pressed it is `scale(.97)`.
+- **AC34** The projects titlebar visibly reads `~/projects`, as in the spec and prototype. The window's accessible name, its Minimize and Close labels, the dock label and the Windows menu entry all stay `projects`. The display string lives in `data.ts`.
 
-### Accessibility
+### E. Terminal
 
-- **AC20** Each window button is a native `<button>` with `aria-label` exactly equal to its `WIN_TITLES` value. The label stays the same in every state. `aria-pressed` is `true` exactly when the window is open and not minimized, and `false` otherwise (matching the Windows menu check).
-- **AC21** Each window button exposes its three-way state as an accessible description reading "Open", "Minimized" or "Closed", matching the dot, so minimized and closed can be told apart without seeing it.
-- **AC22** Each link is a native `<a>` with `aria-label` equal to its `LINKS` label.
-- **AC23** Every window button and link has a native `title` tooltip equal to its label. Every icon is hidden from assistive technology.
-- **AC24** The dock is a `navigation` landmark with an accessible name of "Dock". Its name and the three state words live in `src/data.ts`. No other dock copy, URL or email address is written outside `data.ts`.
-- **AC25** Keyboard:
-  - All eight controls are reachable with Tab, in visual order, and each is its own tab stop.
-  - The dock comes after the windows in the tab order, so the menubar stops and then "Minimize hello.txt" stay first.
-  - Enter and Space activate a window button with the same outcomes as AC9.
-- **AC26** After a keyboard activation, focus stays on that dock button in all four outcomes. It is never lost to `<body>`, including when the action minimizes a window.
-- **AC27** Every dock control shows the `:focus-visible` ring when focused by keyboard, and the ring is not clipped. Minimized windows stay out of the tab order while tabbing through the dock.
-- **AC28** Contrast, verified by unit tests using `tests/helpers/contrast.ts`, in dark and light. Each pair needs at least 3:1:
-  - window icon (`--color-accent-400`) on `--color-bg`
-  - link icon (`--color-neutral-300`) on `--color-bg`
-  - hovered link icon (`--color-text`) on `--color-bg`
-  - focus ring (`--color-accent`) on the dock background, composited at 78% over each solid wallpaper base it can sit on: `--color-bg`, `--color-section`, `--color-accent-900`
+- **AC35** The body is 230px tall and scrolls vertically, padding 14px 16px, `13px/1.6` in `--font-mono`. It opens with `TERMINAL_BANNER` and an empty input.
+- **AC36** The input row shows the prompt from `PROMPT` in accent, then an unstyled input with an accent caret, `--color-text`, and spellcheck, autocomplete and autocapitalize off. The input has an accessible label. Output is exposed as a labelled `log` that does not contain the input.
+- **AC37** Line colours follow `tone`: `cmd` `--color-text`, `out` neutral-300, `dim` neutral-500, `acc` accent-400. Lines preserve spacing (`pre-wrap`) so `padEnd` columns stay aligned.
+- **AC38** Lines are rendered as plain text: an entered `<b>x</b>` appears literally. A long command with no spaces wraps, with no horizontal scrollbar.
+- **AC39** Enter runs the input through `runCommand`, appends the returned lines, clears the input and applies every effect once. Non-clear effects go through `effectToAction` and the existing dispatch path, so `theme` and `wallpaper` persist exactly as the menu's do.
+- **AC40** Each command has its observable result:
+  - `open <file>` opens or restores that window and brings it to the front
+  - `theme` and `wallpaper` change the setting
+  - `tidy` resets the layout
+  - `clear` removes all lines including the banner, and keeps the command history
+  - an empty Enter prints only the prompt line
+  - bad arguments print the existing usage messages
+- **AC41** After any command except `restart`, focus stays in the input.
+- **AC42** New output scrolls the body to the bottom, so the input row stays visible.
+- **AC43** Up and Down use the existing history functions: Up recalls older commands, Down recalls newer and finally restores the in-progress draft. The caret ends at the end of the text. Tab does not complete: it moves focus out as usual.
+- **AC44** A plain click anywhere in the body focuses the input. A drag that selects output text keeps the selection and does not move focus to the input.
+- **AC45** Help → Terminal commands opens or restores the terminal, brings it to the front and runs `help` exactly once per activation, including under React StrictMode:
+  - From closed, the result is the banner, then the echoed `help` and its output.
+  - From open or minimized, the output is appended and earlier lines and unsent input are kept.
+  - Two activations produce two runs.
+  - The run is not added to the Up/Down history.
+- **AC46** The terminal does not take focus on page load or when opened from the dock or menu.
 
-### Structure and tests
+### F. Window heights and layout
 
-- **AC29** Component tests (Testing Library) cover AC3, AC7, AC9, AC11 (alternation), AC14-AC16 and AC20-AC26, including each state of the description and `aria-pressed`.
-- **AC30** Existing tests whose assumptions the dock breaks are updated without being weakened, and each change is listed in the QA report and autobuild log as a deliberate requirement change. Known cases are the three in "Current state": the page-wide button list and count now also pin the five dock buttons, giving 16 buttons in total. No test is deleted or skipped.
-- **AC31** Playwright e2e at 1280x720 closes the gaps T04 left, using real dock clicks:
-  - each of the four click outcomes in AC9
-  - close then dock click: the window first renders in the minimized pose (`scale(0.06)`) and ends at `transform: none` and opacity 1 (the fly-out)
-  - minimize then dock click: the window returns to `transform: none` at its previous position
-  - hover pose and hover stability at the bottom edge (AC17, AC18)
-  - the reduced-motion behaviour in AC19
-  - Tab order and keyboard activation (AC25, AC26)
-- **AC32** The minimize target lies inside the dock: `(vw / 2, vh - 40)` falls within the dock's rectangle at 1280x720 and at a larger viewport.
-- **AC33** QA visually checks the fly-out and the restore in a real browser, in both themes, and records the result in the QA report. T04 could not do this.
-- **AC34** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass. No console errors or warnings appear during e2e.
+- **AC47** At 1280x720 with the current `data.ts`, each window's rendered height is within 2px of its `WIN_META` height, with no blank band below the content. For experience this holds on every tab.
+- **AC48** With corrected heights, the existing layout formulas are unchanged and every default window's real rectangle stays above the dock's top edge at 1280x720 and at a larger viewport. About this site keeps its existing position formula.
+
+### G. Tests and quality
+
+- **AC49** Component tests (Testing Library) cover AC2-AC5, AC14, AC16, AC17, AC19, AC20, AC27, AC28, AC30, AC32, AC34-AC41, AC43, AC45 and AC46.
+- **AC50** Playwright at 1280x720 covers:
+  - real rendered heights and dock clearance (AC47, AC48)
+  - real text selection in about, the experience panel and the terminal (AC22, AC30, AC44)
+  - auto-scroll (AC42) and focus retention (AC41)
+  - hover poses and hover stability (AC9), and reduced motion (AC8)
+  - full Tab order (AC11) and tab keyboard navigation (AC28)
+  - the terminal changing theme and opening a window end to end
+  - Help → Terminal commands from closed, minimized and open (AC45)
+  - close and reopen reset (AC3)
+- **AC51** QA visually compares all six windows against the prototype in both themes and records the result in the QA report.
+- **AC52** Existing tests whose assumptions this ticket breaks are updated without being weakened, and each change is commented and listed in the QA report and autobuild log as a deliberate requirement change. No test is deleted or skipped. Known cases:
+  - `tests/Desktop.wiring.test.tsx` (10 window buttons, exactly two buttons per window, `.win-title` equal to the title): windows now have 12 buttons in total, with hello's two extra pinned, and the projects titlebar reads `~/projects`.
+  - `tests/e2e/chrome.spec.ts` (10 window buttons, 16 on the page, Tab-count tests, the position in the comment near line 459): now 12 and 18.
+  - Default positions pinned in `tests/e2e/desktop.spec.ts`, `tests/e2e/menubar.spec.ts` and `tests/logic/layout.test.ts`, if the corrected heights move them.
+  - Tab-count tests in `tests/e2e/dock.spec.ts` and `tests/e2e/menubar.spec.ts`.
+  - `tests/logic/menu.test.ts` for Terminal commands, only if its action shape must change. It must still open the terminal.
+- **AC53** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass. No console errors or warnings appear during e2e.
+- **AC54 (added)** Under `prefers-reduced-motion: reduce`, hovering the waving hand (AC13) or the "TC" mark (AC26) applies no transform. AC8's list omits these two, and CLAUDE.md requires reduced motion to be respected.
 
 ## 3. Architecture
 
-**Approach.** `Dock` is a stateless view of `state.desk.wins`. Every button dispatches `{ type: 'dockClick', id }` and nothing else, so `dockClickAction` and the reducer stay untouched (AC10). Dots, `aria-pressed` and the description all derive from the same `Win` on each render, so AC15 holds structurally and the Windows menu reads the same state.
+**Approach.** Each body is a self-contained component holding its own state with `useState`, so decision 5 and AC3 follow from `key={id}` unmounting on close and staying mounted on minimize. `Desktop` gains no window-content state. Terminal logic reuses `runCommand`, the history functions and `effectToAction` unchanged.
 
-**The key structural decision is a static host with a moving face (AC18).** The spec's lift moves a transformed control's bottom edge up about 6.5px, which is what causes the flicker and missed clicks. So the native `<button>` or `<a>` (the "host") never transforms and keeps the at-rest 46x46 hit box. A child `span` (the "face") paints the background and icon and carries every transform. The face has `pointer-events: none`, so the hit area is exactly the at-rest box, and a lifted face can never steal a neighbour's click. Hover and active rules select on the host and style the face.
+**Mounting (AC1).** `WindowLayer` gains one optional prop, `renderBody?: (id: WinId) => ReactNode`, and renders `{renderBody?.(id)}` as the `Window`'s children. `Desktop` supplies it. It must stay optional, and `dispatch` on `WindowLayer` must stay `Dispatch<DesktopAction>`. `tsconfig` includes `tests/`, and the harnesses in `tests/WindowLayer.test.tsx` and `tests/MenuBar.test.tsx` pass no bodies and a narrower dispatch. Changing the type would break typecheck, so this choice also keeps those files untouched.
+
+**Help → Terminal commands (AC45).** A closed terminal has no instance to call, and calling `setState` directly in an effect fails lint (`react-hooks/set-state-in-effect`, enabled by the recommended config). The design is a small channel:
+
+- `createHelpChannel(): HelpChannel` in `src/logic/terminal.ts`, with `request(): void` and `subscribe(run: () => void): () => void`. It keeps one optional listener and a pending count.
+- `request` calls the listener if there is one. Otherwise it increments `pending`.
+- `subscribe` stores the listener, calls `run` once per pending request, sets `pending` to 0, and returns an unsubscribe that clears the listener.
+- `Desktop` holds it with `const [helpChannel] = useState(createHelpChannel)`. No re-render is needed for a request.
+- `Terminal` calls `useEffect(() => helpChannel?.subscribe(runHelp), [helpChannel, runHelp])`. `runHelp` is a stable `useCallback` that does `setLines((prev) => [...prev, ...runCommand('help').lines])` and does not touch history.
+- From closed, the request waits as pending until the terminal mounts. From open or minimized, it runs immediately. StrictMode's second subscribe finds `pending` at 0, so it runs once.
+- `menuModel`'s Terminal commands entry keeps its action and adds one field: `cmd: { type: 'action', action: { type: 'open', id: 'term' }, runHelp: true }`. `MenuCmd`'s action variant gains `runHelp?: true`. `tests/logic/menu.test.ts` uses `toMatchObject`, so it needs no edit.
+- `MenuBar` gains optional `onTerminalHelp?: () => void`. In `choose`, after dispatching, it calls `onTerminalHelp?.()` when `item.cmd.runHelp` is set.
+
+**The host and face split (AC9), carried over from T06.** A translated element moves away from the pointer and flickers. So every element in AC9 has a static host, which is the semantic or interactive element and owns the at-rest box, and a child face, which paints and transforms and has `pointer-events: none`. Hover and active selectors go on the host and style the face.
 
 **Contract for coder and test-writer: where each AC property lives.**
 
-- On the host (`.dock-item`): the 46x46 size, `cursor: pointer`, the ARIA attributes, `title`, the focus ring, and hit-testing (AC4, AC18, AC20-AC23, AC27).
-- On the face (`.dock-face`): the `--color-bg` background, 12px radius, icon colour, `transform` and `transition` (AC4, AC5, AC17). A hovered host's own computed `transform` stays `none`; tests read the face.
-- The dot is a child of the host, so it stays in the dock's padding and does not lift.
+| Element        | Host (static, hit box, ARIA, focus ring)            | Face (paint, padding, `transform`, `transition`)                               |
+| -------------- | --------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Name letter    | `span.hello-letter`                                 | `span.hello-letter-face` (colour, transform)                                   |
+| Hello buttons  | `button.hello-cta` (`type="button"`), `a.hello-cta` | `span.btn.btn-primary.hello-cta-face`, `span.btn.btn-secondary.hello-cta-face` |
+| Fact pill      | `li.fact`                                           | `span.fact-face`                                                               |
+| Experience tab | `button.exp-tab` (`role="tab"`, `type="button"`)    | `span.exp-tab-face`                                                            |
+| Project tile   | `a.proj-tile` inside `li`                           | `div.proj-face`                                                                |
+
+- A hovered host's own computed `transform` stays `none`; tests read the face. Faces are in normal flow, so the host shrink-wraps them (the dock's faces were absolute because its hosts had a fixed size). Hosts reset `padding: 0; border: 0; background: transparent; appearance: none; color: inherit; font: inherit; text-decoration: none`, and carry the same radius as the face so the ring follows it.
+- `.btn-primary:hover` in `theme.css` cannot match a `pointer-events: none` face, so `Hello.css` declares hover and active backgrounds on `.hello-cta:hover .btn-primary` and the equivalents.
+- The verb, hand and "TC" mark rotate or scale but do not translate, so they are outside AC9 and transform themselves.
+- Tests must click hosts, not faces, because user-event rejects `pointer-events: none` targets.
 
 **Files and public surface.**
 
-- `src/data.ts` (edit). Add `DOCK_LABELS = { landmark: 'Dock', state: { open: 'Open', minimized: 'Minimized', closed: 'Closed' } } as const`.
-- `src/logic/dock.ts` (edit, additive). This is state display, not click logic, and `dockClickAction` is not touched.
-  - `DockWinState = 'open' | 'minimized' | 'closed'`
-  - `dockWinState(w: Win): DockWinState`
-  - `DOT_OPACITY: Readonly<Record<DockWinState, number>>` with the values 1, 0.4 and 0
-  - The purity test forbids the whole word `window` in this file, so name parameters `w` or `win`.
-- `src/Dock.tsx` (replace stub). Default export `Dock({ wins, dispatch }: { wins: State['wins']; dispatch: Dispatch<DesktopAction> })`.
-- `src/Dock.css` (new), imported by `Dock.tsx`.
-- `src/Desktop.tsx` (edit). Render `<Dock wins={state.desk.wins} dispatch={dispatch} />` after `WindowLayer`, as the last child of the root, which gives the AC25 tab order.
+- `src/data.ts` (edit, T1). Add, with the prototype's copy verbatim:
+  - `HELLO_COPY = { greeting, verbPrefix: 'I', verbSuffix: 'stuff.', hint, primary, secondary }`
+  - `ABOUT_COPY`: an array of paragraphs, each an array of `{ text: string; em?: true }`
+  - `SITE_COPY = { mark: 'TC', title: 'tanzi.os', versionPrefix: 'Version ', edition: ' · Portfolio edition', desc }`
+  - `EXPERIENCE_LABELS = { tablist: 'Experience', at: '@' }`
+  - `TERMINAL_LABELS = { input: 'Terminal command', log: 'Terminal output' }`
+  - `WIN_BAR_TITLES: Partial<Record<WinId, string>> = { proj: '~/projects' }`
+- `src/windows/WindowBody.tsx` (new, T1). Default export `WindowBody({ id, dispatch, helpChannel }: { id: WinId; dispatch: Dispatch<AppAction>; helpChannel?: HelpChannel })`, a switch on `id`.
+- `src/windows/{Hello,About,AboutSite,Experience,Projects,Terminal}.tsx` (replace stubs) with one matching `.css` each. Hello takes `dispatch`. Terminal takes `dispatch` and `helpChannel?`. The others take no props.
+- `vite.config.ts` (edit, T1). Add `/src\/windows\/\w+\.css/` to `test.css.include`. Without it those stylesheets are not processed in Vitest (as `Window.css`, `MenuBar.css` and `Dock.css` needed). This is the only non-`src` source edit.
+- `src/Window.tsx` (edit, T7). The visible title becomes `WIN_BAR_TITLES[id] ?? title`. The `aria-label`, button labels and everything else keep using `title`. Body-level `user-select` is applied by each selectable area and `Window`'s inline `user-select: none` stays.
+- `src/logic/windows.ts` (edit in T2, T3, T4, T6, T7, T9): `WIN_META` heights, one per task.
+- `src/logic/menu.ts`, `src/MenuBar.tsx`, `src/logic/terminal.ts`, `src/Desktop.tsx` (edits, T1 and T11).
+- No new file in `src/logic/`, because `tests/logic/purity.test.ts` pins the exact module list. Reuse `wrapIndex` from `logic/menu.ts` for the verb and tabs.
 
-**Markup (children of `Dock`, in order).**
+**Markup notes that are easy to get wrong.**
 
-- Root: `<nav className="dock" aria-label={DOCK_LABELS.landmark}>`. Controls are direct children, with no list and no roving tabindex (Assumption 9).
-- For each id in `DOCK_IDS`, a `<button type="button" className="dock-item dock-win">` with:
-  - `aria-label` and `title` set to `WIN_TITLES[id]`
-  - `aria-pressed` set to `state === 'open'`
-  - `aria-describedby` set to `dock-state-${id}`
-  - `onClick` dispatching `dockClick` for that id
-  - children: `span.dock-face` holding the `WIN_ICONS[id]` icon at `size={22}` with `aria-hidden="true"`; `span.dock-dot` with `aria-hidden="true"` and inline `style={{ opacity: DOT_OPACITY[state] }}`; and `<span id="dock-state-${id}" hidden>` holding `DOCK_LABELS.state[state]`
-- `<div className="dock-sep" aria-hidden="true" />`.
-- For each of `LINKS`, an `<a className="dock-item dock-link">` with `href`, `aria-label` and `title` from the entry, `{...linkAttrs(l.href)}` (reused so the rule cannot drift), and one child `span.dock-face` holding the icon at 22 with `aria-hidden="true"`.
+- **Terminal structure.** `div.term-body` (the 230px scroller, `onClick` focus) contains `div[role=log]` and then the input row. The scroller must contain the input, and the log must not scroll on its own: Chromium makes a scroller with no focusable child a Tab stop, which would break AC11.
+- **Hello h1.** `h1[aria-label=NAME]` contains two `span.hello-line` (`aria-hidden="true"`, `display: flex`). The lines come from `NAME`: first word, then the rest plus `.`. Hosts use `white-space: pre` so a space in a later name keeps its width.
+- **Verb.** No `all: unset`. Reset explicitly and set `letter-spacing: inherit; line-height: inherit`. Draw the 3px bar with `::after` so the accessible name stays exactly the verb. Omit `aria-label` and `title`.
+- **Hello row.** `white-space: nowrap`, so AC16 holds for every verb.
+- **Tile accessible name.** Use block `h2` and `p`, and render a literal `{' '}` between tag spans so tag names do not run together. Do not use `aria-label` on the tile. Whitespace is ignored by the flex container.
+- **Tabs.** Roving `tabIndex` on the hosts; `id="exp-tab-${i}"`, `aria-controls="exp-panel"`; one `div#exp-panel[role=tabpanel][tabIndex=0]` with `aria-labelledby` set to the selected tab. Focus moves in the key handler through a ref array, as `MenuBar` does.
+- **Panel ring.** The panel touches the window's right and bottom edges, so it needs `outline-offset: -2px` or the window's `overflow: hidden` clips it (AC10).
+- **Headings.** Only Hello has `h1`. Role, project name and site title are `h2`. Every heading resets `margin: 0; line-height: inherit` and sets its own size and letter-spacing, because `theme.css` sets `line-height: 1.12`, a margin and letter-spacing.
+- **Selectable areas.** `-webkit-user-select: text; user-select: text` on `.about-body`, `.exp-panel` and `.term-body`.
+- **Terminal input.** `PROMPT.trimEnd()` beside a `gap: 8px`, matching the prototype and aligning with the echoed lines. Input: `flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--color-text); caret-color: var(--color-accent); font: inherit`. `aria-label={TERMINAL_LABELS.input}`, `spellCheck={false}`, `autoComplete="off"`, `autoCapitalize="off"`. No `autoFocus` (AC46). No `<form>`.
+- **Terminal lines.** `white-space: pre-wrap; overflow-wrap: anywhere`, `.term-body { overflow-x: hidden; overflow-y: auto }`, one class per tone. React text children only, never `dangerouslySetInnerHTML`.
+- **Terminal submit, in the key handler (not in an updater or effect, so effects run once).** Ignore Enter when `nativeEvent.isComposing`. Call `runCommand(input)`, append `lines` (or replace with `lines` when a `clear` effect is present), `setHistory(pushHistory(history, input))`, `setInput('')`, then dispatch each non-null `effectToAction(e)`.
+- **History keys.** `preventDefault`, then apply `historyUp` or `historyDown`. If the value changed, set a ref flag read by a `useLayoutEffect` (no deps, as `MenuBar` does) that calls `setSelectionRange(len, len)`. If it did not change, call `setSelectionRange` directly, otherwise the flag would stay set and move the caret on the next keystroke.
+- **Click focus (AC44).** In the scroller's `onClick`, do nothing if the target is the input or if `window.getSelection()?.isCollapsed === false`. Otherwise focus the input.
+- **Auto-scroll (AC42).** `useLayoutEffect` on `[lines]` sets `scrollTop = scrollHeight`.
 
-Controls must never unmount, get `disabled` or change `key`, because AC26 relies on the native element keeping focus. No focus code is needed.
+**Contrast corrections (AC12), hand-calculated, using existing tokens only.**
 
-**`Dock.css` (tokens only, no hex, no `all: unset`, no `outline: none`, no `overflow` on the dock).**
+| Pair                                         | Spec colour fails            | Use                  | Dark    | Light |
+| -------------------------------------------- | ---------------------------- | -------------------- | ------- | ----- |
+| Active tab label on accent 12% over surface  | `--color-accent` (dark 3.97) | `--color-accent-400` | 6.2     | 4.6   |
+| Primary button label, hovered, on accent 12% | `--color-accent` (dark 3.97) | `--color-accent-300` | above 7 | 5.3   |
+| Primary button label, pressed, on accent 22% | `--color-accent` (dark 3.4)  | `--color-accent-300` | above 7 | 4.6   |
 
-- `.dock`: `position: fixed; left: 0; right: 0; bottom: 14px; width: fit-content; margin-inline: auto; display: flex; align-items: flex-end; gap: 6px; padding: 8px; border-radius: 18px`, the AC1 background, `backdrop-filter: blur(12px); box-shadow: var(--shadow-md); z-index: 900`.
-  - Use auto margins, not `translateX(-50%)`. The dock is 441px wide (odd), so a transform would land on a half pixel and blur the icons.
-  - Height comes to 8 + 46 + 8 = 62, so the top edge is `vh - 76` (AC2).
-  - `align-items: flex-end` with the divider's 6px bottom margin centres the 34px divider in the 46px row, as in the prototype.
-- `.dock-item`: `position: relative; flex: none; display: block; width: 46px; height: 46px; padding: 0; border: 0; appearance: none; background: transparent; border-radius: 12px; cursor: pointer; color: inherit; font: inherit; text-decoration: none`.
-- `.dock-face`: `position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--color-bg); pointer-events: none; transition: transform .35s var(--ease-bouncy), color .15s`.
-- `.dock-win .dock-face`: `color: var(--color-accent-400)`. `.dock-link .dock-face`: `color: var(--color-neutral-300)`.
-- `.dock-dot`: `position: absolute; bottom: -5px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 2px; background: var(--color-accent); pointer-events: none; transition: opacity .2s` (prototype values; it spans 47-51px, inside the 8px padding).
-- `.dock-sep`: `flex: none; width: 1px; height: 34px; margin: 0 4px 6px; background: var(--color-divider)`.
-- Motion (added in T5), in this order, each selector on the host styling its face:
-  - `.dock-win:hover`: `translateY(-10px) scale(1.15)`
-  - `.dock-win:active`: `translateY(-4px) scale(.95)`, later in the file so it wins over hover
-  - `.dock-link:hover`: `translateY(-10px) scale(1.15) rotate(-8deg)` and `color: var(--color-text)`
-  - `.dock-item:hover { z-index: 1 }`, so a lifted face paints over its neighbours
-  - last: `@media (prefers-reduced-motion: reduce)` setting `transform: none` on those same three face selectors (the `MenuBar.css` precedent; `theme.css` only shortens durations)
+`--color-accent-400` is not enough for pressed in light (4.0), which is why the button uses 300. All the other AC12 pairs pass with their specified tokens. If a test still fails, use the nearest existing token that passes in both themes and log it. Add no tokens.
 
-**Data and API changes.** Adds `DOCK_LABELS`, `DockWinState`, `dockWinState` and `DOT_OPACITY`. `State`, `DesktopAction`, the reducer and `WindowLayer` are unchanged. No network, env or config change.
+**Data and API changes.** `data.ts` constants above; `createHelpChannel` and `HelpChannel`; `MenuCmd.runHelp`; optional `renderBody` and `onTerminalHelp` props; `WIN_META` heights. `State`, `DesktopAction`, `AppAction` and the reducers do not change (AC4). No network, env or storage change.
 
-**Dependencies.** None added. Icons already exist in `data.ts`, and `@testing-library/user-event` is already installed.
+**Dependencies.** None added. The extra Phosphor icons (`CursorClick`, `FolderOpen`, `ArrowUpRight`, `HandWaving`) are imported directly by the components that use them.
 
 ## 4. Design
 
-**User flow.**
-
-- Load: the dock sits bottom-centre with five lit dots.
-- Click a back window's icon: it comes to the front. Click the icon again: it genies into the dock and the dot dims. Click again: it springs back.
-- Close a window from its title bar and the dot goes out. Click the icon and the window flies out of the dock.
-- Link icons open GitHub or LinkedIn in a new tab, or the mail client, and change nothing on the desktop.
-- Keyboard: tabbing runs menubar, then window controls, then the eight dock controls. Enter or Space acts and focus stays on the button, so repeating the key toggles minimize and restore.
+**User flow.** On load all five windows show real content. Clicking the verb cycles it. "See what I've built" brings projects forward. Experience tabs switch the detail, by mouse or arrow keys. Project tiles open their links. The terminal accepts the spec's commands and can drive the desktop. Help → Terminal commands raises the terminal and prints the help text.
 
 **States.**
 
-- Loading: none, the dock renders synchronously.
-- Empty: all windows closed or minimized. The dock remains with dots at 0 or 0.4 and is the main way back.
-- Error: there is no fallible work inside the dock. A missing mail handler or a blocked pop-up is handled by the browser, and desktop state is unaffected.
-- Success: per window, open (dot 1, pressed, "Open"), minimized (dot 0.4, not pressed, "Minimized"), closed (dot 0, not pressed, "Closed").
-- Interaction: hover (lift, stable), pressed (window buttons only), keyboard focus (ring, no lift, per Assumption 7).
+- Loading: none. Content is synchronous and fonts swap in as before.
+- Empty: the terminal after `clear` has no lines and only the input row. Lists are non-empty with the current data.
+- Error: bad commands print the existing usage or "command not found" lines. A missing mail handler or blocked tab is left to the browser and does not change desktop state.
+- Success: each interaction's visible result is listed in its AC.
+- Interaction: hover (stable lift), pressed, keyboard focus (ring on the static host, no lift, as T06 decided).
 
-**1280x720 and larger.** The dock is 441x62 and CSS-centred, so resize needs no JS. Default windows end at y 644 or above, touching but not crossing the dock top at 1280x720 (`exp` and `term` both end exactly at 644). Windows can be dragged under the dock and stay behind it. Mobile is not built (decision 1).
+**1280x720 and larger.** Default layouts come from unchanged formulas with corrected heights. Estimated window heights and positions at 1280x720:
 
-**Accessibility.**
+| Window | Height                  | y at 720            | Note                            |
+| ------ | ----------------------- | ------------------- | ------------------------------- |
+| hello  | about 420               | 72                  | measure                         |
+| about  | about 340 (was 460)     | 64                  | measure                         |
+| exp    | 290 (40 titlebar + 250) | 354 (was 344)       | fixed by AC27 if the panel fits |
+| proj   | about 376 (was 330)     | about 268 (was 300) | measure, bottom is 644          |
+| term   | 270 (40 + 230)          | 340 (was 334)       | fixed by AC35                   |
+| site   | about 290 (was 340)     | 180                 | position formula unchanged      |
 
-- `navigation` landmark named "Dock", native controls, fixed labels, and the pressed state paired with a three-way description (AC20, AC21).
-- The description uses `aria-describedby` pointing at a `hidden` span, which takes precedence over `title` for the description. The state word therefore never enters the accessible name.
-- Icons, dots and the divider are `aria-hidden`.
-- The ring is the global `:focus-visible`. It sits on the static host and nothing clips it. On an open window the bottom of the ring crosses the dot; both are `--color-accent`, so it reads as one mark.
-- Hand-calculated AC28 ratios all clear 3:1. The tightest are the focus ring at about 4.6:1 in dark and about 5:1 in light. If a test still fails, use the nearest existing token that passes in both themes, log it in the QA report, and add no new tokens unattended.
-- The minimized dot's low contrast is accepted and left for T09 (Assumption 12).
+**Measurement rule.** The coder sets each height in the same task as the body, using Chromium at 1280x720 after `document.fonts.ready`, with `Math.ceil` of the settled rendered height. Rounding up matters: `yFit` places `proj` so that it ends exactly at 644, and a fractional height rounded down would overlap the dock by a sub-pixel amount and fail the strict T06 AC2 test. Mobile is not built (decision 1).
 
-**Reduced motion.** No hover or press transform. Colour and dot fades remain. `Window` already suppresses the genie and fly-out, so opening and restoring from the dock fades only.
+**Accessibility.** Native controls. AC28 tabs pattern. Labelled `log` and input. `h1` with an exact name over `aria-hidden` letters. Icons and the mark are `aria-hidden`. Rings come from the global `:focus-visible` and are never removed. The ring on the terminal input shows on mouse focus too, since browsers always match `:focus-visible` on text inputs (Assumption 9).
+
+**Reduced motion.** Each stylesheet ends with `@media (prefers-reduced-motion: reduce)` setting `transform: none` on the same hover and active selectors, covering letters, verb, hello buttons, pills, tabs, tiles, hand and mark (AC8, AC54). `theme.css` only shortens durations. Colour, background and shadow changes remain.
 
 ## 5. Risk and security
 
-Auth, secrets, storage and server data do not apply: the dock is a static client view with no user input. `href` values come only from `data.ts`.
+Auth, secrets and server data do not apply. Storage goes only through the existing settings path.
 
-- **R1. Hover flicker and missed clicks at the bottom edge (AC18).** Safeguard: the host/face split (T2, T3, T5). T5's e2e samples `:hover` and the face's matrix over time at the bottom edge and clicks at the box corners.
-- **R2. Reduced-motion hover still transforms**, because `theme.css` only shortens durations. Safeguard: an explicit `transform: none` block after the hover rules (T5), with a raw CSS test and an e2e test.
-- **R3. Reverse tabnabbing or referrer leak on new-tab links.** Safeguard: reuse `linkAttrs`, never hand-written attributes (T2). Tests pin `target` and `rel` on each link.
-- **R4. Focus lost to `<body>` on minimize (AC26).** Safeguard: controls never unmount or disable (T2). Keyboard tests assert `document.activeElement` in all four outcomes (T4).
-- **R5. Double dispatch or a second click path (AC10).** Safeguard: one `onClick` per button. A mock-dispatch test asserts exactly one call with the exact action (T2).
-- **R6. A window stuck invisible after rapid clicks (AC11).** Safeguard: pose is derived from reducer state and no new timers are added. E2e clicks rapidly during the genie and asserts `data-min` matches the settled transform and opacity (T4).
-- **R7. Dock draws under windows or the pinned site window (AC13).** Safeguard: z-index 900 is above `site` (800) and every window (order index + 10). E2e uses `elementFromPoint` with a window dragged under the dock and with `site` open (T4).
-- **R8. Blurry icons from sub-pixel centring.** Safeguard: auto margins rather than a transform on `.dock` (T3).
-- **R9. `window` in `logic/dock.ts` fails the purity test.** Safeguard: naming rule in section 3 (T1).
-- **R10. Copy hard-coded in the component.** Safeguard: labels come only from `data.ts` (T1, T2); a QA grep covers `src/`.
-- **R11. Existing tests "fixed" by loosening them.** Safeguard: section 7a gives every edit and each stays at least as strict (T4). Each carries a comment and is listed in the QA report and autobuild log.
-- **R12. Tests navigate or launch a mail client.** Safeguard: jsdom link tests call `preventDefault` from a `document` click listener and assert the event reached the link. E2e fulfils the GitHub URL with `context.route` and never activates Email.
+- **R1. Terminal input rendered as markup (AC38).** Safeguard: text children only, no `dangerouslySetInnerHTML` (T9). A test enters `<b>x</b>` and asserts no `b` element exists, and a source grep covers `src/windows/`.
+- **R2. Input validation.** `runCommand` already handles arbitrary strings, and its output is data. Effects are typed and only `effectToAction` maps them (T9). Length caps are out of scope.
+- **R3. Reverse tabnabbing on tiles.** Safeguard: spread `linkAttrs(p.href)` and never hand-write attributes (T7). Tests pin the output for a placeholder and a stubbed `https:` href.
+- **R4. Help running twice or not at all under StrictMode (AC45).** Safeguard: the channel design, whose drain makes a repeated subscribe harmless (T11). Logic tests for the channel and a StrictMode component test.
+- **R5. Effects applied twice.** Safeguard: effects dispatch in the key handler, never in an updater (T9). Mock-dispatch test asserts exactly one call.
+- **R6. Hover flicker at the bottom edge (AC9).** Safeguard: the host and face split (T2, T4-T8), and e2e sampling as in T06 (T5, T8).
+- **R7. Reduced-motion transforms remain.** Safeguard: explicit `transform: none` blocks; raw CSS and e2e tests (T2, T3, T5, T8).
+- **R8. Focus ring clipped or removed (AC10).** Safeguard: no `all: unset` or `outline: none` in `src/windows/*.css` (raw CSS test), `outline-offset: -2px` on the panel (T6), and an e2e rectangle check on each stop (T12).
+- **R9. An extra Tab stop from a scroller (AC11).** Safeguard: the scroller contains the input (T9). The exact 20-stop list in T12 catches a regression.
+- **R10. Windows temporarily overlapping the dock between tasks.** If proj's content landed before its height was corrected, it would reach y 676 and break T06 AC2 and the click at `b.y + b.height - 10`. Safeguard: each body task corrects its own height (a change from the suggested grouping).
+- **R11. Text selection cleared by re-renders or by click focus.** Safeguard: `WindowLayer` keeps a stable DOM order, and the click handler checks the selection (T10). Real-browser e2e (T12).
+- **R12. Copy hard-coded in components.** Safeguard: `data.ts` only (T1). The source check in `tests/MenuBar.test.tsx` scans all of `src/` for strings such as `Say hi`, `Terminal commands`, `Restart`, `Tidy up`, `Show all`, `Dark mode` and `Light mode`, so these must not appear outside `data.ts`, **including in comments**.
+- **R13. Purity test trips on `src/logic/terminal.ts`.** Code there must not use the words `window`, `document`, `Date` or similar outside comments (T11).
+- **R14. Existing tests loosened.** Safeguard: section 7a gives each edit exactly, landing in the task that causes it. Each carries a comment and is listed in the QA report and autobuild log.
+- **R15. Tests activating a mail client or navigating.** Safeguard: T06's approach (jsdom `preventDefault`, e2e route stubs; never activate Say hi in e2e).
 
 ## 6. Gaps check
 
 - **Auth:** none in this app, not applicable.
-- **Validation:** no user input. Ids come from `DOCK_IDS`, and the reducer already guards unknown ids.
-- **Error handling:** no async or fallible work. Browser-level link failures do not touch state.
+- **Validation:** terminal input is the only free text (R1, R2).
+- **Error handling:** terminal failure lines. No async work. `localStorage` remains in the existing try/catch path.
 - **Mobile:** out of scope (decision 1, T11).
-- **Accessibility:** AC20-AC28 and section 4. Focus into opened windows is T09.
-- **Config and env vars:** none. No change to Vite, ESLint, TypeScript, Playwright or `tests/setup.ts`.
+- **Accessibility:** AC10-AC12, AC14, AC16, AC28, AC32, AC36, AC54. Focus into opened windows is T09.
+- **Config and env vars:** one `vite.config.ts` test-only line. No env vars.
 - **Tests:** logic, component, raw CSS, contrast, Desktop integration, e2e, and the sanctioned edits in 7a.
 
 ## 7. Tasks
 
-Coder edits `src/` only. Test-writer runs after coder on each task and owns `tests/`. Each task must leave lint, typecheck and unit tests green once test-writer has finished. New tests are named with an `ACn:` prefix.
+Coder edits `src/` only, plus the one `vite.config.ts` line in T1. Test-writer runs after coder on each task and owns `tests/`. Each task must leave lint, typecheck and unit tests green once test-writer has finished. New tests are named with a `T07 ACn:` prefix. CSS means tokens only, with no hex or `rgb(`, no `all: unset`, no `outline: none`.
 
-- **T1. Dock copy and window-state helper.** ACs: AC7, AC21, AC24.
-  - Coder: add `DOCK_LABELS` to `src/data.ts`; add `DockWinState`, `dockWinState` and `DOT_OPACITY` to `src/logic/dock.ts`.
-  - Test-writer: additive cases in `tests/logic/dock.test.ts` for the three states and exact opacities (including open and minimized both true); literal `DOCK_LABELS` values. `dockClickAction` tests are unchanged, and the purity test needs no edit because no module is added.
-- **T2. `Dock` component, unwired.** ACs: AC3, AC6 (attributes), AC7 (attributes), AC10, AC16, AC20-AC24.
-  - Coder: replace the `src/Dock.tsx` stub with the section 3 markup, without the CSS import. Do not render it from `Desktop` yet.
-  - Test-writer: new `tests/Dock.test.tsx` using `initialDesktop(1280, 720).wins` variants and a mock dispatch. Cover the order and count of controls, no site button, one `dockClick` per click with the exact action, `aria-label`, `title`, `aria-pressed` and `toHaveAccessibleDescription` in each state, inline dot opacity, `aria-hidden` on icons, dots and divider, links' `href`, `target` and `rel`, no dot on links, the named `navigation` landmark, and `type="button"`.
-- **T3. Dock at-rest styles.** ACs: AC1, AC2, AC4, AC5, AC6, AC7, AC8, AC27, AC28.
-  - Coder: add `src/Dock.css` with every rule in section 3 except the motion rules; import it in `Dock.tsx`.
-  - Test-writer: new `tests/Dock.css.test.ts` reading `Dock.css?raw`, asserting the spec values, no hex or `rgb(` colours, no `all: unset`, no `outline: none`, no `overflow` and no `transform` on `.dock`. New `tests/dock.contrast.test.ts` modelled on `tests/menubar.contrast.test.ts` (local `mix`, helpers not edited), covering every AC28 pair in both themes.
-- **T4. Wire the dock into `Desktop`.** ACs: AC2, AC9, AC11-AC16, AC19 (click outcomes), AC25-AC27, AC29-AC32.
-  - Coder: render `Dock` last in `Desktop` (section 3). No other source change.
-  - Test-writer, in this same task:
-    - Apply every edit in section 7a. They must land here because this is the task that changes the counts.
-    - New `tests/Desktop.dock.test.tsx` on the full `Desktop`, with `localStorage` and `data-theme` reset as in `Desktop.menubar.test.tsx`. Cover the four AC9 outcomes, alternation, AC12 state, AC14 for a button and a link (R12), AC15 for every listed route and for the Windows menu check after a dock click, AC25 tab sequence with `user.tab`, AC26 focus after Enter and Space in all four outcomes, and AC2's nominal rectangles from `layout(1280, 720)` and `WIN_META` against y 644.
-    - New `tests/e2e/dock.spec.ts`, with `watchErrors` asserted in every test:
-      - geometry and computed styles (AC1, AC2, AC4-AC7), including after `setViewportSize`
-      - AC32 at 1280x720 and 1920x1080
-      - the four AC9 outcomes with real clicks
-      - fly-out: before clicking, install a `MutationObserver` on the root (`header`'s parent) that records the inline `transform` of the added `[data-win]` node, since polling cannot catch a two-frame pose; assert the recording contains `scale(0.06)`, then `transform: none` and opacity 1
-      - restore to the previous position after a drag (AC12)
-      - AC11 rapid clicks during the genie, settled state matches `data-min`
-      - AC13: pointer-down on the dock padding leaves z-indexes unchanged with a window dragged beneath it, and `elementFromPoint` returns the dock with that window and with `site` open
-      - AC14 with an open menu
-      - AC16 per R12
-      - AC25 and AC26 Tab order and keyboard activation
-      - AC27: minimized windows are skipped and the ring has a non-`none` `outline-style` on all eight controls
-      - AC19 click outcomes under `reducedMotion: 'reduce'`: the recorded pose has no `scale(`, and restore has no transform
-- **T5. Hover and press motion.** ACs: AC5, AC17, AC18, AC19, AC31.
-  - Coder: add the motion rules and the reduced-motion block to `src/Dock.css` (section 3).
-  - Test-writer: extend `tests/Dock.css.test.ts` with the exact transforms, the `.35s` transition with `--ease-bouncy`, `pointer-events: none` on the face, and a reduced-motion block covering all three face selectors. New `tests/e2e/dock.motion.spec.ts`:
-    - settled hover matrix on the face: window button `matrix(1.15, 0, 0, 1.15, 0, -10)`, link with rotation near -8deg and translate -10
-    - the host's own transform stays `none`, and the pressed pose is checked between `mouse.down` and `mouse.up`
-    - link icon colour on hover
-    - AC18: at the host's bottom edge and box corners, sample across at least 800ms that the host matches `:hover` on every frame and the settled matrix does not change, then click there and assert the action ran, for a window button and a link (R12)
-    - AC18: a lifted control's top is painted outside the dock's box and is not clipped
-    - reduced motion: hover and press leave the face at `none`
+Every task whose number appears in 7a must apply exactly those edits. They are not optional and must not be deferred.
 
-**After T5 (QA stage, no coder or test-writer work).** Run the full AC34 set. Complete AC33 in a real browser in both themes. Run a grep for dock copy, URLs and `mailto:` outside `data.ts`. Check `git diff` on existing tests shows only the 7a edits and additive cases. List every 7a edit in the QA report and autobuild log.
+- **T1. Foundations: copy and body mounting.** ACs: AC1 (mechanism), AC2, AC4.
+  - Coder: add the `data.ts` constants; add `src/windows/WindowBody.tsx` (the stubs still return `null`, and `helpChannel` is typed from a `HelpChannel` export added now to `logic/terminal.ts` with `createHelpChannel`); add `renderBody` to `WindowLayer` and supply it from `Desktop`; add the `vite.config.ts` line.
+  - Test-writer: literal-value tests for the new constants, confirming `ABOUT_COPY` has at least one `em` segment; `tests/WindowLayer.test.tsx` additive case for `renderBody` receiving each open id, and no body with no prop; `tests/logic/terminal.test.ts` additive channel cases (request while unsubscribed then subscribe runs once; a second subscribe after unsubscribe runs nothing; request while subscribed runs immediately; two requests give two runs). No 7a edits.
+- **T2. About body.** ACs: AC1, AC7, AC8, AC9 (structure), AC22-AC24, AC47.
+  - Coder: `About.tsx` and `About.css` with hover and reduced-motion rules, and `WIN_META.about.height` per the measurement rule.
+  - Test-writer: new `tests/windows/About.test.tsx` (text and order from `data.ts`, `em` phrases, list, hidden icons), raw CSS test. No 7a edits (`about` y stays 64).
+- **T3. About this site body.** ACs: AC1, AC7, AC25, AC26, AC47, AC48, AC54.
+  - Coder: `AboutSite.tsx` and `.css` with hover and reduced-motion rules, and `WIN_META.site.height`.
+  - Test-writer: new `tests/windows/AboutSite.test.tsx`, raw CSS test including AC54. No 7a edits.
+- **T4. Hello body, at rest.** ACs: AC1, AC2, AC3 (verb), AC7, AC10, AC12 (rest pairs), AC13, AC14, AC16-AC20, AC21 (layout), AC47.
+  - Coder: `Hello.tsx` and `.css` without hover, active or reduced-motion rules; `WIN_META.hello.height` if measured more than 2px from 420.
+  - Test-writer: apply 7a block T4. New `tests/windows/Hello.test.tsx` covers the two-line `h1` and exact name, letter count, verb wrap by click, Enter and Space, one `open proj` dispatch, the mailto link with no target, `type="button"`. New `tests/windows.contrast.test.ts` modelled on `tests/menubar.contrast.test.ts`, with the hello pairs. Raw CSS test.
+- **T5. Hello motion.** ACs: AC8, AC9, AC12 (hover and pressed), AC13, AC15, AC17, AC21, AC54.
+  - Coder: add hover, active and reduced-motion rules to `Hello.css`, including the AC12 hover and pressed tokens and backgrounds.
+  - Test-writer: extend the raw CSS and contrast tests. New `tests/e2e/windows.motion.spec.ts` covers settled hover matrices on faces (host stays `none`), pressed pose, AC9 sampling at the bottom edge across at least 800ms and a click there (never activate Say hi; assert on `:hover` only), and reduced motion.
+- **T6. Experience body, at rest, with keyboard.** ACs: AC1, AC2, AC3 (tab), AC7, AC10, AC12, AC27, AC28, AC29 (at rest), AC30, AC47, AC48.
+  - Coder: `Experience.tsx`, `.css` without hover or reduced-motion rules, and `WIN_META.exp.height` = 290 unless the measurement differs.
+  - Test-writer: apply 7a block T6. New `tests/windows/Experience.test.tsx` covers roles, roving tabindex, arrows with wrap, Home and End with focus following, panel labelling, one entry shown, tag classes.
+- **T7. Projects body, at rest, and `~/projects`.** ACs: AC1, AC2, AC7, AC10, AC12, AC31, AC32, AC34, AC47, AC48.
+  - Coder: `Projects.tsx`, `.css` without hover or reduced-motion rules, the `Window.tsx` title change, and `WIN_META.proj.height`.
+  - Test-writer: apply 7a block T7 and pin the literal proj y from the measured height. New `tests/windows/Projects.test.tsx` covers order, `href`, `linkAttrs` output, separated words in the name, hidden icons, and the titlebar reading `~/projects` with every other name staying `projects`.
+- **T8. Pill, tab and tile motion.** ACs: AC8, AC9, AC24, AC29, AC33.
+  - Coder: add hover, active and reduced-motion rules to `Experience.css` and `Projects.css`. `About.css` already has its rules from T2.
+  - Test-writer: raw CSS tests, and extend `tests/e2e/windows.motion.spec.ts` to pills, tabs and tiles (stub link navigation).
+- **T9. Terminal: rendering and running commands.** ACs: AC1-AC5, AC7, AC12, AC35-AC41, AC46, AC47, AC48.
+  - Coder: `Terminal.tsx` and `.css` with lines, input row, `submit` and effects, and `WIN_META.term.height` = 270 unless measured otherwise.
+  - Test-writer: apply 7a block T9. New `tests/windows/Terminal.test.tsx` with mock dispatch covers banner, tones, plain text, every AC40 command, one dispatch per effect, `clear`, focus retained, no autofocus, and history kept after `clear` (via T10's test; here assert `pushHistory` behaviour only through the visible state available). New `tests/Desktop.terminal.test.tsx` covers AC3 and AC5: to assert AC5, `vi.mock` `Dock` and `MenuBar` with render-counting wrappers, because a `Profiler` above `Desktop` also fires for descendant-only commits.
+- **T10. Terminal history, click focus and auto-scroll.** ACs: AC42-AC44, and AC40 (`clear` keeps history).
+  - Coder: Up and Down handling with the caret rule, the scroller `onClick`, the `useLayoutEffect` scroll.
+  - Test-writer: extend `Terminal.test.tsx` for Up, Down and draft restore, the caret at the end including Up at the oldest entry, Tab moving out, click focus, and focus not moving with a non-collapsed selection. No 7a edits.
+- **T11. Help → Terminal commands.** ACs: AC45.
+  - Coder: wire `menuModel`'s `runHelp`, `MenuBar`'s `onTerminalHelp`, `Desktop`'s channel, and `Terminal`'s subscribe effect.
+  - Test-writer: extend `tests/logic/menu.test.ts` additively for `runHelp: true` on that item only. New cases in `tests/Desktop.terminal.test.tsx` under `StrictMode` cover from closed, minimized and open, unsent input kept, two activations giving two runs, and Up not recalling `help`. No 7a edits.
+- **T12. Cross-window e2e and final height check.** ACs: AC3, AC6, AC10, AC11, AC22, AC30, AC41, AC42, AC44, AC45, AC47, AC48, AC50.
+  - Coder: only if a measurement has drifted, correct `WIN_META`.
+  - Test-writer: new `tests/e2e/windows.spec.ts` with `watchErrors` in every test, waiting for `document.fonts.ready` before measuring:
+    - heights within 2px at 1280x720 and every experience tab; rectangles against the dock at 1280x720 and 1920x1080
+    - real selection in about, the panel and terminal output, surviving pointer release, with focus not moving to the input
+    - body drag leaves the window in place; pointer-down in a body raises it
+    - exact 20-stop Tab order inside windows with locators, ring style on each, ring rectangle inside the window, stops skipped when minimized
+    - tab keyboard navigation
+    - auto-scroll keeps the input visible; focus stays after commands
+    - `theme light` and `open projects` end to end, including `tanzi-os:theme` stored
+    - Help from closed, minimized and open
+    - close and reopen reset for verb, tab and terminal; minimize and Show all keep them, including unsent text
 
-### 7a. Existing tests the dock changes (sanctioned, deliberate requirement changes)
+**After T12 (QA stage, no coder or test-writer work).** Run the full AC53 set. Complete AC51 in a real browser in both themes. Grep `src/windows/` for `dangerouslySetInnerHTML`, hex colours and hard-coded copy. Check that `git diff` on existing tests shows only the 7a edits and additive cases. List every 7a edit in the QA report and autobuild log.
 
-These are deliberate requirement changes under AC30. They **must not loosen any assertion**: every count, list and full-cycle check stays pinned exactly and the dock's controls are added to what is pinned. Each edit carries the comment `// DELIBERATE REQUIREMENT CHANGE (T06 AC30): <reason>` and keeps its test title. All land in T4. No test is deleted or skipped.
+### 7a. Existing tests this ticket changes (sanctioned, deliberate requirement changes)
 
-The page goes from 11 to 16 native buttons: 10 in windows, 1 theme toggle, 5 in the dock. The links are `link` role and do not count. In DOM order, the buttons outside windows are the toggle and then the dock.
+These must not loosen any assertion. Every count and list stays pinned exactly. Each edit carries `// DELIBERATE REQUIREMENT CHANGE (T07 AC52): <reason>` and keeps its test title. No test is deleted or skipped. Line numbers are as of commit `1a7cbc9`.
 
-1. `tests/Desktop.wiring.test.tsx` line 82. The expected list `['Switch to light mode']` becomes `['Switch to light mode', 'hello.txt', 'about.md', 'experience.log', 'projects', 'terminal']`. The window count of 10 on line 80 stays.
-2. `tests/Desktop.menubar.test.tsx` lines 327-330. The expected list becomes the same six labels, and the comment changes to say the toggle and the five dock buttons are left.
-3. `tests/e2e/chrome.spec.ts` lines 156-159. Keep the `[data-win]` count of 10 and the banner count of 1. Add a count of 5 for buttons inside `getByRole('navigation', { name: 'Dock' })`, plus one exact-name check per `TITLES` entry inside it. The page total becomes 16.
-4. `tests/e2e/chrome.spec.ts` lines 304-307, "AC17/AC19: Minimize makes the window inert…". **This case is not in the requirements' known list, and it does break.** Two reasons:
-   - The dock's "terminal" button is a legitimate tab stop whose label contains `terminal`, so the `includes('terminal')` filter fails.
-   - The tab cycle grows, and from the inert button's position 18 presses no longer reach "Close projects".
+**Tab-stop and button totals after each task.** `[data-win]` role-button and page role-button counts do not change after T4, because `role="tab"` is not `button` to `getByRole`. `querySelectorAll('[data-win] button')` does count tabs, since they are native buttons.
 
-   Change `tabLabels(page, 18)` to `tabLabels(page, 26)` (5 menubar + 8 window + 8 dock stops + 5 margin, the same margin T05 used). Replace the first assertion with two: the labels containing `terminal`, excluding the exact label `terminal`, equal `[]` (this still catches any control inside the window, as before); and `labels` contains `terminal` (new, and it proves the dock stop is reached). The "Close projects" assertion stays.
+| After    | Window stops | Page stops | First dock index | Window + dock stops | Stops with term and about minimized | `[data-win] button` (DOM) |
+| -------- | ------------ | ---------- | ---------------- | ------------------- | ----------------------------------- | ------------------------- |
+| baseline | 10           | 23         | 15               | 18                  | 19                                  | 10                        |
+| T4       | 13           | 26         | 18               | 21                  | 22                                  | 12                        |
+| T6       | 15           | 28         | 20               | 23                  | 24                                  | 15                        |
+| T7       | 19           | 32         | 24               | 27                  | 28                                  | 15                        |
+| T9       | 20           | 33         | 25               | 28                  | 28                                  | 15                        |
 
-Checked and unaffected:
+**Block T4 (Hello).**
 
-- `tests/e2e/menubar.spec.ts`: links are scoped to the banner, AC12's first six stops are unchanged, the AC36 loop of 14 still covers the 13-stop cycle and only checks `[data-win]`, and the click at (20, 700) is left of the dock.
-- The remaining `chrome.spec.ts` tests: `tabPastMenubar` and the window stops come before the dock, and the drag and click points do not land on the dock.
-- `desktop.spec.ts` (`nav` is not a `region`), the root's first child in `Desktop.menubar.test.tsx` AC1, and `MenuBar`, `Window` and `WindowLayer` tests (no `Desktop`).
+1. `tests/Desktop.wiring.test.tsx:80`: `toHaveLength(10)` becomes 12.
+2. `tests/Desktop.wiring.test.tsx:101-104`: the expected list becomes, for hello only, `['Minimize hello.txt', 'Close hello.txt', 'build', "See what I've built"]`. Every other window keeps exactly its two. The `type="button"` loop and the two `getByRole` checks stay.
+3. `tests/Desktop.menubar.test.tsx:321`: 10 becomes 12.
+4. `tests/Desktop.dock.test.tsx:340,346,359`: 23 becomes 26, `slice(15)` becomes `slice(18)`, and `Set` size 23 becomes 26.
+5. `tests/e2e/chrome.spec.ts:157`: 10 becomes 12. `:165`: 16 becomes 18.
+6. `tests/e2e/chrome.spec.ts`, new local helper `stopNames(page, n)`. Each entry is: the element's `aria-label`; else `'tabpanel'` for `role="tabpanel"`; else the text of an `h2` inside it; else its trimmed text. Later blocks reuse it.
+7. `tests/e2e/chrome.spec.ts:339-340` (AC23 Tab visits): use `stopNames(page, 13)` and expect `['Minimize hello.txt', 'Close hello.txt', 'build', "See what I've built", 'Say hi']` followed by Minimize and Close for each of the four other windows.
+8. `tests/e2e/chrome.spec.ts:357-362` (AC23 Space): `stopNames(page, 7)`, with the hello five inserted before `'Minimize about.md', 'Close about.md'`.
+9. `tests/e2e/chrome.spec.ts:371` (AC10): `tabLabels(page, 7)` becomes 10.
+10. `tests/e2e/dock.spec.ts:614,617,618`: 23 becomes 26, `slice(15)` becomes `slice(18)`, and `Set` size 18 becomes 21.
+11. `tests/e2e/dock.spec.ts:630,633`: loop 19 becomes 22, and update the comment.
+
+**Block T6 (Experience).** The tabs are native buttons but not role buttons.
+
+1. `tests/Desktop.menubar.test.tsx:321`: 12 becomes 15.
+2. `tests/Desktop.dock.test.tsx:340,346,359`: 28, `slice(20)`, 28.
+3. `tests/e2e/chrome.spec.ts` (AC23 Tab visits): 15 stops, with `'Northwind', 'tabpanel'` inserted after `'Close experience.log'`.
+4. `tests/e2e/chrome.spec.ts:371` (AC10): 10 becomes 12.
+5. `tests/e2e/chrome.spec.ts:313` (AC17/AC19): `tabLabels(page, 26)` becomes `tabLabels(page, 35)`. That is 30 stops with the terminal minimized in the finished page plus the same 5-stop margin, set here so it needs no further edit. After the click, Chromium's starting point can sit after the minimized window, so "Close projects" can land at stop 26 or later from this task on. All assertions stay.
+6. `tests/e2e/dock.spec.ts:614,617,618`: 28, `slice(20)`, 23.
+7. `tests/e2e/dock.spec.ts:630,633`: 24.
+8. Positions, exp y 344 becomes 354 (or the formula result `min(380, 644 - height)` if the height differs): `tests/e2e/desktop.spec.ts:23`, `tests/e2e/menubar.spec.ts:59`.
+
+**Block T7 (Projects).**
+
+1. `tests/Desktop.wiring.test.tsx:96`: the expected text becomes `id === 'proj' ? '~/projects' : title`.
+2. `tests/Desktop.dock.test.tsx:340,346,359`: 32, `slice(24)`, 32.
+3. `tests/e2e/chrome.spec.ts` (AC23 Tab visits): 19 stops, with `'Pathfinder', 'Pantry', 'tinyq', 'dotfiles'` inserted after `'Close projects'`.
+4. `tests/e2e/dock.spec.ts:614,617,618`: 32, `slice(24)`, 27.
+5. `tests/e2e/dock.spec.ts:630,633`: 28.
+6. Positions, proj y 300 becomes `min(300, 644 - height)` as a literal (about 268): `tests/e2e/desktop.spec.ts:24`, `tests/e2e/menubar.spec.ts:60`.
+
+**Block T9 (Terminal).** Term y at 1920x1080 becomes 700 from the unclamped formula (1004 − 270 = 734, so the clamp no longer applies). At 1280x720 it becomes 340.
+
+1. `tests/Desktop.dock.test.tsx:340,346,359`: 33, `slice(25)`, 33.
+2. `tests/e2e/chrome.spec.ts` (AC23 Tab visits): 20 stops, adding `'Minimize terminal', 'Close terminal', 'Terminal command'` at the end in place of the two terminal entries.
+3. `tests/e2e/dock.spec.ts:614,617,618`: 33, `slice(25)`, 28. Lines 630 and 633 stay at 28, because the terminal is minimized there.
+4. 694 becomes 700: `tests/Desktop.wiring.test.tsx:161`, `tests/logic/desktop.test.ts:369`, `tests/logic/system.test.ts:181`, `tests/e2e/chrome.spec.ts:123`, `tests/e2e/desktop.spec.ts:50`.
+5. 334 becomes 340: `tests/e2e/desktop.spec.ts:25`, `tests/e2e/menubar.spec.ts:61`.
+6. `tests/e2e/chrome.spec.ts:459-460`: the comment and `translate(-390px, 346px)` become term at 810,340, `dy 720 - 40 - 340 = 340`, `translate(-390px, 340px)`.
+
+If a measured height differs from this plan's fixed values (exp 290, term 270), derive the same literal from `layout()`'s formula, keep it a literal, and note it in the task's commit.
+
+**Checked and needing no edit:**
+
+- `tests/logic/layout.test.ts`: it reads `WIN_META` and has no literal positions.
+- `tests/logic/menu.test.ts`: `toMatchObject` still passes with `runHelp`.
+- `tests/e2e/menubar.spec.ts` Tab tests: lines 194, 267, 506, 527 and 541 only cover the menubar, a menu, or Minimize all, whose 14-press loop still covers the unchanged 13-stop cycle. Only its `REFERENCE` positions change (blocks T6, T7, T9).
+- `tests/MenuBar.test.tsx:794`, `tests/WindowLayer.test.tsx` and `tests/Window.test.tsx`: their harnesses render no bodies.
+- `tests/logic/windows.test.ts`: heights stay under its limit.
 - `tests/logic/purity.test.ts`: no module added.
+- `tests/Desktop.dock.test.tsx:93,105`: they read `WIN_META`.
+- `chrome.spec.ts:282` and `menubar.spec.ts:287`: `b.height - 10` falls in proj's 14px bottom padding, not on a tile, and stays clear of other windows and the dock once proj's height is corrected.
+- `dock.spec.ts` `dragTitle('proj')`: x 638 falls in the 3px gap between hello and about at both the old and new y.
+- `chrome.spec.ts:254-276,326-331`: body points land on name letters or empty space, not on controls.
 
 ## 8. Open questions
 
 None need a human. Decided unattended from the spec, decisions log and requirements:
 
-1. **Host and face split for AC18.** AC4, AC5 and AC17 say "button" and "link"; the visual properties and transforms are applied to the inner face so the hit box can stay still. The spec's visual pose is unchanged. This is the only way to meet "a click anywhere in that box activates that control" without enlarging the hit area.
-2. **The face has `pointer-events: none`.** The hit area is exactly the at-rest box, so the part of a lifted icon above that box is not clickable. AC18 only requires the at-rest box, and this stops a lifted face overlapping a neighbour's box.
-3. **The dot does not lift with the icon.** The prototype's dot is a child of the moving button. Keeping it on the static host keeps it inside the dock's padding as AC7 requires, including during hover. The `-5px` offset is the prototype's.
-4. **Centring uses auto margins, not `translateX(-50%)`,** because the dock's 441px width is odd.
-5. **The AC21 description uses `aria-describedby` to a `hidden` span.** `aria-description` is newer and less widely supported.
-6. **State helper lives in `src/logic/dock.ts`.** It is display state, not click logic, and keeps the CLAUDE.md rule on pure logic.
-7. **A fourth existing test changes** (7a item 4), beyond the three AC30 names. AC30's general rule covers it, and it is held to the same no-loosening standard.
-8. **No ACs were added.**
+1. **Each body task corrects its own height,** instead of one height task at the end as the suggested grouping has it. Otherwise proj would overlap the dock between tasks and break existing tests (R10).
+2. **Heights are rounded up** with `Math.ceil`, because a rounded-down height would make proj overlap the dock by a fraction of a pixel.
+3. **Help uses a small channel,** not `Desktop` state. It survives the closed case without storing terminal content, is StrictMode-safe, and passes the `set-state-in-effect` lint rule. The menu action shape is unchanged, so `menu.test.ts` needs no edit (AC52 allowed for one).
+4. **`renderBody` is an optional prop,** so existing harnesses and `WindowLayer`'s narrower dispatch type stay untouched.
+5. **Host and face everywhere AC9 applies,** so `.btn-primary`, `.btn-secondary`, pill and tile styles live on the face. AC19 and AC20's classes are therefore on the inner span, and hover backgrounds are re-declared on the host selector.
+6. **`--color-accent-300` for the primary button's hover and pressed label,** and `--color-accent-400` for the active tab. These are the smallest changes that pass AA in both themes, and no token value changes.
+7. **Tile accessible name comes from content,** with literal spaces between tags, rather than an `aria-label`, so tags stay available to screen readers.
+8. **The verb has no `title`.** Assumption 6 says the prototype's "Click me" may stay; it is omitted because the hint already says it and it would add a second description.
+9. **All names use `h2`** below Hello's `h1`, since each window is a peer region.
+10. **AC54 added,** for the hand and the mark under reduced motion. It costs two selectors.
+11. **The existing tests in 7a go beyond AC52's known list:** `tests/Desktop.menubar.test.tsx:321`, `tests/Desktop.dock.test.tsx` (Tab order), the three further 694 pins, and `tests/e2e/chrome.spec.ts:313`. AC52's general rule covers them, held to the same no-loosening standard. `tests/e2e/menubar.spec.ts` needs no Tab-count edit, despite being in AC52's list.
+12. **Tab and panel focus raise the experience window,** as all window focus already does. No change.
