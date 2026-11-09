@@ -79,7 +79,16 @@ describe('Desktop wiring', () => {
     );
     expect(winButtons).toHaveLength(10);
     const outside = screen.getAllByRole('button').filter((b) => !b.closest('[data-win]'));
-    expect(outside.map((b) => b.getAttribute('aria-label'))).toEqual(['Switch to light mode']);
+    // DELIBERATE REQUIREMENT CHANGE (T06 AC30): the dock adds five native buttons after the
+    // theme toggle, so the page-wide list pins the toggle and then the five dock buttons.
+    expect(outside.map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Switch to light mode',
+      'hello.txt',
+      'about.md',
+      'experience.log',
+      'projects',
+      'terminal',
+    ]);
     for (const id of DOCK5) {
       const title = WIN_TITLES[id];
       const el = screen.getByRole('region', { name: title });

@@ -324,9 +324,15 @@ describe('minimized windows stay unreachable (AC36)', () => {
       expect(w).toHaveAttribute('aria-hidden', 'true');
       expect(within(w).queryAllByRole('button')).toHaveLength(0);
     }
-    // Only the theme toggle is left among page buttons.
+    // DELIBERATE REQUIREMENT CHANGE (T06 AC30): the theme toggle and the five dock buttons are
+    // left among page buttons.
     expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
       'Switch to light mode',
+      'hello.txt',
+      'about.md',
+      'experience.log',
+      'projects',
+      'terminal',
     ]);
   });
 

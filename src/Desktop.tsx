@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import Dock from './Dock';
 import MenuBar from './MenuBar';
 import WindowLayer from './WindowLayer';
 import { persistDiff } from './logic/settings';
@@ -45,6 +46,7 @@ export default function Desktop() {
     >
       <MenuBar wins={state.desk.wins} settings={settings} dispatch={dispatch} />
       <WindowLayer state={state.desk} dispatch={dispatch} flyIn={ready} wobble={settings.wobble} />
+      <Dock wins={state.desk.wins} dispatch={dispatch} />
     </div>
   );
 }

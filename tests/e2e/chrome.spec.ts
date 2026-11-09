@@ -156,7 +156,13 @@ test.describe('window chrome', () => {
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): the menubar adds one button (the theme toggle).
     await expect(page.locator('[data-win]').getByRole('button')).toHaveCount(10);
     await expect(page.getByRole('banner').getByRole('button')).toHaveCount(1);
-    await expect(page.getByRole('button')).toHaveCount(11);
+    // DELIBERATE REQUIREMENT CHANGE (T06 AC30): the dock adds five buttons (16 in total).
+    const dock = page.getByRole('navigation', { name: 'Dock' });
+    await expect(dock.getByRole('button')).toHaveCount(5);
+    for (const id of DOCK5) {
+      await expect(dock.getByRole('button', { name: TITLES[id], exact: true })).toHaveCount(1);
+    }
+    await expect(page.getByRole('button')).toHaveCount(16);
   });
 
   test('AC11/AC16: dragging tilts right then left, scales up, and springs flat on release', async ({
@@ -301,9 +307,12 @@ test.describe('window chrome', () => {
     await expect(page.getByRole('button', { name: 'Close terminal' })).toHaveCount(0);
     await expect(term).toHaveCSS('pointer-events', 'none');
     await expect(term).toHaveCSS('opacity', '0');
-    // DELIBERATE REQUIREMENT CHANGE (T05 AC40): 5 menubar stops + 8 window stops + 5 margin.
-    const labels = await tabLabels(page, 18);
-    expect(labels.filter((l) => l.includes('terminal'))).toEqual([]);
+    // DELIBERATE REQUIREMENT CHANGE (T06 AC30): 5 menubar + 8 window + 8 dock stops + 5 margin.
+    // The dock's own "terminal" button is a legitimate stop, so only controls other than it are
+    // barred; any control inside the window would still fail the first check.
+    const labels = await tabLabels(page, 26);
+    expect(labels.filter((l) => l.includes('terminal') && l !== 'terminal')).toEqual([]);
+    expect(labels).toContain('terminal');
     expect(labels).toContain('Close projects');
   });
 
