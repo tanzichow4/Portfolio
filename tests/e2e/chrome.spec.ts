@@ -72,6 +72,29 @@ const tabLabels = async (page: Page, n: number) => {
   return out;
 };
 
+/**
+ * Names of the next n tab stops: aria-label, else 'tabpanel' for role=tabpanel, else the text of
+ * an h2 inside it, else its trimmed text.
+ */
+const stopNames = async (page: Page, n: number) => {
+  const out: string[] = [];
+  for (let i = 0; i < n; i++) {
+    await page.keyboard.press('Tab');
+    out.push(
+      await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement;
+        return (
+          el.getAttribute('aria-label') ??
+          (el.getAttribute('role') === 'tabpanel'
+            ? 'tabpanel'
+            : (el.querySelector('h2')?.textContent?.trim() ?? el.textContent?.trim() ?? ''))
+        );
+      }),
+    );
+  }
+  return out;
+};
+
 const focusedName = (page: Page) =>
   page.evaluate(
     () =>
@@ -154,15 +177,18 @@ test.describe('window chrome', () => {
       );
     }
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): the menubar adds one button (the theme toggle).
-    await expect(page.locator('[data-win]').getByRole('button')).toHaveCount(10);
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds two role buttons (the verb and
+    // "See what I've built"), so 10 -> 12.
+    await expect(page.locator('[data-win]').getByRole('button')).toHaveCount(12);
     await expect(page.getByRole('banner').getByRole('button')).toHaveCount(1);
     // DELIBERATE REQUIREMENT CHANGE (T06 AC30): the dock adds five buttons (16 in total).
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): plus the two hello body buttons (18 in total).
     const dock = page.getByRole('navigation', { name: 'Dock' });
     await expect(dock.getByRole('button')).toHaveCount(5);
     for (const id of DOCK5) {
       await expect(dock.getByRole('button', { name: TITLES[id], exact: true })).toHaveCount(1);
     }
-    await expect(page.getByRole('button')).toHaveCount(16);
+    await expect(page.getByRole('button')).toHaveCount(18);
   });
 
   test('AC11/AC16: dragging tilts right then left, scales up, and springs flat on release', async ({
@@ -336,8 +362,20 @@ test.describe('window chrome', () => {
     await page.goto('/');
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
     await tabPastMenubar(page);
-    const want = DOCK5.flatMap((id) => [`Minimize ${TITLES[id]}`, `Close ${TITLES[id]}`]);
-    expect(await tabLabels(page, 10)).toEqual(want);
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): hello's body adds three stops (the verb, the
+    // primary button and the "Say hi" link) after its two window controls.
+    const want = [
+      'Minimize hello.txt',
+      'Close hello.txt',
+      'build',
+      "See what I've built",
+      'Say hi',
+      ...DOCK5.filter((id) => id !== 'hello').flatMap((id) => [
+        `Minimize ${TITLES[id]}`,
+        `Close ${TITLES[id]}`,
+      ]),
+    ];
+    expect(await stopNames(page, 13)).toEqual(want);
   });
 
   test('AC23: Enter activates Minimize', async ({ page }) => {
@@ -354,9 +392,13 @@ test.describe('window chrome', () => {
     await page.goto('/');
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
     await tabPastMenubar(page);
-    expect(await tabLabels(page, 4)).toEqual([
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the three hello body stops come before about.
+    expect(await stopNames(page, 7)).toEqual([
       'Minimize hello.txt',
       'Close hello.txt',
+      'build',
+      "See what I've built",
+      'Say hi',
       'Minimize about.md',
       'Close about.md',
     ]);
@@ -368,7 +410,8 @@ test.describe('window chrome', () => {
     await page.goto('/');
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
     await tabPastMenubar(page);
-    await tabLabels(page, 7); // reaches "Minimize projects"
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): three hello body stops, so 7 -> 10.
+    await tabLabels(page, 10); // reaches "Minimize projects"
     expect(await focusedLabel(page)).toBe('Minimize projects');
     for (const id of DOCK5.filter((i) => i !== 'proj')) {
       expect(await zOf(page, 'proj')).toBeGreaterThan(await zOf(page, id));

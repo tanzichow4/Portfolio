@@ -337,13 +337,15 @@ describe('T06 AC25 and AC26 keyboard', () => {
     const user = userEvent.setup();
     render(<Desktop />);
     const stops: HTMLElement[] = [];
-    for (let i = 0; i < 23; i++) {
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds three tab stops (verb,
+    // primary button, "Say hi" link), so 23 -> 26 stops and the dock starts at index 18.
+    for (let i = 0; i < 26; i++) {
       await user.tab();
       stops.push(document.activeElement as HTMLElement);
     }
     expect(stops[0]).toBe(trigger('tanzi.os'));
     expect(stops[5]).toBe(screen.getByRole('button', { name: 'Minimize hello.txt' }));
-    const tail = stops.slice(15);
+    const tail = stops.slice(18);
     expect(tail.map((e) => e.getAttribute('aria-label'))).toEqual([
       'hello.txt',
       'about.md',
@@ -356,7 +358,7 @@ describe('T06 AC25 and AC26 keyboard', () => {
     ]);
     for (const e of tail) expect(dock().contains(e)).toBe(true);
     // Each is its own stop: no duplicates.
-    expect(new Set(stops).size).toBe(23);
+    expect(new Set(stops).size).toBe(26);
   });
 
   it('T06 AC25: tabbing back from the dock does not skip a control (shift+tab walks the same order)', async () => {

@@ -611,11 +611,13 @@ test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
-    const labels = await tabLabels(page, 23);
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds three stops, so 23 -> 26,
+    // the dock starts at index 18, and the distinct stops after the menubar go 18 -> 21.
+    const labels = await tabLabels(page, 26);
     expect(labels[0]).toBe('tanzi.os');
     expect(labels[5]).toBe('Minimize hello.txt');
-    expect(labels.slice(15)).toEqual([...IDS.map((i) => TITLES[i]), ...LINK_LABELS]);
-    expect(new Set(labels.slice(5)).size).toBe(18);
+    expect(labels.slice(18)).toEqual([...IDS.map((i) => TITLES[i]), ...LINK_LABELS]);
+    expect(new Set(labels.slice(5)).size).toBe(21);
     expect(errors).toEqual([]);
   });
 
@@ -627,10 +629,11 @@ test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
     await page.getByRole('button', { name: 'Minimize terminal' }).click();
     await page.getByRole('button', { name: 'Minimize about.md' }).click();
     await expect(win(page, 'term')).toHaveAttribute('data-min', 'true');
-    // 5 menubar + 6 window stops (3 windows) + 8 dock stops.
+    // DELIBERATE REQUIREMENT CHANGE (T07 AC52): 5 menubar + 9 window stops (3 windows, hello
+    // having 5) + 8 dock stops.
     const ringed: string[] = [];
     const labels: string[] = [];
-    for (let i = 0; i < 19; i++) {
+    for (let i = 0; i < 22; i++) {
       await page.keyboard.press('Tab');
       const info = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement;
