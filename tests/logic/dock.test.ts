@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Win, WinId } from '../../src/types';
-import { dockClickAction } from '../../src/logic/dock';
+import { DOT_OPACITY, dockClickAction, dockWinState } from '../../src/logic/dock';
+import { DOCK_LABELS } from '../../src/data';
 
 const mk = (over: Partial<Record<WinId, Partial<Win>>> = {}): Record<WinId, Win> => {
   const ids: WinId[] = ['hello', 'about', 'exp', 'proj', 'term', 'site'];
@@ -101,4 +102,43 @@ describe('dockClickAction', () => {
       expect(dockClickAction(c.id, c.wins, c.order)).toBe(c.expected);
     });
   }
+});
+
+describe('T06 dock window state', () => {
+  const w = (open: boolean, min: boolean): Win => ({ x: 0, y: 0, open, min });
+
+  it('T06 AC7: open and not minimized is "open" with dot opacity 1', () => {
+    const s = dockWinState(w(true, false));
+    expect(s).toBe('open');
+    expect(DOT_OPACITY[s]).toBe(1);
+  });
+
+  it('T06 AC7: open and minimized is "minimized" with dot opacity 0.4', () => {
+    const s = dockWinState(w(true, true));
+    expect(s).toBe('minimized');
+    expect(DOT_OPACITY[s]).toBe(0.4);
+  });
+
+  it('T06 AC7: closed is "closed" with dot opacity 0', () => {
+    const s = dockWinState(w(false, false));
+    expect(s).toBe('closed');
+    expect(DOT_OPACITY[s]).toBe(0);
+  });
+
+  it('T06 AC7: closed wins over a stale min flag', () => {
+    expect(dockWinState(w(false, true))).toBe('closed');
+  });
+
+  it('T06 AC7: DOT_OPACITY has exactly the three exact values', () => {
+    expect(DOT_OPACITY).toEqual({ open: 1, minimized: 0.4, closed: 0 });
+  });
+
+  it('T06 AC21/AC24: DOCK_LABELS holds the landmark name and the three state words', () => {
+    expect(DOCK_LABELS.landmark).toBe('Dock');
+    expect(DOCK_LABELS.state).toEqual({
+      open: 'Open',
+      minimized: 'Minimized',
+      closed: 'Closed',
+    });
+  });
 });

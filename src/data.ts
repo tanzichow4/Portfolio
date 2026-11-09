@@ -50,6 +50,11 @@ export const ROLE = 'software engineer';
 export const EMAIL = 'hello@tanzi.dev';
 export const VERSION = '1.0';
 
+export const DOCK_LABELS = {
+  landmark: 'Dock',
+  state: { open: 'Open', minimized: 'Minimized', closed: 'Closed' },
+} as const;
+
 export const EXP: Exp[] = [
   {
     when: '2025 — Now',
