@@ -79,3 +79,12 @@ Direction from Tanzi during this run: finish T08, defer T09 until after the MVP,
 ### T10 needs a human
 
 - The code half (about and hello copy in `data.ts`) was done in T07. The rest is real content only Tanzi has: email, GitHub and LinkedIn links, experience and project text and links, and `public/resume.pdf`, which does not exist yet, so the Résumé link is currently broken. Nothing was invented.
+
+### T13 done
+
+- Shipped: `PhonePage` (`src/PhonePage.tsx`, `src/PhonePage.css`) below 760px with one h1, sections for about, experience, projects and links, and no motion; `useView` and `App` choose the view from `matchMedia` with an `innerWidth` fallback; the desktop never mounts on a phone-width load; the breakpoint is defined once in `src/logic/layout.ts`.
+- Results: lint, typecheck, 1371 unit tests, build, format:check, 242 e2e all green. QA: PASS (docs/qa/T13-qa.md, screenshots not committed). One fix round: the global reduced-motion rule in `src/theme.css` now excludes `:root.phone-view`, because its 0.01ms floor created focus-ring transitions on the phone page; desktop matching is unchanged.
+- No existing test was changed.
+- Assumptions: the switch is by width only, so 759 is phone and 760 is desktop; 760 to 1279px stays as it was; the résumé link opens a new tab, matching the menu rather than `linkAttrs`; the page has no theme toggle and no icons; tags use `.tag-outline` because filled tags nearly match the page in light mode.
+- Decision for you: a phone in landscape at 760px or wider (for example 844x390) gets the desktop at 390px high, with windows overlapping and the dock covering them, and nothing scrolls.
+- Gaps: real touch scrolling was exercised only in QA's iPhone emulation, not in the e2e suite; spacing is slightly uneven on the page; `tests/e2e/boot.spec.ts` boot timing failed once in a full run and then passed in 7 later runs, so it may be occasionally load-sensitive; most new tests had no mutation check. QA used scripted bundled Chromium.

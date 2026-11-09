@@ -24,5 +24,5 @@ Status markers (`/autobuild` updates these):
 - [!] needs human decision: real email, links, experience, project text and résumé PDF must come from Tanzi. T10 Content: real data, résumé, extract about copy and hello text into `src/data.ts`
 - [-] T11 Responsive/mobile (<760px): needs a mini-design first, see decision 1
 - [-] T12 Self-hosted deploy: server details still open (decision 9). Meta/OG tags and `<noscript>` summary (decision 10) can be split out as a new ticket if wanted
-- [ ] T13 Phone fallback page (<760px): a plain single-column page with name, about, experience, projects, links and résumé, from the same `src/data.ts` content, instead of the desktop (decision 13)
+- [x] T13 Phone fallback page (<760px): a plain single-column page with name, about, experience, projects, links and résumé, from the same `src/data.ts` content, instead of the desktop (decision 13)
 - [-] T14 Admin editing through a terminal command: skipped for now, per Tanzi. Needs real server-side or GitHub-backed auth, not a hidden command
