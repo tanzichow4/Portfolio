@@ -198,7 +198,7 @@ export default function MenuBar({
           key={e.key}
           {...common}
           href={cmd.href}
-          {...(cmd.newTab ? linkAttrs(cmd.href) : {})}
+          {...(cmd.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : linkAttrs(cmd.href))}
           onClick={() => close(true)}
         >
           {inner}
