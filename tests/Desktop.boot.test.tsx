@@ -3,7 +3,7 @@ import { act, createEvent, fireEvent, render, screen, within } from '@testing-li
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Desktop from '../src/Desktop';
-import { VERBS } from '../src/data';
+import { BOOT_COPY, VERBS } from '../src/data';
 
 // Every Restart here runs under stubbed reduced motion, so these tests stay valid once the
 // boot screen is wired in (T4). Fly-in and the boot path are covered elsewhere.
@@ -1076,4 +1076,169 @@ describe('T08 focus after Restart (T6)', () => {
     render(<Desktop />);
     expect(document.activeElement).toBe(document.body);
   });
+});
+
+// ---------------------------------------------------------------------------------------------
+// T7: the live region (AC26, AC28).
+// ---------------------------------------------------------------------------------------------
+
+describe('T08 live region (T7)', () => {
+  const region = () => document.querySelector<HTMLElement>('[role="status"]')!;
+  const ms = (n: number) =>
+    act(() => {
+      vi.advanceTimersByTime(n);
+    });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Restart on the chosen path and run it to the reset commit. */
+  const doReset = async (path: 'boot' | 'reduced', via: Via) => {
+    await request(via);
+    if (path === 'boot') tick(15);
+  };
+  const setPath = (path: 'boot' | 'reduced') => stubMotion(path === 'reduced');
+
+  it('T08 AC26: on first load the region exists and is empty', () => {
+    render(<Desktop />);
+    expect(region()).not.toBeNull();
+    expect(region().textContent).toBe('');
+    ms(1000);
+    expect(region().textContent).toBe('');
+  });
+
+  it('T08 AC26: the region is a polite atomic status, a sibling after the root', () => {
+    const { container } = render(<Desktop />);
+    const r = region();
+    expect(r).toHaveAttribute('role', 'status');
+    expect(r).toHaveAttribute('aria-live', 'polite');
+    expect(r).toHaveAttribute('aria-atomic', 'true');
+    const root = rootOf(container);
+    expect(root.contains(r)).toBe(false);
+    expect(root).not.toBe(r);
+    expect(root.nextElementSibling).toBe(r);
+    expect(container.firstElementChild).toBe(root);
+    expect(root.hasAttribute('role')).toBe(false);
+  });
+
+  for (const path of ['boot', 'reduced'] as const) {
+    for (const via of ['menu', 'terminal'] as const) {
+      it(`T08 AC26 AC28: ${path} path from the ${via}: empty until 100ms after the reset, then BOOT_COPY.done`, async () => {
+        setPath(path);
+        render(<Desktop />);
+        await doReset(path, via);
+        expect(dialog()).toBeNull();
+        expect(region().textContent).toBe('');
+        ms(99);
+        expect(region().textContent).toBe('');
+        ms(1);
+        expect(region().textContent).toBe(BOOT_COPY.done);
+        expect(BOOT_COPY.done).not.toBe('');
+        ms(2000);
+        expect(region().textContent).toBe(BOOT_COPY.done);
+      });
+    }
+
+    it(`T08 AC26: ${path} path: a second reset empties the region at once and refills it 100ms later`, async () => {
+      setPath(path);
+      render(<Desktop />);
+      await doReset(path, 'terminal');
+      ms(100);
+      expect(region().textContent).toBe(BOOT_COPY.done);
+      await doReset(path, 'menu');
+      expect(region().textContent).toBe('');
+      ms(99);
+      expect(region().textContent).toBe('');
+      ms(1);
+      expect(region().textContent).toBe(BOOT_COPY.done);
+    });
+  }
+
+  it('T08 AC26: reduced path: a second reset inside the window cancels the first timer', async () => {
+    setPath('reduced');
+    render(<Desktop />);
+    await doReset('reduced', 'terminal');
+    ms(60);
+    await doReset('reduced', 'menu');
+    ms(40); // first timer's deadline passes
+    expect(region().textContent).toBe('');
+    ms(59);
+    expect(region().textContent).toBe('');
+    ms(1);
+    expect(region().textContent).toBe(BOOT_COPY.done);
+  });
+
+  it('T08 AC26: during a boot the region is not inert and is empty', async () => {
+    setPath('boot');
+    const { container } = render(<Desktop />);
+    await request('terminal');
+    expect(dialog()).not.toBeNull();
+    expect(isInert(rootOf(container))).toBe(true);
+    expect(region().closest('[inert]')).toBeNull();
+    expect(region().textContent).toBe('');
+    tick(14);
+    expect(region().textContent).toBe('');
+    expect(region().closest('[inert]')).toBeNull();
+  });
+
+  it('T08 AC26: after the reset commit of a second boot the region is empty', async () => {
+    setPath('boot');
+    render(<Desktop />);
+    await request('terminal');
+    tick(15);
+    ms(100);
+    expect(region().textContent).toBe(BOOT_COPY.done);
+    await request('terminal');
+    // Mid-boot the old message may still be there until the reset commit; once reset it is empty.
+    tick(15);
+    expect(region().textContent).toBe('');
+  });
+
+  for (const path of ['boot', 'reduced'] as const) {
+    it(`T08 AC26: unmounting before 100ms on the ${path} path leaves no timer effect and no warning`, async () => {
+      setPath(path);
+      const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { unmount } = render(<Desktop />);
+      await doReset(path, 'terminal');
+      ms(50);
+      unmount();
+      expect(() => ms(500)).not.toThrow();
+      expect(document.querySelector('[role="status"]')).toBeNull();
+      expect(err).not.toHaveBeenCalled();
+      expect(warn).not.toHaveBeenCalled();
+    });
+  }
+
+  for (const path of ['boot', 'reduced'] as const) {
+    it(`T08 AC26: under StrictMode the ${path} path gives exactly one announcement`, async () => {
+      setPath(path);
+      render(
+        <StrictMode>
+          <Desktop />
+        </StrictMode>,
+      );
+      expect(region().textContent).toBe('');
+      const seen: string[] = [];
+      const mo = new MutationObserver(() => {});
+      mo.observe(region(), { childList: true, characterData: true, subtree: true });
+      await doReset(path, 'menu');
+      ms(99);
+      expect(region().textContent).toBe('');
+      ms(1);
+      ms(1000);
+      for (const r of mo.takeRecords()) {
+        for (const n of Array.from(r.addedNodes)) seen.push(n.textContent ?? '');
+      }
+      mo.disconnect();
+      expect(seen.filter((t) => t === BOOT_COPY.done)).toHaveLength(1);
+      expect(region().textContent).toBe(BOOT_COPY.done);
+      expect(region().children).toHaveLength(0);
+    });
+  }
 });

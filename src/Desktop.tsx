@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import BootScreen from './BootScreen';
 import Dock from './Dock';
+import { BOOT_COPY } from './data';
 import { prefersReducedMotion } from './hooks/reducedMotion';
 import MenuBar from './MenuBar';
 import WindowLayer from './WindowLayer';
 import { createHelpChannel } from './logic/terminal';
 import WindowBody from './windows/WindowBody';
 import { persistDiff } from './logic/settings';
-import { appReducer, initialApp, type AppAction } from './logic/system';
+import { ANNOUNCE_DELAY_MS, appReducer, initialApp, type AppAction } from './logic/system';
 import { applyTheme, readSettings, writeSetting } from './storage';
 
 export default function Desktop() {
@@ -19,9 +20,12 @@ export default function Desktop() {
 
   // Bumping the epoch remounts every window, which discards all window-local state.
   const [epoch, setEpoch] = useState(0);
+  // Live region text (AC26). Emptied in the reset commit so a repeat is announced again.
+  const [announcement, setAnnouncement] = useState('');
   const resetDesktop = useCallback(() => {
     dispatch({ type: 'restart' });
     setEpoch((e) => e + 1);
+    setAnnouncement('');
   }, []);
   // Booting is shell state local to Desktop. The ref is the synchronous re-entry guard.
   const [booting, setBooting] = useState(false);
@@ -56,6 +60,12 @@ export default function Desktop() {
   useEffect(() => {
     const raf = requestAnimationFrame(() => setReadyEpoch(epoch));
     return () => cancelAnimationFrame(raf);
+  }, [epoch]);
+
+  useEffect(() => {
+    if (epoch === 0) return;
+    const timer = setTimeout(() => setAnnouncement(BOOT_COPY.done), ANNOUNCE_DELAY_MS);
+    return () => clearTimeout(timer);
   }, [epoch]);
 
   useEffect(() => {
@@ -106,6 +116,9 @@ export default function Desktop() {
         <Dock wins={state.desk.wins} dispatch={dispatch} />
       </div>
       {booting && <BootScreen onDone={finishBoot} />}
+      <div className="boot-status" role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </div>
     </>
   );
 }
