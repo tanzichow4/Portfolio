@@ -3,6 +3,32 @@ import type { Line, Theme, Wall, WinId } from '../types';
 
 export const PROMPT = 'tanzi ~ % ';
 
+export interface HelpChannel {
+  request(): void;
+  subscribe(run: () => void): () => void;
+}
+
+// Lets the Help menu reach a terminal that may not be mounted yet.
+export function createHelpChannel(): HelpChannel {
+  let listener: (() => void) | null = null;
+  let pending = 0;
+  return {
+    request() {
+      if (listener) listener();
+      else pending += 1;
+    },
+    subscribe(run) {
+      listener = run;
+      const n = pending;
+      pending = 0;
+      for (let i = 0; i < n; i += 1) run();
+      return () => {
+        if (listener === run) listener = null;
+      };
+    },
+  };
+}
+
 export type TerminalEffect =
   | { type: 'open'; id: WinId }
   | { type: 'theme'; theme: Theme }

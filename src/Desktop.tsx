@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import Dock from './Dock';
 import MenuBar from './MenuBar';
 import WindowLayer from './WindowLayer';
+import { createHelpChannel } from './logic/terminal';
+import WindowBody from './windows/WindowBody';
 import { persistDiff } from './logic/settings';
 import { appReducer, initialApp } from './logic/system';
 import { applyTheme, readSettings, writeSetting } from './storage';
@@ -11,6 +13,7 @@ export default function Desktop() {
     initialApp(window.innerWidth, window.innerHeight, readSettings()),
   );
   const { settings } = state;
+  const [helpChannel] = useState(createHelpChannel);
 
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -45,7 +48,13 @@ export default function Desktop() {
       }}
     >
       <MenuBar wins={state.desk.wins} settings={settings} dispatch={dispatch} />
-      <WindowLayer state={state.desk} dispatch={dispatch} flyIn={ready} wobble={settings.wobble} />
+      <WindowLayer
+        state={state.desk}
+        dispatch={dispatch}
+        flyIn={ready}
+        wobble={settings.wobble}
+        renderBody={(id) => <WindowBody id={id} dispatch={dispatch} helpChannel={helpChannel} />}
+      />
       <Dock wins={state.desk.wins} dispatch={dispatch} />
     </div>
   );

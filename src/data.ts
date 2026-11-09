@@ -125,6 +125,51 @@ export const FACTS: Fact[] = [
   { icon: Coffee, label: 'Runs on oat lattes' },
 ];
 
+export const HELLO_COPY = {
+  greeting: 'Hi, my name is',
+  verbPrefix: 'I',
+  verbSuffix: 'stuff.',
+  hint: 'psst — click the verb',
+  primary: "See what I've built",
+  secondary: 'Say hi',
+} as const;
+
+export interface AboutSegment {
+  text: string;
+  em?: true;
+}
+
+// Each paragraph is a list of segments; `em` marks an emphasized phrase.
+export const ABOUT_COPY: AboutSegment[][] = [
+  [
+    {
+      text: "I'm a software engineer who enjoys the whole arc of a project — the sketch, the gnarly middle, and the ",
+    },
+    { text: 'last pixel', em: true },
+    { text: '.' },
+  ],
+  [
+    { text: 'Currently building ' },
+    { text: 'developer tools and backend services', em: true },
+    { text: '.' },
+  ],
+];
+
+export const SITE_COPY = {
+  mark: 'TC',
+  title: 'tanzi.os',
+  versionPrefix: 'Version ',
+  edition: ' · Portfolio edition',
+  desc: 'A tiny desktop that happens to be a portfolio. Drag the windows, poke the dock, try the terminal.',
+} as const;
+
+export const EXPERIENCE_LABELS = { tablist: 'Experience', at: '@' } as const;
+
+export const TERMINAL_LABELS = { input: 'Terminal command', log: 'Terminal output' } as const;
+
+// Visible titlebar text where it differs from the window's accessible title.
+export const WIN_BAR_TITLES: Partial<Record<WinId, string>> = { proj: '~/projects' };
+
 export const VERBS = ['build', 'break', 'fix', 'ship', 'debug', 'refactor', 'design'];
 export const RESUME_URL = '/resume.pdf';
 

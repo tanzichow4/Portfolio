@@ -10,6 +10,8 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.{ts,tsx}'],
     exclude: ['tests/e2e/**', 'node_modules/**'],
-    css: { include: [/theme\.css/, /Window\.css/, /MenuBar\.css/, /Dock\.css/] },
+    css: {
+      include: [/theme\.css/, /Window\.css/, /MenuBar\.css/, /Dock\.css/, /src\/windows\/\w+\.css/],
+    },
   },
 });

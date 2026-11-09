@@ -1,20 +1,22 @@
-import type { Dispatch } from 'react';
+import type { Dispatch, ReactNode } from 'react';
 import Window from './Window';
 import type { DesktopAction } from './logic/desktop';
 import { WIN_IDS } from './logic/windows';
 import { topMost, zIndexFor } from './logic/zorder';
-import type { State } from './types';
+import type { State, WinId } from './types';
 
 export default function WindowLayer({
   state,
   dispatch,
   flyIn,
   wobble,
+  renderBody,
 }: {
   state: State;
   dispatch: Dispatch<DesktopAction>;
   flyIn: boolean;
   wobble: boolean;
+  renderBody?: (id: WinId) => ReactNode;
 }) {
   const top = topMost(state.order, state.wins);
   return (
@@ -34,7 +36,9 @@ export default function WindowLayer({
           onMinimize={() => dispatch({ type: 'minimize', id })}
           onClose={() => dispatch({ type: 'close', id })}
           onMove={(x, y) => dispatch({ type: 'move', id, x, y })}
-        />
+        >
+          {renderBody?.(id)}
+        </Window>
       ))}
     </>
   );
