@@ -446,3 +446,249 @@ describe('T07 Terminal: CSS', () => {
     expect(clean).not.toMatch(/outline-style:\s*none/);
   });
 });
+
+describe('T07 Terminal: history, click focus, auto-scroll (T10)', () => {
+  const caretAtEnd = (el: HTMLElement) => {
+    if (!(el instanceof HTMLInputElement)) throw new Error('not an input');
+    expect(el.selectionStart).toBe(el.value.length);
+    expect(el.selectionEnd).toBe(el.value.length);
+  };
+
+  it('T07 AC43: Up recalls older commands, Down recalls newer, then restores the draft', async () => {
+    const { user, input, run } = setup();
+    await run('whoami');
+    await run('help');
+    await run('theme dark');
+    await user.type(input, 'dra');
+    await user.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('theme dark');
+    await user.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('help');
+    await user.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('whoami');
+    await user.keyboard('{ArrowDown}');
+    expect(input).toHaveValue('help');
+    await user.keyboard('{ArrowDown}');
+    expect(input).toHaveValue('theme dark');
+    await user.keyboard('{ArrowDown}');
+    expect(input).toHaveValue('dra');
+  });
+
+  it('T07 AC43: Up stops at the oldest entry and keeps showing it', async () => {
+    const { user, input, run } = setup();
+    await run('whoami');
+    await run('help');
+    await user.keyboard('{ArrowUp}{ArrowUp}{ArrowUp}{ArrowUp}');
+    expect(input).toHaveValue('whoami');
+    caretAtEnd(input);
+    await user.keyboard('{ArrowDown}');
+    expect(input).toHaveValue('help');
+  });
+
+  it('T07 AC43: Up with no history and Down when not navigating leave the text alone', async () => {
+    const { user, input } = setup();
+    await user.type(input, 'abc');
+    await user.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('abc');
+    await user.keyboard('{ArrowDown}');
+    expect(input).toHaveValue('abc');
+    caretAtEnd(input);
+  });
+
+  it('T07 AC43: an empty draft is restored as empty after Down past the newest', async () => {
+    const { user, input, run } = setup();
+    await run('help');
+    await user.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('help');
+    await user.keyboard('{ArrowDown}');
+    expect(input).toHaveValue('');
+  });
+
+  it('T07 AC43: recalling does not run the command or dispatch', async () => {
+    const { user, run, dispatch, texts } = setup();
+    await run('help');
+    const before = texts().length;
+    await user.keyboard('{ArrowUp}{ArrowDown}');
+    expect(texts()).toHaveLength(before);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('T07 AC43: the caret ends at the end of the recalled text', async () => {
+    const { user, input, run } = setup();
+    await run('theme dark');
+    await run('whoami');
+    await user.keyboard('{ArrowUp}');
+    caretAtEnd(input);
+    await user.keyboard('{ArrowUp}');
+    caretAtEnd(input);
+    await user.keyboard('{ArrowDown}');
+    caretAtEnd(input);
+    await user.keyboard('{ArrowDown}');
+    caretAtEnd(input);
+  });
+
+  it('T07 AC43: the caret moves to the end even when the value does not change', async () => {
+    const { user, input, run } = setup();
+    await run('whoami');
+    await user.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('whoami');
+    // Up at the only (oldest) entry: value unchanged.
+    (input as HTMLInputElement).setSelectionRange(2, 2);
+    await user.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('whoami');
+    caretAtEnd(input);
+    // Down when not navigating: value unchanged.
+    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{ArrowDown}');
+    expect(input).toHaveValue('');
+    await user.type(input, 'xyz');
+    (input as HTMLInputElement).setSelectionRange(1, 1);
+    await user.keyboard('{ArrowDown}');
+    expect(input).toHaveValue('xyz');
+    caretAtEnd(input);
+  });
+
+  it('T07 AC43: Up and Down call preventDefault, Tab does not', () => {
+    const { input } = setup();
+    for (const key of ['ArrowUp', 'ArrowDown']) {
+      const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      input.dispatchEvent(ev);
+      expect(ev.defaultPrevented).toBe(true);
+    }
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    input.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(false);
+  });
+
+  it('T07 AC43: Tab does not complete the text and moves focus out', async () => {
+    const { user, input } = setup();
+    await user.type(input, 'he');
+    await user.tab();
+    expect(input).toHaveValue('he');
+    expect(input).not.toHaveFocus();
+  });
+
+  it('T07 AC40/AC43: clear keeps Up/Down history, including clear itself', async () => {
+    const { user, input, run, texts } = setup();
+    await run('whoami');
+    await run('help');
+    await run('clear');
+    expect(texts()).toEqual([]);
+    await user.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('clear');
+    await user.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('help');
+    await user.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('whoami');
+  });
+
+  it('T07 AC43: after running a recalled command, navigation starts again from the newest', async () => {
+    const { user, input, run } = setup();
+    await run('whoami');
+    await run('help');
+    await user.keyboard('{ArrowUp}{ArrowUp}{Enter}');
+    expect(input).toHaveValue('');
+    await user.keyboard('{ArrowUp}');
+    expect(input).toHaveValue('whoami');
+  });
+
+  it('T07 AC44: a plain click on the body, log or prompt focuses the input', async () => {
+    const { user, input, container, log } = setup();
+    const body = container.firstElementChild as HTMLElement;
+    await user.click(body);
+    expect(input).toHaveFocus();
+    input.blur();
+    await user.click(log.firstElementChild as HTMLElement);
+    expect(input).toHaveFocus();
+    input.blur();
+    await user.click(screen.getByText(PROMPT_TEXT));
+    expect(input).toHaveFocus();
+  });
+
+  it('T07 AC44: a click with a non-collapsed selection does not move focus to the input', async () => {
+    const { user, input, container } = setup();
+    const spy = vi
+      .spyOn(window, 'getSelection')
+      .mockReturnValue({ isCollapsed: false } as unknown as Selection);
+    try {
+      await user.click(container.firstElementChild as HTMLElement);
+      expect(input).not.toHaveFocus();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('T07 AC44: a click with a collapsed selection still focuses the input', async () => {
+    const { user, input, container } = setup();
+    const spy = vi
+      .spyOn(window, 'getSelection')
+      .mockReturnValue({ isCollapsed: true } as unknown as Selection);
+    try {
+      await user.click(container.firstElementChild as HTMLElement);
+      expect(input).toHaveFocus();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('T07 AC44: clicking inside the input keeps it focused with its text intact', async () => {
+    const { user, input } = setup();
+    await user.type(input, 'abc');
+    await user.click(input);
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue('abc');
+  });
+
+  describe('auto-scroll (AC42)', () => {
+    function instrument(body: HTMLElement, height: number) {
+      let top = 0;
+      Object.defineProperty(body, 'scrollHeight', { configurable: true, get: () => height });
+      Object.defineProperty(body, 'scrollTop', {
+        configurable: true,
+        get: () => top,
+        set: (v: number) => {
+          top = v;
+        },
+      });
+      return { top: () => top, reset: () => (top = 0) };
+    }
+
+    it('T07 AC42: running a command scrolls the body to the bottom', async () => {
+      const { run, container } = setup();
+      const body = container.firstElementChild as HTMLElement;
+      const s = instrument(body, 1234);
+      expect(s.top()).toBe(0);
+      await run('help');
+      expect(s.top()).toBe(1234);
+    });
+
+    it('T07 AC42: every new output scrolls again to the new bottom', async () => {
+      const { run, container } = setup();
+      const body = container.firstElementChild as HTMLElement;
+      const s = instrument(body, 500);
+      await run('whoami');
+      expect(s.top()).toBe(500);
+      s.reset();
+      await run('help');
+      expect(s.top()).toBe(500);
+    });
+
+    it('T07 AC42: typing and history recall alone do not scroll the body', async () => {
+      const { user, run, container } = setup();
+      await run('help');
+      const body = container.firstElementChild as HTMLElement;
+      const s = instrument(body, 900);
+      await user.type(screen.getByRole('textbox'), 'abc');
+      await user.keyboard('{ArrowUp}');
+      expect(s.top()).toBe(0);
+    });
+
+    it('T07 AC42: clear also leaves the body scrolled to its (new) bottom', async () => {
+      const { run, container } = setup();
+      const body = container.firstElementChild as HTMLElement;
+      const s = instrument(body, 77);
+      await run('clear');
+      expect(s.top()).toBe(77);
+    });
+  });
+});
