@@ -131,3 +131,60 @@
 .hello-cta .btn-secondary {
   box-shadow: 0 0 0 0 var(--color-neutral-700);
 }
+
+.hello-hand:hover {
+  transform: rotate(-28deg);
+}
+
+.hello-letter:hover .hello-letter-face {
+  transform: translateY(-12px) rotate(-6deg);
+  color: var(--color-accent-400);
+}
+
+.hello-verb:hover {
+  transform: rotate(-4deg) scale(1.06);
+}
+
+.hello-verb:active {
+  transform: scale(0.92);
+}
+
+.hello-cta:hover .hello-cta-face {
+  transform: translate(-3px, -3px);
+}
+
+.hello-cta:hover .btn-primary {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent-300);
+  box-shadow: 3px 3px 0 0 var(--color-accent);
+}
+
+.hello-cta:hover .btn-secondary {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  box-shadow: 3px 3px 0 0 var(--color-neutral-700);
+}
+
+.hello-cta:active .hello-cta-face {
+  transform: none;
+  box-shadow: none;
+}
+
+.hello-cta:active .btn-primary {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  color: var(--color-accent-300);
+}
+
+.hello-cta:active .btn-secondary {
+  background: color-mix(in srgb, var(--color-text) 14%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hello-hand:hover,
+  .hello-letter:hover .hello-letter-face,
+  .hello-verb:hover,
+  .hello-verb:active,
+  .hello-cta:hover .hello-cta-face,
+  .hello-cta:active .hello-cta-face {
+    transform: none;
+  }
+}

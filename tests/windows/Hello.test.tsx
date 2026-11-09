@@ -274,3 +274,119 @@ describe('T07 Hello.css (rest state)', () => {
     expect(clean).not.toMatch(/\b(rgb|hsl)a?\(/);
   });
 });
+
+/** Declarations from rules inside the reduced-motion media block whose selector list includes `selector`. */
+function reducedDecls(selector: string): Record<string, string> {
+  const start = clean.indexOf('@media (prefers-reduced-motion: reduce)');
+  if (start < 0) throw new Error('no reduced-motion block');
+  const open = clean.indexOf('{', start);
+  let depth = 0;
+  let end = open;
+  for (let i = open; i < clean.length; i++) {
+    if (clean[i] === '{') depth++;
+    if (clean[i] === '}' && --depth === 0) {
+      end = i;
+      break;
+    }
+  }
+  const block = clean.slice(open + 1, end);
+  const out: Record<string, string> = {};
+  for (const m of block.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const sels = m[1].split(',').map((s) => norm(s));
+    if (!sels.includes(selector)) continue;
+    for (const d of m[2].split(';')) {
+      const k = d.indexOf(':');
+      if (k > 0) out[d.slice(0, k).trim()] = norm(d.slice(k + 1));
+    }
+  }
+  return out;
+}
+
+describe('T07 Hello.css (motion)', () => {
+  it('T07 AC13: the hand rotates -28deg on hover', () => {
+    expect(decls('.hello-hand:hover').transform).toBe('rotate(-28deg)');
+  });
+
+  it('T07 AC15: a hovered letter face gets translateY(-12px) rotate(-6deg) and accent-400', () => {
+    const r = decls('.hello-letter:hover .hello-letter-face');
+    expect(r.transform).toBe('translateY(-12px) rotate(-6deg)');
+    expect(r.color).toBe('var(--color-accent-400)');
+  });
+
+  it('T07 AC15: the letter face animates transform .45s on --ease-bouncy', () => {
+    expect(decls('.hello-letter-face').transition).toMatch(
+      /transform 0?\.45s var\(--ease-bouncy\)/,
+    );
+  });
+
+  it('T07 AC9: the letter hover is on the stationary host and the face ignores the pointer', () => {
+    // The host has no transform of its own, so its hit box does not move away from the pointer.
+    expect(decls('.hello-letter').transform).toBeUndefined();
+    expect(decls('.hello-letter-face')['pointer-events']).toBe('none');
+    expect(clean).not.toMatch(/\.hello-letter-face:hover/);
+  });
+
+  it('T07 AC17: the verb is rotate(-4deg) scale(1.06) on hover and scale(.92) pressed', () => {
+    expect(decls('.hello-verb:hover').transform).toBe('rotate(-4deg) scale(1.06)');
+    expect(decls('.hello-verb:active').transform).toMatch(/^scale\(0?\.92\)$/);
+  });
+
+  it('T07 AC21: on hover the button face moves translate(-3px, -3px) and the host stays still', () => {
+    expect(decls('.hello-cta:hover .hello-cta-face').transform).toMatch(
+      /^translate\(-3px, ?-3px\)$/,
+    );
+    expect(clean).not.toMatch(/\.hello-cta:hover\s*\{/);
+    expect(decls('.hello-cta').transform).toBeUndefined();
+    expect(decls('.hello-cta-face')['pointer-events']).toBe('none');
+  });
+
+  it('T07 AC21: the hover shadow is 3px 3px 0 0 accent (primary) or neutral-700 (secondary)', () => {
+    expect(decls('.hello-cta:hover .btn-primary')['box-shadow']).toBe(
+      '3px 3px 0 0 var(--color-accent)',
+    );
+    expect(decls('.hello-cta:hover .btn-secondary')['box-shadow']).toBe(
+      '3px 3px 0 0 var(--color-neutral-700)',
+    );
+  });
+
+  it('T07 AC21: pressed buttons return to no offset and no shadow', () => {
+    const r = decls('.hello-cta:active .hello-cta-face');
+    expect(r.transform).toBe('none');
+    expect(r['box-shadow']).toBe('none');
+  });
+
+  it('T07 AC12: primary hover uses accent-300 on accent 12%, pressed accent-300 on accent 22%', () => {
+    const h = decls('.hello-cta:hover .btn-primary');
+    expect(h.color).toBe('var(--color-accent-300)');
+    expect(h.background).toMatch(/color-mix\(in srgb, var\(--color-accent\) 12%, transparent\)/);
+    const p = decls('.hello-cta:active .btn-primary');
+    expect(p.color).toBe('var(--color-accent-300)');
+    expect(p.background).toMatch(/color-mix\(in srgb, var\(--color-accent\) 22%, transparent\)/);
+  });
+
+  it('T07 AC8: reduced motion sets transform none for every hover and pressed rule that moves', () => {
+    for (const sel of [
+      '.hello-hand:hover',
+      '.hello-letter:hover .hello-letter-face',
+      '.hello-verb:hover',
+      '.hello-verb:active',
+      '.hello-cta:hover .hello-cta-face',
+      '.hello-cta:active .hello-cta-face',
+    ]) {
+      expect(reducedDecls(sel).transform, sel).toBe('none');
+    }
+  });
+
+  it('T07 AC8: reduced motion keeps the colour and shadow changes (does not override them)', () => {
+    for (const sel of ['.hello-letter:hover .hello-letter-face', '.hello-cta:hover .btn-primary']) {
+      const r = reducedDecls(sel);
+      expect(r.color, sel).toBeUndefined();
+      expect(r['box-shadow'], sel).toBeUndefined();
+    }
+  });
+
+  it('T07 AC7: motion rules use tokens only and no outline removal', () => {
+    expect(clean).not.toMatch(/all:\s*unset/);
+    expect(clean).not.toMatch(/outline:\s*(none|0)\b/);
+  });
+});
