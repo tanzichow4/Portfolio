@@ -44,6 +44,7 @@ export default function MenuBar({
   const headerRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggers = useRef<Partial<Record<TopMenu, HTMLButtonElement | null>>>({});
+  const hoverSwitched = useRef<TopMenu | null>(null);
   const pendingFocus = useRef<'first' | 'last' | null>(null);
 
   const entries = useMemo(
@@ -241,15 +242,29 @@ export default function MenuBar({
               }}
               onClick={() => {
                 setRoving(id);
+                // A pointer hover already switched to this menu: the click confirms it.
+                if (hoverSwitched.current === id) {
+                  hoverSwitched.current = null;
+                  return;
+                }
                 setOpen(menuTransition(open, { type: 'click', id }));
               }}
               onFocus={() => setRoving(id)}
               onPointerEnter={() => {
                 const next = menuTransition(open, { type: 'hover', id });
-                if (next !== open) setOpen(next);
+                if (next !== open) {
+                  setOpen(next);
+                  hoverSwitched.current = id;
+                }
                 setRoving(id);
               }}
-              onKeyDown={(e) => onTriggerKeyDown(e, id)}
+              onPointerLeave={() => {
+                hoverSwitched.current = null;
+              }}
+              onKeyDown={(e) => {
+                hoverSwitched.current = null;
+                onTriggerKeyDown(e, id);
+              }}
               onKeyUp={(e) => {
                 if (e.key === ' ') e.preventDefault();
               }}
