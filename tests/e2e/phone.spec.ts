@@ -367,7 +367,7 @@ test.describe('T13 phone fallback page (e2e)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('T13 AC14: wheel, End and PageDown scroll the page and the resume link can be reached', async ({
+  test('T13 AC14: wheel, End and PageDown scroll the page and the last link can be reached', async ({
     page,
   }) => {
     const errors = watchErrors(page);
@@ -394,9 +394,7 @@ test.describe('T13 phone fallback page (e2e)', () => {
         ),
       )
       .toBe(true);
-    const resume = page.locator('.phone-link').last();
-    await expect(resume).toBeInViewport();
-    await expect(resume).toHaveAttribute('href', '/resume.pdf');
+    await expect(page.locator('.phone-link').last()).toBeInViewport();
     expect(errors).toEqual([]);
   });
 
@@ -656,7 +654,7 @@ test.describe('T13 phone fallback page (e2e)', () => {
     expect(links.length).toBeGreaterThanOrEqual(4);
     for (const l of links) {
       expect(l.text).not.toBe('');
-      if (/^https?:/.test(l.href) || l.href === '/resume.pdf') {
+      if (/^https?:/.test(l.href)) {
         expect(l.target).toBe('_blank');
         expect(l.rel).toBe('noopener noreferrer');
       } else {
@@ -664,7 +662,6 @@ test.describe('T13 phone fallback page (e2e)', () => {
         expect(l.rel).toBeNull();
       }
     }
-    expect(links.at(-1)!.href).toBe('/resume.pdf');
     expect(links.some((l) => l.href.startsWith('mailto:'))).toBe(true);
     expect(errors).toEqual([]);
   });

@@ -369,7 +369,7 @@ test.describe('window chrome', () => {
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): hello's body adds three stops (the verb, the
     // primary button and the "Say hi" link) after its two window controls.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): experience's body adds two stops (the selected
-    // tab 'Northwind' and the panel) after its two window controls, so 13 -> 15 stops.
+    // tab 'Tartigrade Ltd.' and the panel) after its two window controls, so 13 -> 15 stops.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): projects' body adds four tile links after its
     // two window controls, so 15 -> 19 stops.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the terminal body adds its input ('Terminal
@@ -383,8 +383,10 @@ test.describe('window chrome', () => {
       ...DOCK5.filter((id) => id !== 'hello').flatMap((id) => [
         `Minimize ${TITLES[id]}`,
         `Close ${TITLES[id]}`,
-        ...(id === 'exp' ? ['Northwind', 'tabpanel'] : []),
-        ...(id === 'proj' ? ['Pathfinder', 'Pantry', 'tinyq', 'dotfiles'] : []),
+        ...(id === 'exp' ? ['Tartigrade Ltd.', 'tabpanel'] : []),
+        ...(id === 'proj'
+          ? ['Voice Calendar', 'Indoor Garden', 'Grocery Prices', 'Driver Safety']
+          : []),
         ...(id === 'term' ? ['Terminal command'] : []),
       ]),
     ];

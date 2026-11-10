@@ -2,25 +2,26 @@ import type { Icon } from '@phosphor-icons/react';
 import type { WinId } from './types';
 import {
   Briefcase,
+  ChartLineUp,
   Code,
-  Coffee,
-  CookingPot,
   EnvelopeSimple,
   Folder,
   GithubLogo,
-  Graph,
   HandWaving,
+  GameController,
   Horse,
   Info,
   LinkedinLogo,
   MapPin,
-  Stack,
-  Terminal,
+  Microphone,
+  Plant,
+  Smiley,
+  Trophy,
   TerminalWindow,
   User,
 } from '@phosphor-icons/react';
 
-// All content lives here. PLACEHOLDER — replace with real data.
+// All content lives here. Experience, projects and contact come from the résumés in experience/.
 export interface Exp {
   when: string;
   role: string;
@@ -47,7 +48,7 @@ export interface Fact {
 
 export const NAME = 'Tanzi Chowdhury';
 export const ROLE = 'software engineer';
-export const EMAIL = 'hello@tanzi.dev';
+export const EMAIL = 'tanzichow4@gmail.com';
 export const VERSION = '1.0';
 
 export const DOCK_LABELS = {
@@ -57,72 +58,72 @@ export const DOCK_LABELS = {
 
 export const EXP: Exp[] = [
   {
-    when: '2025 — Now',
-    role: 'Software Engineer',
-    org: 'Northwind',
-    desc: 'Build and maintain internal developer tooling and the services behind it — faster CI, saner deploys, fewer 2am pages.',
-    tags: ['TypeScript', 'Go', 'Postgres', 'AWS'],
+    when: '2026 — Now',
+    role: 'Software Developer',
+    org: 'Tartigrade Ltd.',
+    desc: 'Led onboarding for a multi-tenant web platform and built a natural-language-to-SQL engine on a local model. Also wrote a security review.',
+    tags: ['React', 'Express', 'Keycloak', 'LLMs'],
   },
   {
-    when: '2024',
-    role: 'SWE Intern',
-    org: 'Brightline',
-    desc: 'Shipped a real-time notifications pipeline end to end, from the queue consumers to the settings UI.',
-    tags: ['Python', 'Kafka', 'React'],
+    when: '2024 — 2026',
+    role: 'Software Developer / Tester',
+    org: 'General Dynamics Mission Systems',
+    desc: 'Redesigned a legacy system, cutting runtime from 33 hours to 3. Automated deploy config in Python and raised coverage by 80% with PyTest.',
+    tags: ['Python', 'PyTest', 'GitLab CI/CD'],
   },
   {
-    when: '2023',
-    role: 'Research Assistant',
-    org: 'University Lab',
-    desc: 'Wrote data tooling for a systems research group and helped benchmark a distributed cache.',
-    tags: ['C++', 'Rust', 'Linux'],
+    when: '2021 — 2026',
+    role: 'B.Sc. Software Engineering',
+    org: 'University of Calgary',
+    desc: 'Software engineering degree, with IoT, data and ML projects.',
+    tags: ['Software Engineering', 'IoT', 'ML'],
   },
 ];
 
 // `icon` is a Phosphor component
 export const PROJECTS: Project[] = [
   {
-    name: 'Pathfinder',
-    icon: Graph,
+    name: 'Voice Calendar',
+    icon: Microphone,
     href: '#',
-    desc: 'Graph search, visualized. Draw walls, watch A* think.',
-    tags: ['TypeScript', 'Canvas'],
+    desc: 'Speak an event, get it on your calendar. iOS and Gemini.',
+    tags: ['Swift', 'Gemini API'],
   },
   {
-    name: 'Pantry',
-    icon: CookingPot,
+    name: 'Indoor Garden',
+    icon: Plant,
     href: '#',
-    desc: 'Recipes from whatever is already in your fridge.',
-    tags: ['React Native', 'SQLite'],
+    desc: 'IoT garden monitoring, live dashboard for 10+ sensors.',
+    tags: ['Docker', 'React'],
   },
   {
-    name: 'tinyq',
-    icon: Stack,
+    name: 'Grocery Prices',
+    icon: ChartLineUp,
     href: '#',
-    desc: 'A durable job queue on Postgres, in 600 lines.',
-    tags: ['Go', 'Postgres'],
+    desc: 'Forecasts grocery prices 7 days out at 80% accuracy.',
+    tags: ['Airflow', 'Spark'],
   },
   {
-    name: 'dotfiles',
-    icon: Terminal,
+    name: 'Driver Safety',
+    icon: Smiley,
     href: '#',
-    desc: 'My over-tuned setup, bootstrapped in one command.',
-    tags: ['Shell', 'Nix'],
+    desc: 'Emotion detection from faces, 80% accuracy on RAF-DB.',
+    tags: ['TensorFlow', 'CNN'],
   },
 ];
 
 export const LINKS: LinkItem[] = [
   { label: 'GitHub', icon: GithubLogo, href: 'https://github.com/' },
-  { label: 'LinkedIn', icon: LinkedinLogo, href: 'https://linkedin.com/' },
+  { label: 'LinkedIn', icon: LinkedinLogo, href: 'https://linkedin.com/in/tanzi-chowdhury/' },
   { label: 'Email', icon: EnvelopeSimple, href: `mailto:${EMAIL}` },
 ];
 
 export const FACTS: Fact[] = [
-  { icon: MapPin, label: 'New York' },
-  { icon: Code, label: 'TypeScript · Go · Python' },
-  { icon: CookingPot, label: 'Ambitious home cook' },
+  { icon: MapPin, label: 'Calgary, AB' },
+  { icon: Code, label: 'Python · JavaScript · Swift' },
+  { icon: Trophy, label: 'Sports enthusiast' },
   { icon: Horse, label: 'Mediocre at chess' },
-  { icon: Coffee, label: 'Runs on oat lattes' },
+  { icon: GameController, label: 'Loves to game' },
 ];
 
 export const HELLO_COPY = {
@@ -150,7 +151,7 @@ export const ABOUT_COPY: AboutSegment[][] = [
   ],
   [
     { text: 'Currently building ' },
-    { text: 'developer tools and backend services', em: true },
+    { text: 'web platforms, automation and data tooling', em: true },
     { text: '.' },
   ],
 ];

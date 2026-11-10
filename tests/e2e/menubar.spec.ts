@@ -321,15 +321,9 @@ test.describe('menu actions (AC18-AC21)', () => {
     await expect(win(page, 'site')).toHaveCount(1);
   });
 
-  test('AC21/AC4: Résumé and Say hi have the right attributes (not activated)', async ({
-    page,
-  }) => {
+  test('AC21/AC4: Say hi has the right attributes (not activated)', async ({ page }) => {
     await page.goto('/');
     await trigger(page, 'Help').click();
-    const resume = page.getByRole('menuitem', { name: 'Résumé (PDF)' });
-    await expect(resume).toHaveAttribute('href', '/resume.pdf');
-    await expect(resume).toHaveAttribute('target', '_blank');
-    await expect(resume).toHaveAttribute('rel', /noopener/);
     const hi = page.getByRole('menuitem', { name: /^Say hi/ });
     await expect(hi).toHaveAttribute('href', /^mailto:.+@.+/);
     expect(await hi.getAttribute('target')).toBeNull();

@@ -15,7 +15,7 @@ import {
 import { initialApp } from '../../src/logic/system';
 import { appReducer } from '../../src/logic/system';
 import type { Settings } from '../../src/logic/settings';
-import { EMAIL, RESUME_URL, WIN_TITLES } from '../../src/data';
+import { EMAIL, WIN_TITLES } from '../../src/data';
 
 const dflt: Settings = { theme: 'dark', wall: 'nebula', wobble: true };
 const desk = () => initialApp(1280, 720, dflt).desk;
@@ -173,25 +173,13 @@ describe('menuModel: View', () => {
 });
 
 describe('menuModel: Help', () => {
-  it('AC21: Terminal commands, Résumé (PDF), a divider, Say hi', () => {
-    expect(labels(menuModel('help', ctx()))).toEqual([
-      'Terminal commands',
-      'Résumé (PDF)',
-      '---',
-      'Say hi',
-    ]);
+  it('AC21: Terminal commands, a divider, Say hi', () => {
+    expect(labels(menuModel('help', ctx()))).toEqual(['Terminal commands', '---', 'Say hi']);
   });
   it('AC21: Terminal commands opens the terminal', () => {
     expect(find(menuModel('help', ctx()), 'Terminal commands')).toMatchObject({
       role: 'menuitem',
       cmd: { type: 'action', action: { type: 'open', id: 'term' } },
-    });
-  });
-  it('AC21/AC4: Résumé links to RESUME_URL in a new tab', () => {
-    expect(find(menuModel('help', ctx()), 'Résumé (PDF)').cmd).toEqual({
-      type: 'link',
-      href: RESUME_URL,
-      newTab: true,
     });
   });
   it('AC21/AC4: Say hi is mailto: plus EMAIL, same tab, with the hint "email"', () => {

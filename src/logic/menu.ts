@@ -1,4 +1,4 @@
-import { EMAIL, MENU_ITEMS, RESUME_URL, WIN_TITLES } from '../data';
+import { EMAIL, MENU_ITEMS, WIN_TITLES } from '../data';
 import type { MenuId, State } from '../types';
 import type { Settings } from './settings';
 import type { AppAction } from './system';
@@ -135,13 +135,6 @@ export function menuModel(
           role: 'menuitem',
           label: MENU_ITEMS.termCommands,
           cmd: { type: 'action', action: { type: 'open', id: 'term' }, runHelp: true },
-        },
-        {
-          kind: 'item',
-          key: 'resume',
-          role: 'menuitem',
-          label: MENU_ITEMS.resume,
-          cmd: { type: 'link', href: RESUME_URL, newTab: true },
         },
         sep('sep-1'),
         {

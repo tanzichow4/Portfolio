@@ -9,11 +9,9 @@ import {
   EXPERIENCE_LABELS,
   FACTS,
   LINKS,
-  MENU_ITEMS,
   NAME,
   PHONE_HEADINGS,
   PROJECTS,
-  RESUME_URL,
   ROLE,
 } from '../src/data';
 
@@ -105,15 +103,11 @@ describe('T13 PhonePage content (AC10)', () => {
     });
   });
 
-  it('T13 AC10: Links lists every LINKS label then the résumé link last', () => {
+  it('T13 AC10: Links lists every LINKS label and nothing else', () => {
     render(<PhonePage />);
     const links = section(PHONE_HEADINGS.links);
     const anchors = within(links).getAllByRole('link');
-    expect(anchors.map((a) => a.textContent)).toEqual([
-      ...LINKS.map((l) => l.label),
-      MENU_ITEMS.resume,
-    ]);
-    expect(anchors[anchors.length - 1].getAttribute('href')).toBe(RESUME_URL);
+    expect(anchors.map((a) => a.textContent)).toEqual(LINKS.map((l) => l.label));
     LINKS.forEach((l, i) => expect(anchors[i].getAttribute('href')).toBe(l.href));
   });
 
@@ -226,7 +220,7 @@ describe('T13 PhonePage AC21: real lists', () => {
       [PHONE_HEADINGS.about, FACTS.length],
       [EXPERIENCE_LABELS.tablist, EXP.length],
       [PHONE_HEADINGS.projects, PROJECTS.length],
-      [PHONE_HEADINGS.links, LINKS.length + 1],
+      [PHONE_HEADINGS.links, LINKS.length],
     ];
     for (const [name, n] of counts) {
       const list = within(section(name)).getByRole('list');
@@ -268,14 +262,6 @@ describe('T13 PhonePage AC22: link attributes', () => {
       expect(a.hasAttribute('rel'), l.label).toBe(false);
     }
   });
-
-  it('T13 AC22: the résumé link opens in a new tab despite being a relative path', () => {
-    render(<PhonePage />);
-    const a = screen.getByRole('link', { name: MENU_ITEMS.resume });
-    expect(a.getAttribute('href')).toBe(RESUME_URL);
-    expect(a.getAttribute('target')).toBe('_blank');
-    expect(a.getAttribute('rel')).toBe('noopener noreferrer');
-  });
 });
 
 describe('T13 PhonePage AC24: links', () => {
@@ -284,7 +270,7 @@ describe('T13 PhonePage AC24: links', () => {
     expect(container.querySelector('svg')).toBeNull();
     expect(container.querySelector('img')).toBeNull();
     const links = screen.getAllByRole('link');
-    expect(links.length).toBe(PROJECTS.length + LINKS.length + 1);
+    expect(links.length).toBe(PROJECTS.length + LINKS.length);
     for (const a of links) {
       const text = (a.textContent ?? '').trim();
       expect(text.length).toBeGreaterThan(0);

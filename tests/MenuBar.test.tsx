@@ -934,8 +934,6 @@ describe('Help menu (AC21)', () => {
         if (menu()) await user.keyboard('{Escape}');
       }
       await user.click(trigger('Help'));
-      await user.click(screen.getByRole('menuitem', { name: 'Résumé (PDF)' }));
-      await user.click(trigger('Help'));
       await user.click(screen.getByRole('menuitem', { name: /^Say hi/ }));
       expect(onHelp).not.toHaveBeenCalled();
       await user.click(trigger('Help'));
@@ -946,10 +944,10 @@ describe('Help menu (AC21)', () => {
     }
   });
 
-  it('AC21: lists Terminal commands, Résumé (PDF), a divider and Say hi with the hint', async () => {
+  it('AC21: lists Terminal commands, a divider and Say hi with the hint', async () => {
     const { user } = setup();
     await user.click(trigger('Help'));
-    expect(itemNames()).toEqual(['Terminal commands', 'Résumé (PDF)', 'Say hiemail']);
+    expect(itemNames()).toEqual(['Terminal commands', 'Say hiemail']);
     expect(within(screen.getByRole('menu')).getAllByRole('separator')).toHaveLength(1);
     expect(screen.getByText('email')).toBeInTheDocument();
   });
@@ -960,17 +958,6 @@ describe('Help menu (AC21)', () => {
     await user.click(trigger('Help'));
     await user.click(screen.getByRole('menuitem', { name: 'Terminal commands' }));
     expect(winEl('term')).toHaveAttribute('data-min', 'false');
-  });
-
-  it('AC21/AC4: Résumé is a link to RESUME_URL in a new tab with noopener noreferrer', async () => {
-    const { user } = setup();
-    await user.click(trigger('Help'));
-    const a = screen.getByRole('menuitem', { name: 'Résumé (PDF)' });
-    expect(a.tagName).toBe('A');
-    expect(a).toHaveAttribute('href', RESUME_URL);
-    expect(a).toHaveAttribute('target', '_blank');
-    expect(a.getAttribute('rel')).toContain('noopener');
-    expect(a.getAttribute('rel')).toContain('noreferrer');
   });
 
   it('AC21/AC4: Say hi is a mailto: link with no target', async () => {
@@ -1002,7 +989,7 @@ describe('Help menu (AC21)', () => {
     try {
       const { user } = setup();
       focusEl(trigger('Help'));
-      await user.keyboard('{ArrowDown}{ArrowDown} '); // Résumé
+      await user.keyboard('{ArrowDown}{ArrowDown} '); // Say hi
       expect(menu()).toBeNull();
       expect(document.activeElement).toBe(trigger('Help'));
     } finally {

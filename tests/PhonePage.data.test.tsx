@@ -9,8 +9,6 @@ vi.mock('../src/data', async (orig) => {
     ROLE: 'Chief Testing Officer',
     LINKS: [{ ...real.LINKS[0], label: 'Changed Label', href: 'https://example.test/x' }],
     PHONE_HEADINGS: { ...real.PHONE_HEADINGS, projects: 'Things I Made' },
-    MENU_ITEMS: { ...real.MENU_ITEMS, resume: 'Grab my CV' },
-    RESUME_URL: '/cv-elsewhere.pdf',
   };
 });
 
@@ -34,12 +32,5 @@ describe('T13 PhonePage follows data.ts (AC11)', () => {
     render(<PhonePage />);
     expect(screen.getByRole('heading', { level: 2, name: 'Things I Made' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Things I Made' })).toBeTruthy();
-  });
-
-  it('T13 AC11: the résumé label and URL follow the data', () => {
-    render(<PhonePage />);
-    const a = screen.getByRole('link', { name: 'Grab my CV' });
-    expect(a.getAttribute('href')).toBe('/cv-elsewhere.pdf');
-    expect(a.getAttribute('target')).toBe('_blank');
   });
 });

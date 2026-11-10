@@ -6,11 +6,9 @@ import {
   EXPERIENCE_LABELS,
   FACTS,
   LINKS,
-  MENU_ITEMS,
   NAME,
   PHONE_HEADINGS,
   PROJECTS,
-  RESUME_URL,
   ROLE,
 } from './data';
 import { linkAttrs } from './logic/menu';
@@ -116,11 +114,6 @@ export default function PhonePage() {
               </a>
             </li>
           ))}
-          <li>
-            <a className="phone-link" href={RESUME_URL} target="_blank" rel="noopener noreferrer">
-              {MENU_ITEMS.resume}
-            </a>
-          </li>
         </ul>
       </section>
     </main>
