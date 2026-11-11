@@ -34,7 +34,12 @@ const box = async (loc: Locator) => {
   if (!b) throw new Error('no bounding box');
   return b;
 };
-const settled = (page: Page) =>
+const settled = async (page: Page) => {
+  // Layout is only stable once web fonts have loaded and no window animation is running.
+  await page.evaluate(() => document.fonts.ready);
+  await settledAnimations(page);
+};
+const settledAnimations = (page: Page) =>
   expect
     .poll(() =>
       page.evaluate(() =>
@@ -139,9 +144,23 @@ test.describe('T16 dataviz window', () => {
     await page.goto('/');
     await openAbout(page);
     await expect(vizButton(page)).toHaveCount(1);
-    const lastPara = await box(win(page, 'about').locator('p.about-para').last());
-    const btn = await box(vizButton(page));
-    const facts = await box(win(page, 'about').locator('ul.about-facts'));
+    // Measure all three rects in one synchronous read so a late reflow cannot split them.
+    const { lastPara, btn, facts } = await win(page, 'about').evaluate((el) => {
+      const r = (e: Element | null) => {
+        if (!e) throw new Error('missing element');
+        const b = e.getBoundingClientRect();
+        return { y: b.y, height: b.height };
+      };
+      const paras = el.querySelectorAll('p.about-para');
+      const button = [...el.querySelectorAll('button')].find(
+        (b) => b.textContent?.trim() === 'See some data viz',
+      );
+      return {
+        lastPara: r(paras[paras.length - 1] ?? null),
+        btn: r(button ?? null),
+        facts: r(el.querySelector('ul.about-facts')),
+      };
+    });
     expect(btn.y).toBeGreaterThanOrEqual(lastPara.y + lastPara.height - 1);
     expect(btn.y + btn.height).toBeLessThanOrEqual(facts.y + 1);
     await vizButton(page).click();

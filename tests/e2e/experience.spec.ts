@@ -36,8 +36,9 @@ const box = async (loc: Locator) => {
   if (!b) throw new Error('no bounding box');
   return b;
 };
-const waitSettled = (page: Page) =>
-  expect
+const waitSettled = async (page: Page) => {
+  await page.evaluate(() => document.fonts.ready);
+  await expect
     .poll(
       () =>
         page.evaluate(() => {
@@ -48,6 +49,7 @@ const waitSettled = (page: Page) =>
       { timeout: 5000 },
     )
     .toBe(true);
+};
 
 const openFromDock = async (page: Page) => {
   await page.goto('/');
