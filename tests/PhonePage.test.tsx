@@ -5,6 +5,7 @@ import PhonePage from '../src/PhonePage';
 import src from '../src/PhonePage.tsx?raw';
 import {
   ABOUT_COPY,
+  ABOUT_LABELS,
   EXP,
   EXPERIENCE_LABELS,
   FACTS,
@@ -342,5 +343,16 @@ describe('T13 PhonePage AC11/AC24/AC27: source checks', () => {
     ]) {
       expect(src, w).not.toContain(w);
     }
+  });
+});
+
+describe('T16 PhonePage has no data viz entry', () => {
+  it('T16 AC22: no viz button, link or dataviz text on the phone page', () => {
+    const { container } = render(<PhonePage />);
+    expect(container.textContent).not.toContain(ABOUT_LABELS.viz);
+    expect(container.textContent?.toLowerCase()).not.toContain('dataviz');
+    expect(screen.queryByRole('button', { name: ABOUT_LABELS.viz })).toBeNull();
+    expect(screen.queryByRole('link', { name: /data ?viz/i })).toBeNull();
+    expect(container.querySelector('[data-win]')).toBeNull();
   });
 });

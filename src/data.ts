@@ -175,6 +175,8 @@ export const BOOT_COPY = {
   done: 'tanzi.os restarted',
 } as const;
 
+export const ABOUT_LABELS = { viz: 'See some data viz' } as const;
+
 export const EXPERIENCE_LABELS = { tablist: 'Experience', at: '@' } as const;
 
 export const PHONE_HEADINGS = { about: 'About', projects: 'Projects', links: 'Links' } as const;

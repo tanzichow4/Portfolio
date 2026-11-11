@@ -23,7 +23,7 @@ export default function WindowBody({
     case 'hello':
       return <Hello dispatch={dispatch} />;
     case 'about':
-      return <About />;
+      return <About dispatch={dispatch} />;
     case 'exp':
       return <Experience />;
     case 'proj':

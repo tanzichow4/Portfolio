@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Desktop from '../src/Desktop';
-import { VIZ_COPY, WIN_TITLES } from '../src/data';
+import { ABOUT_LABELS, VIZ_COPY, WIN_TITLES } from '../src/data';
 import { INITIAL_ORDER, layout } from '../src/logic/layout';
 import { zIndexFor } from '../src/logic/zorder';
 import { DOCK_IDS } from '../src/logic/windows';
@@ -205,5 +205,85 @@ describe('T16 viz on the desktop', () => {
     typeCommand('open viz');
     typeCommand('open dataviz');
     expect(viz()).toBeNull();
+  });
+});
+
+describe('T16 about button opens viz', () => {
+  const aboutBtn = () =>
+    within(document.querySelector<HTMLElement>('[data-win="about"]')!).getByRole('button', {
+      name: ABOUT_LABELS.viz,
+    });
+  const about = () => document.querySelector<HTMLElement>('[data-win="about"]')!;
+  const setup = async () => {
+    const user = userEvent.setup();
+    render(<Desktop />);
+    await user.click(dockBtn('about.md'));
+    return user;
+  };
+
+  it('T16 AC7: opens viz when it is closed, on top of every window', async () => {
+    const user = await setup();
+    expect(viz()).toBeNull();
+    await user.click(aboutBtn());
+    expect(viz()).not.toBeNull();
+    expect(viz()).toHaveAttribute('data-min', 'false');
+    for (const w of wins()) {
+      if (w !== viz()) expect(Number(viz()!.style.zIndex)).toBeGreaterThan(Number(w.style.zIndex));
+    }
+    expect(dockBtn()).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('T16 AC7: restores viz when it is minimized', async () => {
+    const user = await setup();
+    await user.click(aboutBtn());
+    await user.click(screen.getByRole('button', { name: 'Minimize dataviz' }));
+    expect(viz()).toHaveAttribute('data-min', 'true');
+    await user.click(aboutBtn());
+    expect(viz()).toHaveAttribute('data-min', 'false');
+    expect(viz()).not.toHaveAttribute('inert');
+    expect(dockBtn()).toHaveAccessibleDescription('Open');
+  });
+
+  it('T16 AC7: raises viz when it is open behind other windows', async () => {
+    const user = await setup();
+    await user.click(aboutBtn());
+    fireEvent.pointerDown(about(), { pointerId: 1, button: 0 });
+    expect(Number(viz()!.style.zIndex)).toBeLessThan(Number(about().style.zIndex));
+    await user.click(aboutBtn());
+    expect(Number(viz()!.style.zIndex)).toBeGreaterThan(Number(about().style.zIndex));
+    expect(viz()).toHaveAttribute('data-min', 'false');
+  });
+
+  it('T16 AC7: pressing it again with viz on top never minimizes viz', async () => {
+    const user = await setup();
+    await user.click(aboutBtn());
+    await user.click(aboutBtn());
+    await user.click(aboutBtn());
+    expect(viz()).toHaveAttribute('data-min', 'false');
+    expect(dockBtn()).toHaveAccessibleDescription('Open');
+    expect(wins().filter((w) => w.dataset.win === 'viz')).toHaveLength(1);
+  });
+
+  it('T16 AC7: Enter and Space on the button also open viz', async () => {
+    const user = await setup();
+    aboutBtn().focus();
+    await user.keyboard('{Enter}');
+    expect(viz()).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Close dataviz' }));
+    expect(viz()).toBeNull();
+    aboutBtn().focus();
+    await user.keyboard(' ');
+    expect(viz()).not.toBeNull();
+  });
+
+  it('T16 AC6: tab order inside about is Minimize, Close, then the viz button', async () => {
+    const user = await setup();
+    const stops = Array.from(
+      about().querySelectorAll<HTMLElement>('button, a[href], input, [tabindex]'),
+    ).map((e) => e.getAttribute('aria-label') ?? e.textContent);
+    expect(stops).toEqual(['Minimize about.md', 'Close about.md', ABOUT_LABELS.viz]);
+    screen.getByRole('button', { name: 'Close about.md' }).focus();
+    await user.tab();
+    expect(document.activeElement).toBe(aboutBtn());
   });
 });

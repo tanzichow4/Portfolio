@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import aboutSrc from '../../src/windows/About.tsx?raw';
 import About from '../../src/windows/About';
 import css from '../../src/windows/About.css?raw';
 import { stripComments } from '../helpers/cssTokens';
-import { ABOUT_COPY, FACTS } from '../../src/data';
+import { ABOUT_COPY, ABOUT_LABELS, FACTS } from '../../src/data';
 import { WIN_META } from '../../src/logic/windows';
+import { DOCK_CLEARANCE, layout } from '../../src/logic/layout';
 
 const clean = stripComments(css);
 
@@ -47,12 +50,12 @@ function decls(selector: string, scope: 'top' | 'reduce' = 'top'): Record<string
 
 describe('T07 About body: content', () => {
   it('T07 AC1: renders a non-empty body', () => {
-    const { container } = render(<About />);
+    const { container } = render(<About dispatch={vi.fn()} />);
     expect(container.textContent?.trim().length).toBeGreaterThan(0);
   });
 
   it('T07 AC2: paragraph text matches ABOUT_COPY in order', () => {
-    const { container } = render(<About />);
+    const { container } = render(<About dispatch={vi.fn()} />);
     const paras = Array.from(container.querySelectorAll('p'));
     expect(paras.map((p) => p.textContent)).toEqual(
       ABOUT_COPY.map((p) => p.map((s) => s.text).join('')),
@@ -60,7 +63,7 @@ describe('T07 About body: content', () => {
   });
 
   it('T07 AC22: emphasized phrases are exactly the em segments, in order', () => {
-    const { container } = render(<About />);
+    const { container } = render(<About dispatch={vi.fn()} />);
     const expected = ABOUT_COPY.flat()
       .filter((s) => s.em)
       .map((s) => s.text);
@@ -70,7 +73,7 @@ describe('T07 About body: content', () => {
   });
 
   it('T07 AC23: facts render as a list in FACTS order with labels', () => {
-    const { container } = render(<About />);
+    const { container } = render(<About dispatch={vi.fn()} />);
     const list = container.querySelector('ul');
     expect(list).not.toBeNull();
     const items = Array.from(list!.querySelectorAll(':scope > li'));
@@ -78,7 +81,7 @@ describe('T07 About body: content', () => {
   });
 
   it('T07 AC23: each fact has exactly one hidden icon', () => {
-    const { container } = render(<About />);
+    const { container } = render(<About dispatch={vi.fn()} />);
     for (const li of container.querySelectorAll('ul > li')) {
       const svgs = li.querySelectorAll('svg');
       expect(svgs).toHaveLength(1);
@@ -87,16 +90,18 @@ describe('T07 About body: content', () => {
   });
 
   it('T07 AC22: facts list comes after the paragraphs', () => {
-    const { container } = render(<About />);
+    const { container } = render(<About dispatch={vi.fn()} />);
     const lastP = Array.from(container.querySelectorAll('p')).pop()!;
     const ul = container.querySelector('ul')!;
     expect(lastP.compareDocumentPosition(ul) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('T07 AC2: no hard-coded email or copy beyond data.ts (text equals data text only)', () => {
-    const { container } = render(<About />);
+    const { container } = render(<About dispatch={vi.fn()} />);
     const expected =
       ABOUT_COPY.map((p) => p.map((s) => s.text).join('')).join('') +
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC5): the viz button label sits between the paragraphs and the facts.
+      ABOUT_LABELS.viz +
       FACTS.map((f) => f.label).join('');
     expect(container.textContent).toBe(expected);
   });
@@ -153,7 +158,7 @@ describe('T16 About copy', () => {
   });
 
   it('T16 AC3: renders both paragraphs with em segments as em.about-em, then the facts list', () => {
-    const { container } = render(<About />);
+    const { container } = render(<About dispatch={vi.fn()} />);
     const paras = Array.from(container.querySelectorAll('p'));
     expect(paras.map((p) => p.textContent)).toEqual([
       "I'm a software engineer who enjoys seeing projects built from the ground up and making ideas come to life. I'm fascinated by random facts and love visualizing data.",
@@ -174,7 +179,8 @@ describe('T16 About copy', () => {
 
 describe('T07 About body: height', () => {
   it('T07 AC47: about WIN_META height is the measured 331 and y position inputs unchanged', () => {
-    expect(WIN_META.about.height).toBe(331);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC9): the viz button adds height, measured 331 -> 396.
+    expect(WIN_META.about.height).toBe(396);
     expect(WIN_META.about.width).toBe(420);
   });
 });
@@ -226,5 +232,99 @@ describe('T07 About.css', () => {
   it('T07 AC7: no hard-coded colours', () => {
     expect(clean).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(clean).not.toMatch(/\b(rgb|hsl)a?\(/);
+  });
+});
+
+describe('T16 About viz button', () => {
+  const btn = (c: HTMLElement) => c.querySelector('button')!;
+
+  it('T16 AC5: exactly one native type=button named by ABOUT_LABELS.viz', () => {
+    expect(ABOUT_LABELS.viz).toBe('See some data viz');
+    const { container, getByRole } = render(<About dispatch={vi.fn()} />);
+    expect(container.querySelectorAll('button')).toHaveLength(1);
+    expect(btn(container).getAttribute('type')).toBe('button');
+    expect(btn(container).textContent).toBe('See some data viz');
+    expect(getByRole('button', { name: 'See some data viz' })).toBe(btn(container));
+  });
+
+  it('T16 AC5: the label is not hard-coded in About.tsx', () => {
+    expect(aboutSrc).not.toContain('See some data viz');
+    expect(aboutSrc).not.toContain('data viz');
+  });
+
+  it('T16 AC6: the button follows the last paragraph and precedes the facts list', () => {
+    const { container } = render(<About dispatch={vi.fn()} />);
+    const lastP = Array.from(container.querySelectorAll('p')).pop()!;
+    const ul = container.querySelector('ul')!;
+    const b = btn(container);
+    expect(lastP.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(b.compareDocumentPosition(ul) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('T16 AC6: the button is the only focusable element in the body', () => {
+    const { container } = render(<About dispatch={vi.fn()} />);
+    const focusable = container.querySelectorAll(
+      'a[href], button, input, select, textarea, [tabindex], [contenteditable]',
+    );
+    expect(Array.from(focusable)).toEqual([btn(container)]);
+  });
+
+  it('T16 AC6: Tab from the start of the body lands on the button', async () => {
+    const { container } = render(<About dispatch={vi.fn()} />);
+    await userEvent.setup().tab();
+    expect(document.activeElement).toBe(btn(container));
+  });
+
+  it('T16 AC7: a click dispatches exactly one open viz action', async () => {
+    const dispatch = vi.fn();
+    const { container } = render(<About dispatch={dispatch} />);
+    await userEvent.setup().click(btn(container));
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: 'open', id: 'viz' });
+  });
+
+  it('T16 AC7: Enter dispatches exactly one open viz action', async () => {
+    const dispatch = vi.fn();
+    const { container } = render(<About dispatch={dispatch} />);
+    btn(container).focus();
+    await userEvent.setup().keyboard('{Enter}');
+    expect(dispatch.mock.calls).toEqual([[{ type: 'open', id: 'viz' }]]);
+  });
+
+  it('T16 AC7: Space dispatches exactly one open viz action', async () => {
+    const dispatch = vi.fn();
+    const { container } = render(<About dispatch={dispatch} />);
+    btn(container).focus();
+    await userEvent.setup().keyboard(' ');
+    expect(dispatch.mock.calls).toEqual([[{ type: 'open', id: 'viz' }]]);
+  });
+
+  it('T16 AC7: rendering and focusing alone dispatch nothing', () => {
+    const dispatch = vi.fn();
+    const { container } = render(<About dispatch={dispatch} />);
+    btn(container).focus();
+    fireEvent.pointerDown(btn(container));
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('T16 AC8: uses the shared secondary button classes, no icon', () => {
+    const { container } = render(<About dispatch={vi.fn()} />);
+    const b = btn(container);
+    expect(b.classList.contains('btn')).toBe(true);
+    expect(b.classList.contains('btn-secondary')).toBe(true);
+    expect(b.querySelector('svg')).toBeNull();
+  });
+
+  it('T16 AC8: About.css adds no colours or motion for the button', () => {
+    expect(clean).not.toMatch(/#[0-9a-fA-F]{3,8}b/);
+    expect(clean).not.toMatch(/b(rgb|hsl)a?\(/);
+    expect(clean).not.toMatch(/\.about-viz[^{]*\{[^}]*(transform|transition|animation)/);
+  });
+
+  it('T16 AC9: about stays at (640, 64) and ends above the dock clearance at 1280x720', () => {
+    const p = layout(1280, 720).about;
+    expect(p).toEqual({ x: 640, y: 64 });
+    expect(p.y + WIN_META.about.height).toBeLessThanOrEqual(720 - DOCK_CLEARANCE);
+    expect(WIN_META.about.width).toBe(420);
   });
 });
