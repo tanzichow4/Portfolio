@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openAllFromDock } from './helpers/openAll';
 
 const watchErrors = (page: Page): string[] => {
   const errors: string[] = [];
@@ -147,6 +148,8 @@ test.describe('T06 dock layout and styles', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock first.
+    await openAllFromDock(page);
     const d = dock(page);
     await expect(d).toBeVisible();
     const b = await box(d);
@@ -182,6 +185,8 @@ test.describe('T06 dock layout and styles', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     for (const [w, h] of [
       [1600, 900],
       [1280, 720],
@@ -207,6 +212,8 @@ test.describe('T06 dock layout and styles', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const bgToken = await tokenBg(page, '--color-bg');
     const accent400 = await tokenColour(page, '--color-accent-400');
     const neutral300 = await tokenColour(page, '--color-neutral-300');
@@ -269,6 +276,8 @@ test.describe('T06 dock layout and styles', () => {
   test('T06 AC7: the dots read 1 when open, 0.4 minimized and 0 closed', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Minimize about.md' }).click();
     await page.getByRole('button', { name: 'Close terminal' }).click();
     await expectDockState(page, 'hello', 'open');
@@ -280,6 +289,8 @@ test.describe('T06 dock layout and styles', () => {
   test('T06 AC8: the dock uses the light theme tokens after switching theme', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Switch to light mode' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     const face = dockBtn(page, 'hello').locator('.dock-face');
@@ -300,6 +311,8 @@ test.describe('T06 dock layout and styles', () => {
       const errors = watchErrors(page);
       await page.setViewportSize({ width: w, height: h });
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+      await openAllFromDock(page);
       const b = await box(dock(page));
       expect(w / 2).toBeGreaterThanOrEqual(b.x);
       expect(w / 2).toBeLessThanOrEqual(b.x + b.width);
@@ -312,6 +325,8 @@ test.describe('T06 dock layout and styles', () => {
   test('T06 AC2: at 1280x720 no default window rectangle intersects the dock', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const d = await box(dock(page));
     for (const id of IDS) {
       const w = await box(win(page, id));
@@ -327,6 +342,8 @@ test.describe('T06 dock click outcomes with real clicks', () => {
   test('T06 AC9: closed -> the window opens, front-most, in the dock', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Close terminal' }).click();
     await expect(win(page, 'term')).toHaveCount(0);
     await dockBtn(page, 'term').click();
@@ -341,6 +358,8 @@ test.describe('T06 dock click outcomes with real clicks', () => {
   test('T06 AC9: minimized -> the window restores and is front-most', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Minimize terminal' }).click();
     await expect(win(page, 'term')).toHaveAttribute('data-min', 'true');
     await expectDockState(page, 'term', 'min');
@@ -358,6 +377,8 @@ test.describe('T06 dock click outcomes with real clicks', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     expect(await zOf(page, 'proj')).toBeLessThan(await zOf(page, 'hello'));
     const before = await box(win(page, 'proj'));
     await dockBtn(page, 'proj').click();
@@ -375,6 +396,8 @@ test.describe('T06 dock click outcomes with real clicks', () => {
   test('T06 AC9: open and front-most -> it minimizes into the dock', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await dockBtn(page, 'hello').click();
     await expect(win(page, 'hello')).toHaveAttribute('data-min', 'true');
     await expect(win(page, 'hello')).toHaveCSS('opacity', '0');
@@ -387,6 +410,8 @@ test.describe('T06 dock click outcomes with real clicks', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Close terminal' }).click();
     await expect(win(page, 'term')).toHaveCount(0);
     await recordPoses(page, 'term');
@@ -407,6 +432,8 @@ test.describe('T06 dock click outcomes with real clicks', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await dragTitle(page, 'hello', 500, 300);
     await page.waitForTimeout(700);
     const before = await box(win(page, 'hello'));
@@ -429,6 +456,8 @@ test.describe('T06 dock click outcomes with real clicks', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await dragTitle(page, 'about', 400, 250);
     await page.waitForTimeout(700);
     const before = await box(win(page, 'about'));
@@ -448,6 +477,8 @@ test.describe('T06 dock click outcomes with real clicks', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const btn = dockBtn(page, 'hello');
     for (let i = 0; i < 5; i++) await btn.click({ delay: 0 });
     // Five clicks from front-most: minimize, restore, minimize, restore, minimize.
@@ -473,6 +504,8 @@ test.describe('T06 dock pointer isolation (AC13, AC14, AC16)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     // Drag proj so its body sits under the dock.
     await dragTitle(page, 'proj', 640, 660);
     await page.waitForTimeout(700);
@@ -519,6 +552,8 @@ test.describe('T06 dock pointer isolation (AC13, AC14, AC16)', () => {
   test('T06 AC13: the dock draws above the pinned site window', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('menuitem', { name: 'tanzi.os', exact: true }).click();
     await page.getByRole('menu').locator('[role^="menuitem"]').first().click();
     await expect(win(page, 'site')).toHaveCount(1);
@@ -546,6 +581,8 @@ test.describe('T06 dock pointer isolation (AC13, AC14, AC16)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('menuitem', { name: 'Windows', exact: true }).click();
     await expect(page.getByRole('menu')).toHaveCount(1);
     await dockBtn(page, 'hello').click();
@@ -564,6 +601,8 @@ test.describe('T06 dock pointer isolation (AC13, AC14, AC16)', () => {
         r.fulfill({ status: 200, contentType: 'text/html', body: '<title>stub</title>' }),
       );
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('menuitem', { name: 'View', exact: true }).click();
     await expect(page.getByRole('menu')).toHaveCount(1);
     const popup = page.waitForEvent('popup');
@@ -584,6 +623,8 @@ test.describe('T06 dock pointer isolation (AC13, AC14, AC16)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await expect(dockLink(page, 'LinkedIn')).toHaveAttribute('href', /^https:\/\/linkedin\.com/);
     for (const l of ['LinkedIn']) {
       await expect(dockLink(page, l)).toHaveAttribute('target', '_blank');
@@ -610,6 +651,8 @@ test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds three stops, so 23 -> 26,
     // the dock starts at index 18, and the distinct stops after the menubar go 18 -> 21.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the experience body adds two stops, so 26 -> 28,
@@ -620,11 +663,13 @@ test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
     // the dock starts at index 25, and the distinct stops after the menubar go 27 -> 28.
     // DELIBERATE REQUIREMENT CHANGE: GitHub link removed per Tanzi, so 33 -> 31 stops (one fewer menubar
     // link and one fewer dock link), the dock starts at index 24 and distinct stops go 28 -> 27.
-    const labels = await tabLabels(page, 31);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the two new hello buttons add two stops, so 31 -> 33,
+    // the dock starts at index 26 and the distinct stops after the menubar go 27 -> 29.
+    const labels = await tabLabels(page, 33);
     expect(labels[0]).toBe('tanzi.os');
     expect(labels[4]).toBe('Minimize hello.txt');
-    expect(labels.slice(24)).toEqual([...IDS.map((i) => TITLES[i]), ...LINK_LABELS]);
-    expect(new Set(labels.slice(4)).size).toBe(27);
+    expect(labels.slice(26)).toEqual([...IDS.map((i) => TITLES[i]), ...LINK_LABELS]);
+    expect(new Set(labels.slice(4)).size).toBe(29);
     expect(errors).toEqual([]);
   });
 
@@ -633,6 +678,8 @@ test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Minimize terminal' }).click();
     await page.getByRole('button', { name: 'Minimize about.md' }).click();
     await expect(win(page, 'term')).toHaveAttribute('data-min', 'true');
@@ -679,6 +726,8 @@ test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
     }) => {
       const errors = watchErrors(page);
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+      await openAllFromDock(page);
       const activeIs = async (label: string) => expect(await focusedLabel(page)).toBe(label);
 
       // closed -> open
@@ -716,6 +765,8 @@ test.describe('T06 AC19 dock clicks under reduced motion', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Close terminal' }).click();
     await recordPoses(page, 'term');
     await dockBtn(page, 'term').click();

@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openAllFromDock } from './helpers/openAll';
 
 const watchErrors = (page: Page): string[] => {
   const errors: string[] = [];
@@ -258,6 +259,8 @@ test.describe('T13 phone fallback page (e2e)', () => {
     const errors = watchErrors(page);
     await page.setViewportSize(DESKTOP);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the terminal from the dock.
+    await openAllFromDock(page);
     await win(page, 'term').waitFor();
     const input = page.getByRole('textbox', { name: 'Terminal command' });
     await input.fill('half typed');
@@ -274,6 +277,8 @@ test.describe('T13 phone fallback page (e2e)', () => {
     const errors = watchErrors(page);
     await page.setViewportSize(DESKTOP);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock to take the baseline.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     const baseline = await allPos(page);
 
@@ -293,6 +298,9 @@ test.describe('T13 phone fallback page (e2e)', () => {
     }));
     expect(dims.sh).toBeLessThanOrEqual(dims.ih);
     expect(dims.bsh).toBeLessThanOrEqual(dims.ih);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the desktop after the round trip is fresh (only hello open), so open the rest, then compare.
+    await expect(page.locator('[data-win]')).toHaveCount(1);
+    await openAllFromDock(page);
     expect(await allPos(page)).toEqual(baseline);
     expect(errors).toEqual([]);
   });
@@ -303,6 +311,8 @@ test.describe('T13 phone fallback page (e2e)', () => {
     const errors = watchErrors(page);
     await page.setViewportSize(DESKTOP);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock to take the baseline.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     const baseline = await allPos(page);
     const title = win(page, 'hello').locator('.win-titlebar, [class*="titlebar"]').first();
@@ -319,6 +329,9 @@ test.describe('T13 phone fallback page (e2e)', () => {
     await page.setViewportSize(DESKTOP);
     await expectDesktop(page);
     await win(page, 'hello').waitFor();
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the desktop after the round trip is fresh (only hello open), so open the rest, then compare.
+    await expect(page.locator('[data-win]')).toHaveCount(1);
+    await openAllFromDock(page);
     expect(await allPos(page)).toEqual(baseline);
     expect(errors).toEqual([]);
   });

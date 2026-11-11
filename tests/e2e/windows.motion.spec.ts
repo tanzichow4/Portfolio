@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openAllFromDock } from './helpers/openAll';
 
 const watchErrors = (page: Page): string[] => {
   const errors: string[] = [];
@@ -78,6 +79,8 @@ const sample = (host: Locator, target: string | null) =>
 test.describe('T07 hello motion', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock first.
+    await openAllFromDock(page);
     await page.evaluate(() => document.fonts.ready);
     await raiseHello(page);
   });
@@ -407,6 +410,8 @@ test.describe('T07 pill, tab and tile motion', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.evaluate(() => document.fonts.ready);
     await blockNavigation(page);
   });

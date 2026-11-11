@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openAllFromDock } from './helpers/openAll';
 
 const watchErrors = (page: Page): string[] => {
   const errors: string[] = [];
@@ -86,6 +87,8 @@ test.describe('T06 dock motion', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock first.
+    await openAllFromDock(page);
     const host = winBtn(page);
     expect(await computed(face(host), 'transform')).toBe('none');
     await host.hover();
@@ -101,6 +104,8 @@ test.describe('T06 dock motion', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const host = link(page, 'LinkedIn');
     await host.hover();
     await settle(page);
@@ -118,6 +123,8 @@ test.describe('T06 dock motion', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const host = winBtn(page);
     await host.hover();
     await page.mouse.down();
@@ -137,6 +144,8 @@ test.describe('T06 dock motion', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const host = link(page, 'LinkedIn');
     expect(await computed(face(host), 'color')).toBe(
       await tokenColour(page, '--color-neutral-300'),
@@ -157,6 +166,8 @@ test.describe('T06 dock motion', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const targets: Locator[] = [winBtn(page), link(page, 'LinkedIn')];
     for (const host of targets) {
       const b = await box(host);
@@ -205,6 +216,8 @@ test.describe('T06 dock motion', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const host = winBtn(page);
     const b = await box(host);
     const pts = [
@@ -229,6 +242,8 @@ test.describe('T06 dock motion', () => {
   test('T06 AC18: a click at the bottom edge and corners activates a link', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await trapLinkClicks(page);
     const host = link(page, 'LinkedIn');
     const b = await box(host);
@@ -251,6 +266,8 @@ test.describe('T06 dock motion', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const nav = dock(page);
     expect(await computed(nav, 'overflow')).toBe('visible');
     const host = winBtn(page);
@@ -275,6 +292,8 @@ test.describe('T06 dock motion', () => {
     test('T06 AC19: hover and press leave the face at transform none', async ({ page }) => {
       const errors = watchErrors(page);
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+      await openAllFromDock(page);
       for (const host of [winBtn(page), link(page, 'LinkedIn')]) {
         await host.hover();
         await settle(page);
@@ -292,6 +311,8 @@ test.describe('T06 dock motion', () => {
     test('T06 AC19: the link colour change may remain under reduced motion', async ({ page }) => {
       const errors = watchErrors(page);
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+      await openAllFromDock(page);
       const host = link(page, 'Email');
       await host.hover();
       await settle(page);
@@ -302,6 +323,8 @@ test.describe('T06 dock motion', () => {
     test('T06 AC19: a dock click still toggles the window', async ({ page }) => {
       const errors = watchErrors(page);
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+      await openAllFromDock(page);
       const host = winBtn(page);
       const before = await snapshot(page);
       await host.click();

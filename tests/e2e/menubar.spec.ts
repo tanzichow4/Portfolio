@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openAllFromDock } from './helpers/openAll';
 
 const watchErrors = (page: Page): string[] => {
   const errors: string[] = [];
@@ -84,6 +85,8 @@ test.describe('menubar layout (AC1-AC4)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock first.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     const header = bar(page);
     expect(await computed(header, 'position')).toBe('fixed');
@@ -110,6 +113,8 @@ test.describe('menubar layout (AC1-AC4)', () => {
 
   test('AC2: the landmark, menubar and the four triggers in order', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await expect(bar(page)).toHaveAttribute('aria-label', 'System menu bar');
     const menubar = bar(page).getByRole('menubar', { name: 'Menus' });
     await expect(menubar.getByRole('menuitem')).toHaveText(['tanzi.os', 'Windows', 'View', 'Help']);
@@ -123,6 +128,8 @@ test.describe('menubar layout (AC1-AC4)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const right = bar(page).locator('.mb-right');
     const kids = right.locator(':scope > *');
     await expect(kids).toHaveCount(4);
@@ -149,6 +156,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
   test('AC6: each trigger opens its own menu by click, one at a time', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     for (const name of ['tanzi.os', 'Windows', 'View', 'Help']) {
       await trigger(page, name).click();
       await expect(trigger(page, name)).toHaveAttribute('aria-expanded', 'true');
@@ -164,6 +173,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await trigger(page, 'View').click();
     const m = await box(page.getByRole('menu'));
     const t = await box(trigger(page, 'View'));
@@ -176,6 +187,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await trigger(page, 'Help').hover();
     await expect(page.getByRole('menu')).toHaveCount(0);
     await trigger(page, 'tanzi.os').click();
@@ -189,6 +202,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.keyboard.press('Tab');
     expect(await activeName(page)).toBe('tanzi.os');
     await page.keyboard.press('ArrowRight');
@@ -207,6 +222,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
 
   test('AC13: Space and ArrowUp open menus; ArrowUp focuses the last item', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await trigger(page, 'Help').focus();
     await page.keyboard.press('ArrowUp');
     expect(await activeName(page)).toMatch(/^Say hi/);
@@ -220,6 +237,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await trigger(page, 'View').focus();
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('ArrowRight');
@@ -231,6 +250,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
 
   test('AC15: Escape closes the menu and returns focus to the trigger', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await trigger(page, 'View').focus();
     await page.keyboard.press('Enter');
     await expect(page.getByRole('menu')).toHaveCount(1);
@@ -243,6 +264,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await trigger(page, 'Windows').click();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('menu')).toHaveCount(0);
@@ -252,6 +275,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
   test('AC16: Escape with no menu open changes nothing', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.keyboard.press('Escape');
     for (const id of DOCK5) await expect(win(page, id)).toHaveAttribute('data-min', 'false');
     await expect(page.getByRole('menu')).toHaveCount(0);
@@ -260,6 +285,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
 
   test('AC15: Tab from an open menu closes it', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await trigger(page, 'Windows').focus();
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Tab');
@@ -268,6 +295,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
 
   test('AC8: clicking the empty desktop closes the menu', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await trigger(page, 'View').click();
     await page.mouse.click(20, 700);
     await expect(page.getByRole('menu')).toHaveCount(0);
@@ -278,6 +307,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const z = (id: string) =>
       win(page, id).evaluate((el) => Number((el as HTMLElement).style.zIndex));
     await trigger(page, 'Windows').click();
@@ -295,6 +326,8 @@ test.describe('menu actions (AC18-AC21)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Minimize terminal' }).click();
     await trigger(page, 'Windows').click();
     await expect(page.getByRole('menuitemcheckbox', { name: 'terminal' })).toHaveAttribute(
@@ -312,12 +345,16 @@ test.describe('menu actions (AC18-AC21)', () => {
 
   test('AC18: About this site opens the site window', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await chooseItem(page, 'tanzi.os', 'About this site');
     await expect(win(page, 'site')).toHaveCount(1);
   });
 
   test('AC21/AC4: Say hi has the right attributes (not activated)', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await trigger(page, 'Help').click();
     const hi = page.getByRole('menuitem', { name: /^Say hi/ });
     await expect(hi).toHaveAttribute('href', /^mailto:.+@.+/);
@@ -332,6 +369,8 @@ test.describe('settings persist (AC23-AC26, AC29)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     expect(await theme(page)).toBe('dark');
     await page.getByRole('button', { name: 'Switch to light mode' }).click();
     expect(await theme(page)).toBe('light');
@@ -349,6 +388,8 @@ test.describe('settings persist (AC23-AC26, AC29)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await chooseItem(page, 'View', 'Light mode');
     expect(await theme(page)).toBe('light');
     await trigger(page, 'View').click();
@@ -363,6 +404,8 @@ test.describe('settings persist (AC23-AC26, AC29)', () => {
   }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     expect(await theme(page)).toBe('light');
     expect(await page.evaluate(() => localStorage.length)).toBe(0);
     await chooseItem(page, 'View', 'Light mode');
@@ -383,6 +426,8 @@ test.describe('settings persist (AC23-AC26, AC29)', () => {
     await page.emulateMedia({ colorScheme: 'light' });
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     expect(await theme(page)).toBe('dark');
     await page.getByRole('button', { name: 'Switch to light mode' }).click();
@@ -396,6 +441,8 @@ test.describe('settings persist (AC23-AC26, AC29)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     expect(await wallpaper(page)).toContain('--wall-nebula');
     await chooseItem(page, 'View', 'Wallpaper: Grid');
     expect(await wallpaper(page)).toContain('--wall-grid');
@@ -412,6 +459,8 @@ test.describe('settings persist (AC23-AC26, AC29)', () => {
   test('AC25: an invalid stored wallpaper gives nebula', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('tanzi-os:wallpaper', 'purple'));
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     expect(await wallpaper(page)).toContain('--wall-nebula');
   });
 
@@ -419,6 +468,8 @@ test.describe('settings persist (AC23-AC26, AC29)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await chooseItem(page, 'View', 'Wobbly windows');
     expect(await stored(page, 'tanzi-os:wobble')).toBe('false');
     await page.reload();
@@ -431,6 +482,8 @@ test.describe('settings persist (AC23-AC26, AC29)', () => {
 
   test('AC26: with wobble on (control) the same drag does tilt', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const release = await dragHello(page, 40, 10);
     const m = parseMatrix(await computed(win(page, 'hello'), 'transform'));
     expect(m).not.toBeNull();
@@ -443,6 +496,8 @@ test.describe('settings persist (AC23-AC26, AC29)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await chooseItem(page, 'View', 'Light mode');
     await chooseItem(page, 'View', 'Wallpaper: Grid');
     await chooseItem(page, 'View', 'Wobbly windows');
@@ -456,6 +511,10 @@ test.describe('settings persist (AC23-AC26, AC29)', () => {
 
     await page.getByRole('button', { name: 'Close hello.txt' }).click();
     await chooseItem(page, 'tanzi.os', 'Restart…');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): Restart now leaves only hello open, so assert the other
+    // four are gone, then open them from the dock and keep the original position checks.
+    for (const id of ['about', 'exp', 'proj', 'term']) await expect(win(page, id)).toHaveCount(0);
+    await openAllFromDock(page);
     // A reopened window flies in, so wait for it to settle.
     for (const [id, p] of Object.entries(REFERENCE))
       await expect.poll(() => pos(page, id), { message: id }).toEqual(p);
@@ -479,6 +538,8 @@ test.describe('clock and keyboard reach (AC32, AC36, AC12)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const t = bar(page).locator('time');
     await expect(t).toHaveText(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) (1[0-2]|[1-9]):[0-5]\d (AM|PM)$/);
     const text = (await t.textContent())!;
@@ -493,6 +554,8 @@ test.describe('clock and keyboard reach (AC32, AC36, AC12)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const names: string[] = [];
     for (let i = 0; i < 5; i++) {
       await page.keyboard.press('Tab');
@@ -512,6 +575,8 @@ test.describe('clock and keyboard reach (AC32, AC36, AC12)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await chooseItem(page, 'Windows', 'Minimize all');
     for (const id of DOCK5) await expect(win(page, id)).toHaveAttribute('data-min', 'true');
     for (let i = 0; i < 14; i++) {
@@ -528,6 +593,8 @@ test.describe('clock and keyboard reach (AC32, AC36, AC12)', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     for (let i = 0; i < 5; i++) {
       await page.keyboard.press('Tab');
       const el = page.locator(':focus');
@@ -544,6 +611,8 @@ test.describe('clock and keyboard reach (AC32, AC36, AC12)', () => {
 test.describe('hover motion (AC33)', () => {
   test('AC33: hovering a link tilts and lifts it; the toggle rotates', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const gh = bar(page).getByRole('link', { name: 'LinkedIn' });
     await gh.hover();
     await expect.poll(async () => computed(gh, 'transform')).not.toBe('none');
@@ -556,6 +625,8 @@ test.describe('hover motion (AC33)', () => {
     test.use({ reducedMotion: 'reduce' });
     test('AC33: hovering a link or the toggle applies no transform', async ({ page }) => {
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+      await openAllFromDock(page);
       const gh = bar(page).getByRole('link', { name: 'LinkedIn' });
       await gh.hover();
       await page.waitForTimeout(500);
@@ -570,6 +641,8 @@ test.describe('hover motion (AC33)', () => {
       page,
     }) => {
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+      await openAllFromDock(page);
       await chooseItem(page, 'View', 'Wobbly windows');
       expect(await stored(page, 'tanzi-os:wobble')).toBe('false');
       await chooseItem(page, 'View', 'Wobbly windows');

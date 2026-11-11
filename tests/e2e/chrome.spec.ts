@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openAllFromDock } from './helpers/openAll';
 
 const DOCK5 = ['hello', 'about', 'exp', 'proj', 'term'] as const;
 const TITLES: Record<(typeof DOCK5)[number], string> = {
@@ -128,6 +129,8 @@ test.describe('window chrome', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock first.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     for (const id of DOCK5) {
       expect(await computed(win(page, id), 'transform'), id).toBe('none');
@@ -139,6 +142,8 @@ test.describe('window chrome', () => {
   test('AC8: at 1920x1080 positions match T03 and the transform is identity', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await win(page, 'term').waitFor();
     const b = await box(win(page, 'term'));
     expect(Math.round(b.x)).toBe(1450);
@@ -149,6 +154,8 @@ test.describe('window chrome', () => {
 
   test('AC4/AC6: titlebar metrics, colours and cursor follow the spec', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const tb = bar(page, 'hello');
     expect(await computed(tb, 'padding-top')).toBe('8px');
     expect(await computed(tb, 'padding-right')).toBe('8px');
@@ -168,6 +175,8 @@ test.describe('window chrome', () => {
 
   test('AC4: the site window shows no minimize button', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     for (const id of DOCK5) {
       await expect(
         win(page, id).getByRole('button', { name: `Minimize ${TITLES[id]}` }),
@@ -179,7 +188,8 @@ test.describe('window chrome', () => {
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): the menubar adds one button (the theme toggle).
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds two role buttons (the verb and
     // "See what I've built"), so 10 -> 12.
-    await expect(page.locator('[data-win]').getByRole('button')).toHaveCount(12);
+    await expect(page.locator('[data-win]').getByRole('button')).toHaveCount(14);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello gains 'More about me' and 'What I've been up to', so 12 -> 14 and 18 -> 20.
     await expect(page.getByRole('banner').getByRole('button')).toHaveCount(1);
     // DELIBERATE REQUIREMENT CHANGE (T06 AC30): the dock adds five buttons (16 in total).
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): plus the two hello body buttons (18 in total).
@@ -188,7 +198,7 @@ test.describe('window chrome', () => {
     for (const id of DOCK5) {
       await expect(dock.getByRole('button', { name: TITLES[id], exact: true })).toHaveCount(1);
     }
-    await expect(page.getByRole('button')).toHaveCount(18);
+    await expect(page.getByRole('button')).toHaveCount(20);
   });
 
   test('AC11/AC16: dragging tilts right then left, scales up, and springs flat on release', async ({
@@ -196,6 +206,8 @@ test.describe('window chrome', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const before = await box(win(page, 'hello'));
     const others = await Promise.all(
       DOCK5.filter((i) => i !== 'hello').map((i) => box(win(page, i))),
@@ -232,6 +244,8 @@ test.describe('window chrome', () => {
 
   test('AC15: dragging selects no text', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const tb = await box(bar(page, 'about'));
     await page.mouse.move(tb.x + 40, tb.y + 10);
     await page.mouse.down();
@@ -243,6 +257,8 @@ test.describe('window chrome', () => {
 
   test('AC11: dragging far away clamps the window to the allowed range', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const vp = page.viewportSize()!;
     const tb = await box(bar(page, 'hello'));
     const w = (await box(win(page, 'hello'))).width;
@@ -268,6 +284,8 @@ test.describe('window chrome', () => {
 
   test('AC11: a vertical drag above the menubar clamps y to 36', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const tb = await box(bar(page, 'hello'));
     await page.mouse.move(tb.x + 100, tb.y + 10);
     await page.mouse.down();
@@ -281,6 +299,8 @@ test.describe('window chrome', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const before = await box(win(page, 'hello'));
     const btn = await box(page.getByRole('button', { name: 'Minimize hello.txt' }));
     await page.mouse.move(btn.x + 12, btn.y + 12);
@@ -303,6 +323,8 @@ test.describe('window chrome', () => {
 
   test('AC9: pressing anywhere on a window raises it with the large shadow', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const b = await box(win(page, 'proj'));
     // A spot of proj not covered by any other window (below about, right of exp, left of term).
     await page.mouse.click(b.x + 120, b.y + b.height - 10);
@@ -316,6 +338,8 @@ test.describe('window chrome', () => {
 
   test('AC21: clicking Close removes the window', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Close hello.txt' }).click();
     await expect(win(page, 'hello')).toHaveCount(0);
     await expect(win(page, 'about')).toHaveCount(1);
@@ -325,6 +349,8 @@ test.describe('window chrome', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Minimize terminal' }).click();
     const term = win(page, 'term');
     await expect(term).toHaveAttribute('data-min', 'true');
@@ -347,6 +373,8 @@ test.describe('window chrome', () => {
 
   test('AC17: double-clicking a titlebar minimizes the window', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await bar(page, 'about').dblclick({ position: { x: 150, y: 14 } });
     await expect(win(page, 'about')).toHaveAttribute('data-min', 'true');
     await expect(win(page, 'hello')).toHaveAttribute('data-min', 'false');
@@ -354,6 +382,8 @@ test.describe('window chrome', () => {
 
   test('AC17: double-clicking the body does not minimize', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const b = await box(win(page, 'hello'));
     await page.mouse.dblclick(b.x + 200, b.y + 200);
     await expect(win(page, 'hello')).toHaveAttribute('data-min', 'false');
@@ -363,6 +393,8 @@ test.describe('window chrome', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
     await tabPastMenubar(page);
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): hello's body adds three stops (the verb, the
@@ -373,11 +405,14 @@ test.describe('window chrome', () => {
     // two window controls, so 15 -> 19 stops.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the terminal body adds its input ('Terminal
     // command') after Minimize and Close, so 19 -> 20 stops.
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the two new hello buttons add two tab stops, so 20 -> 22.
     const want = [
       'Minimize hello.txt',
       'Close hello.txt',
       'build',
       "See what I've built",
+      'More about me',
+      "What I've been up to",
       'Say hi',
       ...DOCK5.filter((id) => id !== 'hello').flatMap((id) => [
         `Minimize ${TITLES[id]}`,
@@ -389,11 +424,13 @@ test.describe('window chrome', () => {
         ...(id === 'term' ? ['Terminal command'] : []),
       ]),
     ];
-    expect(await stopNames(page, 20)).toEqual(want);
+    expect(await stopNames(page, 22)).toEqual(want);
   });
 
   test('AC23: Enter activates Minimize', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
     await tabPastMenubar(page);
     await page.keyboard.press('Tab');
@@ -404,14 +441,19 @@ test.describe('window chrome', () => {
 
   test('AC23: Space activates Close', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
     await tabPastMenubar(page);
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the three hello body stops come before about.
-    expect(await stopNames(page, 7)).toEqual([
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the two new hello buttons add two tab stops, so 7 -> 9.
+    expect(await stopNames(page, 9)).toEqual([
       'Minimize hello.txt',
       'Close hello.txt',
       'build',
       "See what I've built",
+      'More about me',
+      "What I've been up to",
       'Say hi',
       'Minimize about.md',
       'Close about.md',
@@ -422,11 +464,14 @@ test.describe('window chrome', () => {
 
   test('AC10: keyboard focus on a back window raises it', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
     await tabPastMenubar(page);
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): three hello body stops, so 7 -> 10; the
     // experience body adds two more before projects, so 10 -> 12.
-    await tabLabels(page, 12); // reaches "Minimize projects"
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the two new hello buttons add two tab stops, so 12 -> 14.
+    await tabLabels(page, 14); // reaches "Minimize projects"
     expect(await focusedLabel(page)).toBe('Minimize projects');
     for (const id of DOCK5.filter((i) => i !== 'proj')) {
       expect(await zOf(page, 'proj')).toBeGreaterThan(await zOf(page, id));
@@ -435,6 +480,8 @@ test.describe('window chrome', () => {
 
   test('AC23: the focus ring is visible and stays inside the window box', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): skip the five menubar tab stops.
     await tabPastMenubar(page);
     await page.keyboard.press('Tab');
@@ -453,6 +500,8 @@ test.describe('window chrome', () => {
 
   test('AC25: minimize and close work from the keyboard alone', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Minimize hello.txt' }).focus();
     await page.keyboard.press('Space');
     await expect(win(page, 'hello')).toHaveAttribute('data-min', 'true');
@@ -467,6 +516,8 @@ test.describe('window chrome with reduced motion', () => {
 
   test('AC22: dragging applies no rotation or scale', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const tb = await box(bar(page, 'hello'));
     await page.mouse.move(tb.x + 100, tb.y + 10);
     await page.mouse.down();
@@ -484,6 +535,8 @@ test.describe('window chrome with reduced motion', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Minimize terminal' }).click();
     const term = win(page, 'term');
     await expect(term).toHaveAttribute('data-min', 'true');
@@ -498,6 +551,8 @@ test.describe('window chrome with reduced motion', () => {
 
   test('AC22: first-load positions are unchanged under reduced motion', async ({ page }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     const b = await box(win(page, 'hello'));
     expect(Math.round(b.x)).toBe(77);
     expect(Math.round(b.y)).toBe(72);
@@ -509,6 +564,8 @@ test.describe('window chrome with motion allowed', () => {
     page,
   }) => {
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+    await openAllFromDock(page);
     await page.getByRole('button', { name: 'Minimize terminal' }).click();
     const inline = await win(page, 'term').evaluate((el) => ({
       transform: el.style.transform,
