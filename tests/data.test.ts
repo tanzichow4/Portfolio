@@ -63,11 +63,13 @@ describe('T18 project data', () => {
   });
 
   it('T18 AC3: absent fields are omitted, not empty, and no project has links', () => {
+    // DELIBERATE REQUIREMENT CHANGE (resume content): real résumé text now fills the stats and project details.
+    // Every project now has résumé-sourced details and highlights; none has a real link yet.
     for (const p of PROJECTS) {
       expect('links' in p).toBe(false);
-      expect('highlights' in p).toBe(false);
-      if (p.name !== 'Indoor Garden') expect('details' in p).toBe(false);
-      if ('details' in p) expect(p.details?.trim().length).toBeGreaterThan(0);
+      expect(p.details?.trim().length).toBeGreaterThan(0);
+      expect(p.highlights?.length).toBeGreaterThan(0);
+      for (const h of p.highlights ?? []) expect(h).toBe(h.trim());
     }
   });
 
@@ -119,26 +121,31 @@ describe('T08 boot copy', () => {
 });
 
 describe('T17 experience stats', () => {
-  // Frozen copy of the old desc text, used only to prove no new figures were introduced.
-  const OLD_DESC = [
-    'Led onboarding for a multi-tenant web platform and built a natural-language-to-SQL engine on a local model. Also wrote a security review.',
-    'Redesigned a legacy system, cutting runtime from 33 hours to 3. Automated deploy config in Python and raised coverage by 80% with PyTest.',
-    'Software engineering degree, with IoT, data and ML projects.',
-  ];
+  // Frozen list of the figures that appear in the résumés (experience/), per entry. Used only to
+  // prove no figure was invented.
+  const RESUME_FIGURES = [['70%', '90%'], ['33', '3', '80%', '5', '20'], []];
 
   it('T17 AC2: stats are exactly the specified strings in order', () => {
+    // DELIBERATE REQUIREMENT CHANGE (resume content): real résumé text now fills the stats and project details.
     expect(EXP.map((e) => e.stats)).toEqual([
       [
-        'Led onboarding for a multi-tenant web platform',
-        'Built a natural-language-to-SQL engine on a local model',
-        'Wrote a security review',
+        'Led development of the onboarding system for a multi-tenant web platform: React flows, an Express backend, Keycloak sign-in and Google APIs for automation',
+        'Built a natural-language-to-SQL engine on a fine-tuned local model, about 70% correct on the first pass',
+        'Added a validation and retry framework that lifted reliability to about 90% within three attempts in internal testing',
+        'Wrote a formal security review report for a production platform',
+        'Prototyped internal forms as an interactive mockup before any backend work',
+        'Reviewed capstone project proposals across software, IoT and GIS, and revised IP agreements into a template adopted for future submissions',
       ],
       [
-        'Redesigned a legacy system, cutting runtime from 33 hours to 3',
-        'Raised coverage by 80% with PyTest',
-        'Automated deploy config in Python',
+        'Led the architecture redesign of a legacy system, cutting runtime from 33 hours to 3',
+        'Raised code coverage by 80% with PyTest',
+        'Built Python automation that cut deployment configuration time by 5 minutes per build across 20+ weekly deployments',
+        'Configured and maintained GitLab CI/CD pipelines for automated testing and deployment',
       ],
-      ['IoT, data and ML projects'],
+      [
+        'IoT, data and ML projects',
+        'Capstone: Indoor Garden, an IoT monitoring system with a live dashboard',
+      ],
     ]);
   });
 
@@ -158,10 +165,11 @@ describe('T17 experience stats', () => {
     }
   });
 
-  it('T17 AC3: every figure in stats appears in the old description', () => {
+  it('T17 AC3: every figure in stats appears in the résumés', () => {
+    // DELIBERATE REQUIREMENT CHANGE (resume content): real résumé text now fills the stats and project details.
     EXP.forEach((e, i) => {
       for (const s of e.stats) {
-        for (const m of s.match(/\d+%?/g) ?? []) expect(OLD_DESC[i], m).toContain(m);
+        for (const m of s.match(/\d+%?/g) ?? []) expect(RESUME_FIGURES[i], m).toContain(m);
       }
     });
   });

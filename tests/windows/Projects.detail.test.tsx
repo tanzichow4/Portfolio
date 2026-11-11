@@ -177,8 +177,13 @@ describe('T18 detail view', () => {
     await user.click(tile(p.name));
     expect(screen.getByText(p.details!)).toBeInTheDocument();
     expect(p.details).toContain('Capstone');
-    expect(container.querySelector('h3')).toBeNull();
-    expect(container.querySelector('ul')).toBeNull();
+    // DELIBERATE REQUIREMENT CHANGE (resume content): Indoor Garden now has highlights from the
+    // résumé, so the Highlights section renders; there is still no Links section.
+    expect(container.querySelector('h3')?.textContent).toBe(PROJECT_LABELS.highlights);
+    expect(Array.from(container.querySelectorAll('ul li')).map((li) => li.textContent)).toEqual(
+      p.highlights,
+    );
+    expect(screen.queryByText(PROJECT_LABELS.links)).toBeNull();
   });
 
   it('T18 AC9: the detail view of a featured project has one Featured star, others none', async () => {

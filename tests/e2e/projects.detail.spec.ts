@@ -175,7 +175,7 @@ for (const scheme of ['dark', 'light'] as const) {
       expect(errors).toEqual([]);
     });
 
-    test('T18 AC17: with current data the detail view does not overflow the window body', async ({
+    test('T18 AC17: with current data the detail view scrolls inside the fixed window, never sideways', async ({
       page,
     }) => {
       await tiles(page).nth(1).click();
@@ -191,7 +191,10 @@ for (const scheme of ['dark', 'light'] as const) {
         };
       });
       expect(o.sw).toBeLessThanOrEqual(o.cw);
-      expect(o.sh).toBeLessThanOrEqual(o.ch + 1);
+      // DELIBERATE REQUIREMENT CHANGE (resume content): the detail text is now longer than the
+      // fixed 385px window, so it scrolls inside the body (the window itself stays 385 tall).
+      const r = await rect(page);
+      expect(Math.abs(r.h - 385)).toBeLessThanOrEqual(2);
       expect(o.page).toBeLessThanOrEqual(0);
     });
 

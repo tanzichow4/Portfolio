@@ -66,9 +66,12 @@ export const EXP: Exp[] = [
     role: 'Software Developer',
     org: 'Tartigrade Ltd.',
     stats: [
-      'Led onboarding for a multi-tenant web platform',
-      'Built a natural-language-to-SQL engine on a local model',
-      'Wrote a security review',
+      'Led development of the onboarding system for a multi-tenant web platform: React flows, an Express backend, Keycloak sign-in and Google APIs for automation',
+      'Built a natural-language-to-SQL engine on a fine-tuned local model, about 70% correct on the first pass',
+      'Added a validation and retry framework that lifted reliability to about 90% within three attempts in internal testing',
+      'Wrote a formal security review report for a production platform',
+      'Prototyped internal forms as an interactive mockup before any backend work',
+      'Reviewed capstone project proposals across software, IoT and GIS, and revised IP agreements into a template adopted for future submissions',
     ],
     tags: ['React', 'Express', 'Keycloak', 'LLMs'],
   },
@@ -77,9 +80,10 @@ export const EXP: Exp[] = [
     role: 'Software Developer / Tester',
     org: 'General Dynamics Mission Systems',
     stats: [
-      'Redesigned a legacy system, cutting runtime from 33 hours to 3',
-      'Raised coverage by 80% with PyTest',
-      'Automated deploy config in Python',
+      'Led the architecture redesign of a legacy system, cutting runtime from 33 hours to 3',
+      'Raised code coverage by 80% with PyTest',
+      'Built Python automation that cut deployment configuration time by 5 minutes per build across 20+ weekly deployments',
+      'Configured and maintained GitLab CI/CD pipelines for automated testing and deployment',
     ],
     tags: ['Python', 'PyTest', 'GitLab CI/CD'],
   },
@@ -87,22 +91,31 @@ export const EXP: Exp[] = [
     when: '2021 — 2026',
     role: 'B.Sc. Software Engineering',
     org: 'University of Calgary',
-    stats: ['IoT, data and ML projects'],
+    stats: [
+      'IoT, data and ML projects',
+      'Capstone: Indoor Garden, an IoT monitoring system with a live dashboard',
+    ],
     tags: ['Software Engineering', 'IoT', 'ML'],
   },
 ];
 
 // TODO(Tanzi): add `links` (real project URLs) per project; none exist in the repo yet.
-// TODO(Tanzi): add `highlights` per project once there is a source (resume or notes).
 // `icon` is a Phosphor component
 export const PROJECTS: Project[] = [
   {
-    // TODO(Tanzi): add `details` for Voice Calendar.
     name: 'Voice Calendar',
     icon: Microphone,
     href: '#',
     desc: 'Speak an event, get it on your calendar. iOS and Gemini.',
     tags: ['Swift', 'Gemini API'],
+    details:
+      'A voice-controlled calendar assistant. Dictate an event or reminder and it lands on your calendar, with the speech handled on the phone instead of a third-party server.',
+    highlights: [
+      'Native iOS companion app in Swift, using EventKit and the Speech framework for on-device dictation',
+      'Creates calendar events and reminders without sending personal data through a third-party server',
+      'REST API backend shared by the voice assistant and the iOS app, one source of truth across two independent clients',
+      'Google Gemini API with function calling turns natural-language requests into structured calendar and reminder actions',
+    ],
   },
   {
     name: 'Indoor Garden',
@@ -113,22 +126,39 @@ export const PROJECTS: Project[] = [
     featured: true,
     details:
       'Capstone project: IoT garden monitoring with a live dashboard for 10+ sensors, built with Docker and React.',
+    highlights: [
+      'Docker-containerized microservices for sensor data collection and processing',
+      'CI/CD pipeline with automated testing for 5+ microservices handling environmental data',
+      'React dashboard with a Python backend showing real-time analytics from 10+ environmental sensors',
+    ],
   },
   {
-    // TODO(Tanzi): add `details` for Grocery Prices.
     name: 'Grocery Prices',
     icon: ChartLineUp,
     href: '#',
     desc: 'Forecasts grocery prices 7 days out at 80% accuracy.',
     tags: ['Airflow', 'Spark'],
+    details:
+      'A grocery inventory and price prediction system: an automated data pipeline feeds a model that forecasts item prices a week ahead.',
+    highlights: [
+      'Automated ingestion pipeline in Apache Airflow processing 980K data points from multiple sources',
+      'Apache Spark for distributed processing and feature engineering on large-scale pricing data',
+      'Time-series regression model in scikit-learn, 80% accurate on 7-day price forecasts',
+      'Redis caching to speed up data retrieval during training',
+    ],
   },
   {
-    // TODO(Tanzi): add `details` for Driver Safety.
     name: 'Driver Safety',
     icon: Smiley,
     href: '#',
     desc: 'Emotion detection from faces, 80% accuracy on RAF-DB.',
     tags: ['TensorFlow', 'CNN'],
+    details:
+      'A CNN emotion classifier built in TensorFlow to recognise emotions from faces, trained and tested on the RAF-DB dataset.',
+    highlights: [
+      'CNN emotion classifier in TensorFlow, 80% accurate on RAF-DB',
+      'Data augmentation and weighted loss functions to better detect underrepresented emotions',
+    ],
   },
 ];
 
