@@ -12,18 +12,26 @@ const watchErrors = (page: Page): string[] => {
 
 test.use({ colorScheme: 'dark', viewport: { width: 1280, height: 720 } });
 
+// DELIBERATE REQUIREMENT CHANGE (resume content): the stats now come from the résumés in experience/.
 const STATS: Record<string, string[]> = {
   'Tartigrade Ltd.': [
-    'Led onboarding for a multi-tenant web platform',
-    'Built a natural-language-to-SQL engine on a local model',
-    'Wrote a security review',
+    'Led development of the onboarding system for a multi-tenant web platform: React flows, an Express backend, Keycloak sign-in and Google APIs for automation',
+    'Built a natural-language-to-SQL engine on a fine-tuned local model, about 70% correct on the first pass',
+    'Added a validation and retry framework that lifted reliability to about 90% within three attempts in internal testing',
+    'Wrote a formal security review report for a production platform',
+    'Prototyped internal forms as an interactive mockup before any backend work',
+    'Reviewed capstone project proposals across software, IoT and GIS, and revised IP agreements into a template adopted for future submissions',
   ],
   'General Dynamics Mission Systems': [
-    'Redesigned a legacy system, cutting runtime from 33 hours to 3',
-    'Raised coverage by 80% with PyTest',
-    'Automated deploy config in Python',
+    'Led the architecture redesign of a legacy system, cutting runtime from 33 hours to 3',
+    'Raised code coverage by 80% with PyTest',
+    'Built Python automation that cut deployment configuration time by 5 minutes per build across 20+ weekly deployments',
+    'Configured and maintained GitLab CI/CD pipelines for automated testing and deployment',
   ],
-  'University of Calgary': ['IoT, data and ML projects'],
+  'University of Calgary': [
+    'IoT, data and ML projects',
+    'Capstone: Indoor Garden, an IoT monitoring system with a live dashboard',
+  ],
 };
 const ORGS = Object.keys(STATS);
 
