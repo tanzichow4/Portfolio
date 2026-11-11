@@ -26,7 +26,7 @@ export interface Exp {
   when: string;
   role: string;
   org: string;
-  desc: string;
+  stats: string[];
   tags: string[];
 }
 export interface Project {
@@ -61,21 +61,29 @@ export const EXP: Exp[] = [
     when: '2026 — Now',
     role: 'Software Developer',
     org: 'Tartigrade Ltd.',
-    desc: 'Led onboarding for a multi-tenant web platform and built a natural-language-to-SQL engine on a local model. Also wrote a security review.',
+    stats: [
+      'Led onboarding for a multi-tenant web platform',
+      'Built a natural-language-to-SQL engine on a local model',
+      'Wrote a security review',
+    ],
     tags: ['React', 'Express', 'Keycloak', 'LLMs'],
   },
   {
     when: '2024 — 2026',
     role: 'Software Developer / Tester',
     org: 'General Dynamics Mission Systems',
-    desc: 'Redesigned a legacy system, cutting runtime from 33 hours to 3. Automated deploy config in Python and raised coverage by 80% with PyTest.',
+    stats: [
+      'Redesigned a legacy system, cutting runtime from 33 hours to 3',
+      'Raised coverage by 80% with PyTest',
+      'Automated deploy config in Python',
+    ],
     tags: ['Python', 'PyTest', 'GitLab CI/CD'],
   },
   {
     when: '2021 — 2026',
     role: 'B.Sc. Software Engineering',
     org: 'University of Calgary',
-    desc: 'Software engineering degree, with IoT, data and ML projects.',
+    stats: ['IoT, data and ML projects'],
     tags: ['Software Engineering', 'IoT', 'ML'],
   },
 ];

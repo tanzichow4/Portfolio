@@ -76,7 +76,11 @@ export default function PhonePage() {
                 {EXPERIENCE_LABELS.at} {e.org}
               </p>
               <p className="phone-meta">{e.when}</p>
-              <p className="phone-desc">{e.desc}</p>
+              <ul className="phone-stats" role="list">
+                {e.stats.map((s) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ul>
               <Tags tags={e.tags} />
             </li>
           ))}

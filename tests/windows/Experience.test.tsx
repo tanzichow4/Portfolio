@@ -7,6 +7,7 @@ import { stripComments } from '../helpers/cssTokens';
 import { topRule, reducedRule } from '../helpers/cssScope';
 import { EXP, EXPERIENCE_LABELS } from '../../src/data';
 import { WIN_META } from '../../src/logic/windows';
+import src from '../../src/windows/Experience.tsx?raw';
 
 const clean = stripComments(css);
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
@@ -187,7 +188,8 @@ describe('T07 Experience body: selection and panel', () => {
     expect(p.getByRole('heading', { name: e.role })).toBeInTheDocument();
     expect(panel().textContent).toContain(`${EXPERIENCE_LABELS.at} ${e.org}`);
     expect(panel().textContent).toContain(e.when);
-    expect(panel().textContent).toContain(e.desc);
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC5): desc replaced by the stats list
+    for (const s of e.stats) expect(panel().textContent).toContain(s);
     for (const t of e.tags) expect(panel().textContent).toContain(t);
   });
 
@@ -199,11 +201,13 @@ describe('T07 Experience body: selection and panel', () => {
       const text = panel().textContent ?? '';
       expect(within(panel()).getAllByRole('heading')).toHaveLength(1);
       expect(within(panel()).getByRole('heading')).toHaveTextContent(e.role);
-      expect(text).toContain(e.desc);
+      // DELIBERATE REQUIREMENT CHANGE (T17 AC5): desc replaced by the stats list
+      for (const s of e.stats) expect(text).toContain(s);
       expect(text).toContain(e.when);
       EXP.forEach((o, j) => {
         if (j === i) return;
-        expect(text).not.toContain(o.desc);
+        // DELIBERATE REQUIREMENT CHANGE (T17 AC5): desc replaced by the stats list
+        for (const s of o.stats) expect(text).not.toContain(s);
         expect(text).not.toContain(o.when);
       });
     }
@@ -287,9 +291,10 @@ describe('T07 Experience body: CSS and layout', () => {
     expect(when['letter-spacing']).toBe('0.08em');
     expect(when['text-transform']).toBe('uppercase');
     expect(when.color).toBe('var(--color-neutral-500)');
-    expect(decls('.exp-desc')['font-size']).toBe('13.5px');
-    expect(decls('.exp-desc')['line-height']).toBe('1.6');
-    expect(decls('.exp-desc').color).toBe('var(--color-neutral-400)');
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC4): .exp-desc rule renamed to .exp-stats, same typography
+    expect(decls('.exp-stats')['font-size']).toBe('13.5px');
+    expect(decls('.exp-stats')['line-height']).toBe('1.6');
+    expect(decls('.exp-stats').color).toBe('var(--color-neutral-400)');
   });
 
   it('T07 AC30: panel text is selectable', () => {
@@ -329,5 +334,53 @@ describe('T07 Experience tab motion CSS', () => {
 
   it('T07 AC8: reduced motion sets the tab hover transform to none', () => {
     expect(reducedRule(css, '.exp-tab:hover .exp-tab-face')?.transform).toBe('none');
+  });
+});
+
+describe('T17 Experience stats list (AC1, AC4, AC5)', () => {
+  it('T17 AC4: panel DOM order is role h2, org pill, date, stats ul, tags; no .exp-desc or p', () => {
+    const { container } = render(<Experience />);
+    const p = panel();
+    const kids = Array.from(p.children);
+    const idx = (sel: string) => kids.findIndex((k) => k.matches(sel));
+    expect(idx('h2.exp-role')).toBeGreaterThanOrEqual(0);
+    expect(idx('h2.exp-role')).toBeLessThan(idx('.exp-org'));
+    expect(idx('.exp-org')).toBeLessThan(idx('.exp-when'));
+    expect(idx('.exp-when')).toBeLessThan(idx('ul.exp-stats'));
+    expect(idx('ul.exp-stats')).toBeLessThan(idx('.exp-tags'));
+    expect(container.querySelector('.exp-desc')).toBeNull();
+    expect(p.querySelector('p')).toBeNull();
+  });
+
+  it('T17 AC5: per tab the li texts equal stats exactly, in a role=list ul, without other entries stats', async () => {
+    const user = userEvent.setup();
+    render(<Experience />);
+    for (const [i, e] of EXP.entries()) {
+      await user.click(tabs()[i]);
+      const ul = panel().querySelector('ul.exp-stats') as HTMLElement;
+      expect(ul.getAttribute('role')).toBe('list');
+      const texts = Array.from(ul.querySelectorAll(':scope > li')).map((l) => l.textContent);
+      expect(texts).toEqual(e.stats);
+      EXP.forEach((o, j) => {
+        if (j !== i) for (const s of o.stats) expect(panel().textContent).not.toContain(s);
+      });
+    }
+  });
+
+  it('T17 AC5: the panel has no svg or img and no focusable element besides itself', () => {
+    render(<Experience />);
+    const p = panel();
+    expect(p.querySelector('svg, img')).toBeNull();
+    expect(p.querySelectorAll('a, button, input, select, textarea, [tabindex]').length).toBe(0);
+  });
+
+  it('T17 AC5: stats CSS is at least 13px in neutral-400 with an empty-content bullet', () => {
+    expect(parseFloat(decls('.exp-stats')['font-size'])).toBeGreaterThanOrEqual(13);
+    expect(decls('.exp-stats').color).toBe('var(--color-neutral-400)');
+    expect(decls('.exp-stat::before').content).toBe("''");
+  });
+
+  it('T17 AC1: Experience.tsx does not read .desc', () => {
+    expect(src).not.toMatch(/\.desc\b/);
   });
 });

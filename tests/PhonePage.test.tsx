@@ -87,14 +87,16 @@ describe('T13 PhonePage content (AC10)', () => {
     const exp = section(EXPERIENCE_LABELS.tablist);
     expect(within(exp).queryByRole('tab')).toBeNull();
     expect(within(exp).queryByRole('tablist')).toBeNull();
-    const items = within(exp).getAllByRole('listitem');
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC18): stats are nested ul/li, so count only the top-level items
+    const items = Array.from(exp.querySelectorAll<HTMLElement>(':scope ul.phone-list > li'));
     expect(items.length).toBe(EXP.length);
     EXP.forEach((e, i) => {
       const li = items[i];
       expect(within(li).getByRole('heading', { level: 3 }).textContent).toBe(e.role);
       expect(li.textContent).toContain(`${EXPERIENCE_LABELS.at} ${e.org}`);
       expect(li.textContent).toContain(e.when);
-      expect(li.textContent).toContain(e.desc);
+      // DELIBERATE REQUIREMENT CHANGE (T17 AC18): desc replaced by the stats list
+      for (const s of e.stats) expect(li.textContent).toContain(s);
       for (const t of e.tags) expect(within(li).getByText(t), t).toBeVisible();
     });
   });
@@ -125,7 +127,8 @@ describe('T13 PhonePage content (AC10)', () => {
   it('T13 AC10: tags in a row are separated by whitespace in textContent', () => {
     render(<PhonePage />);
     const exp = section(EXPERIENCE_LABELS.tablist);
-    const first = within(exp).getAllByRole('listitem')[0];
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC18): take the top-level item, stats are nested lists
+    const first = Array.from(exp.querySelectorAll<HTMLElement>(':scope ul.phone-list > li'))[0];
     const joined = EXP[0].tags.join(' ');
     expect(first.textContent).toContain(joined);
   });
@@ -234,15 +237,17 @@ describe('T13 PhonePage AC21: real lists', () => {
       [PHONE_HEADINGS.links, LINKS.length],
     ];
     for (const [name, n] of counts) {
-      const list = within(section(name)).getByRole('list');
-      expect(within(list).getAllByRole('listitem').length, name).toBe(n);
+      // DELIBERATE REQUIREMENT CHANGE (T17 AC18): experience has nested stat lists, so use the first (top-level) list and count its direct items
+      const list = within(section(name)).getAllByRole('list')[0];
+      expect(list.querySelectorAll(':scope > li').length, name).toBe(n);
     }
   });
 
   it('T13 AC21: every ul keeps list semantics explicitly', () => {
     const { container } = render(<PhonePage />);
     const uls = container.querySelectorAll('ul');
-    expect(uls.length).toBe(4);
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC18): one nested stats ul per experience entry
+    expect(uls.length).toBe(4 + EXP.length);
     uls.forEach((u) => expect(u.getAttribute('role')).toBe('list'));
   });
 });
@@ -354,5 +359,55 @@ describe('T16 PhonePage has no data viz entry', () => {
     expect(screen.queryByRole('button', { name: ABOUT_LABELS.viz })).toBeNull();
     expect(screen.queryByRole('link', { name: /data ?viz/i })).toBeNull();
     expect(container.querySelector('[data-win]')).toBeNull();
+  });
+});
+
+describe('T17 PhonePage experience stats (AC18, AC19)', () => {
+  const topItems = () => {
+    render(<PhonePage />);
+    const exp = section(EXPERIENCE_LABELS.tablist);
+    return {
+      exp,
+      items: Array.from(exp.querySelectorAll(':scope ul.phone-list > li')) as HTMLElement[],
+    };
+  };
+
+  it('T17 AC18: each entry has one nested ul[role=list] whose li texts equal stats in order', () => {
+    const { items } = topItems();
+    EXP.forEach((e, i) => {
+      const nested = items[i].querySelectorAll('ul');
+      expect(nested.length).toBe(1);
+      expect(nested[0].getAttribute('role')).toBe('list');
+      const texts = Array.from(nested[0].querySelectorAll(':scope > li')).map((l) => l.textContent);
+      expect(texts).toEqual(e.stats);
+    });
+  });
+
+  it('T17 AC18: stats come after the when line and before the tags', () => {
+    const { items } = topItems();
+    EXP.forEach((e, i) => {
+      const li = items[i];
+      const ul = li.querySelector('ul') as HTMLElement;
+      const when = within(li).getByText(e.when);
+      const tag = within(li).getByText(e.tags[0]);
+      expect(follows(when, ul)).toBe(true);
+      expect(follows(ul, tag)).toBe(true);
+    });
+  });
+
+  it('T17 AC18: no phone-desc in the experience section and nothing focusable', () => {
+    const { exp } = topItems();
+    expect(exp.querySelector('.phone-desc')).toBeNull();
+    expect(exp.textContent).not.toContain('Software engineering degree');
+    expect(within(exp).queryAllByRole('button')).toHaveLength(0);
+    expect(within(exp).queryAllByRole('tab')).toHaveLength(0);
+    expect(exp.querySelectorAll('a, button, input, [tabindex]').length).toBe(0);
+  });
+
+  it('T17 AC19: projects still render their desc in .phone-desc', () => {
+    render(<PhonePage />);
+    const proj = section(PHONE_HEADINGS.projects);
+    const descs = Array.from(proj.querySelectorAll('.phone-desc')).map((d) => d.textContent);
+    expect(descs).toEqual(PROJECTS.map((p) => p.desc));
   });
 });

@@ -92,11 +92,33 @@
   color: var(--color-neutral-500);
 }
 
-.exp-desc {
+.exp-stats {
   margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
   font-size: 13.5px;
   line-height: 1.6;
   color: var(--color-neutral-400);
+}
+
+.exp-stat {
+  position: relative;
+  padding-left: 14px;
+}
+
+.exp-stat + .exp-stat {
+  margin-top: 2px;
+}
+
+.exp-stat::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.7em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
 }
 
 .exp-tags {
