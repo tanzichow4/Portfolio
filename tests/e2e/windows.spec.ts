@@ -329,7 +329,8 @@ test.describe('T07 window contents, cross-window', () => {
     const errors = watchErrors(page);
     await load(page);
     await openSite(page);
-    const tile = (i: number) => win(page, 'proj').locator('a').nth(i);
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC5): tiles are .proj-open buttons, not links.
+    const tile = (i: number) => win(page, 'proj').locator('.proj-open').nth(i);
     const orders: Record<Id, Locator[]> = {
       hello: [
         minBtn(page, 'hello'),
@@ -363,7 +364,9 @@ test.describe('T07 window contents, cross-window', () => {
       expect(count, `${id} stop count`).toBe(orders[id].length);
     }
     expect(await tile(3).count()).toBe(1);
-    expect(await win(page, 'proj').locator('a').count()).toBe(4);
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC5): four tile buttons and no links in the list.
+    expect(await win(page, 'proj').locator('.proj-open').count()).toBe(4);
+    expect(await win(page, 'proj').locator('a').count()).toBe(0);
 
     for (const id of Object.keys(orders) as Id[]) {
       const stops = orders[id];

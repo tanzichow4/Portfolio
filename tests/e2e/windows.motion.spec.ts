@@ -361,6 +361,7 @@ test.describe('T07 hello motion', () => {
 const dockTitles: Record<string, string> = { about: 'about', exp: 'experience', proj: 'projects' };
 
 /** Opens the window if needed, then raises it by a pointer-down on its title bar. */
+// DELIBERATE REQUIREMENT CHANGE (T18 AC6): a tile is now a clickable (detail-opening) host, so the raise probe must avoid .proj-tile too.
 const raise = async (page: Page, id: string) => {
   const win = page.locator(`[data-win="${id}"]`);
   if (!(await win.isVisible())) {
@@ -376,7 +377,11 @@ const raise = async (page: Page, id: string) => {
     for (let y = r.top + 4; y < r.bottom; y += 6) {
       for (let x = r.left + 4; x < r.right; x += 6) {
         const hit = document.elementFromPoint(x, y);
-        if (hit && el.contains(hit) && !hit.closest('a, button, [role="tab"], [role="tabpanel"]')) {
+        if (
+          hit &&
+          el.contains(hit) &&
+          !hit.closest('a, button, [role="tab"], [role="tabpanel"], .proj-tile')
+        ) {
           return [x, y];
         }
       }
@@ -589,7 +594,8 @@ test.describe('T07 pill, tab and tile motion', () => {
     expect(errors).toEqual([]);
   });
 
-  test('T07 AC9: a click at the bottom edge of a tile reaches the link (navigation is cancelled)', async ({
+  // DELIBERATE REQUIREMENT CHANGE (T18 AC6, AC14): tiles are buttons now, so the click opens the detail view instead of a (cancelled) navigation.
+  test('T07 AC9: a click at the bottom edge of a tile reaches the tile and opens the detail view', async ({
     page,
   }) => {
     const errors = watchErrors(page);
@@ -612,6 +618,11 @@ test.describe('T07 pill, tab and tile motion', () => {
     await settle(page);
     await page.mouse.click(x, y);
     expect(await page.evaluate(() => (window as unknown as { __clicks: number }).__clicks)).toBe(1);
+    const back = page
+      .locator('[data-win="proj"]')
+      .getByRole('button', { name: 'Back to projects' });
+    await expect(back).toBeVisible();
+    await expect(back).toBeFocused();
     expect(errors).toEqual([]);
   });
 

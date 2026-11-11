@@ -41,7 +41,8 @@ test.describe('T07 projects window at rest', () => {
     await page.goto('/');
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
     await openAllFromDock(page);
-    const tiles = page.locator('[data-win="proj"] a.proj-tile');
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC5): tiles are buttons inside a div host, no longer a.proj-tile links.
+    const tiles = page.locator('[data-win="proj"] .proj-tile');
     await expect(tiles).toHaveCount(4);
     const r = await tiles.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()));
     expect(Math.abs(r[0].y - r[1].y)).toBeLessThan(1);

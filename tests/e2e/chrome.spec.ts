@@ -189,7 +189,8 @@ test.describe('window chrome', () => {
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds two role buttons (the verb and
     // "See what I've built"), so 10 -> 12.
     // DELIBERATE REQUIREMENT CHANGE (T16 AC5): about gains the 'See some data viz' button, so 14 -> 15.
-    await expect(page.locator('[data-win]').getByRole('button')).toHaveCount(15);
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC5): the four project tiles are buttons now (they were links), so 15 -> 19.
+    await expect(page.locator('[data-win]').getByRole('button')).toHaveCount(19);
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello gains 'More about me' and 'What I've been up to', so 12 -> 14 and 18 -> 20.
     await expect(page.getByRole('banner').getByRole('button')).toHaveCount(1);
     // DELIBERATE REQUIREMENT CHANGE (T06 AC30): the dock adds five buttons (16 in total).
@@ -201,7 +202,8 @@ test.describe('window chrome', () => {
       await expect(dock.getByRole('button', { name: TITLES[id], exact: true })).toHaveCount(1);
     }
     // DELIBERATE REQUIREMENT CHANGE (T16 AC5, AC18): +1 about button, +1 dataviz dock button, so 20 -> 22.
-    await expect(page.getByRole('button')).toHaveCount(22);
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC5): +4 project tile buttons, so 22 -> 26.
+    await expect(page.getByRole('button')).toHaveCount(26);
   });
 
   test('AC11/AC16: dragging tilts right then left, scales up, and springs flat on release', async ({
