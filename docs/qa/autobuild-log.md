@@ -100,3 +100,11 @@ Baseline before T15: GitHub link removed and tests updated on main (commits 1443
 - **Existing tests changed (review these):** many setup-only edits across unit and e2e specs, each marked `DELIBERATE REQUIREMENT CHANGE (T15 AC25)`, via new helpers `tests/helpers/openAll.ts` and `tests/e2e/helpers/openAll.ts`. Count/offset edits: hello tab stops +2, dock Tab total 31 -> 33, hello height 473. `phone.spec.ts` also needed setup, which the plan missed. No test deleted, skipped or weakened.
 - Assumptions: Tidy up stays "all open" (design spec); new buttons use `open`, not the dock toggle; no icons on new buttons.
 - Gaps: a newly opened window can cover hello's buttons until hello is raised; restoring a minimized window via a hello button was not walked by hand (unit and e2e cover it); QA used scripted Chromium; build and format:check not run by QA (format:check run by me).
+
+### T16 done
+
+- Shipped: about.md first paragraph rewritten (Tanzi's wording, two em phrases), "Currently building…" and facts unchanged; a "See some data viz" secondary button opens a new placeholder `viz` window (title `dataviz`, `ChartPieSlice` icon, "Coming soon", 280x160, starts closed, has a dock button and a Windows menu item); about height 331 -> 396; Windows menu now built from `DOCK_IDS`. Phone page shows the new copy, no viz.
+- Results: lint, typecheck, 1489 unit, 283 e2e green. QA: PASS (docs/qa/T16-qa.md), no fix rounds.
+- **Existing tests changed (review these):** dock/menu/start/boot/wiring/layout/window-list tests updated for six dock windows and a sixth menu item, hello/about tab stops, about height 396; each marked `DELIBERATE REQUIREMENT CHANGE (T16 ACn)`. Test helpers still open only the original five windows. No test deleted, skipped or weakened.
+- Assumptions: `INITIAL_ORDER` starts with `viz` so z-order is distinct after Tidy up; terminal `ls`/`open` do not know viz (`open viz` says no such file); viz sits at (960,158) so it does not cover the about button; plain `btn btn-secondary` for the about button (not the hello hover pattern).
+- Gaps: terminal `open viz` unsupported by design; QA did not check 1920x1080, reduced motion or light-mode manual walk of terminal Restart (e2e covers them); QA used scripted Chromium.
