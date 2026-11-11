@@ -88,7 +88,8 @@ describe('Desktop wiring', () => {
     );
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds two native buttons (the verb
     // and "See what I've built"), so the window-button count goes from 10 to 12.
-    expect(winButtons).toHaveLength(12);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello gains "More about me" and "What I've been up to", 12 -> 14.
+    expect(winButtons).toHaveLength(14);
     const outside = screen.getAllByRole('button').filter((b) => !b.closest('[data-win]'));
     // DELIBERATE REQUIREMENT CHANGE (T06 AC30): the dock adds five native buttons after the
     // theme toggle, so the page-wide list pins the toggle and then the five dock buttons.
@@ -117,7 +118,14 @@ describe('Desktop wiring', () => {
       // primary button after its two chrome buttons. Every other window keeps exactly two.
       expect(buttons.map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual(
         id === 'hello'
-          ? [`Minimize ${title}`, `Close ${title}`, 'build', "See what I've built"]
+          ? [
+              `Minimize ${title}`,
+              `Close ${title}`,
+              'build',
+              "See what I've built",
+              'More about me',
+              "What I've been up to",
+            ]
           : [`Minimize ${title}`, `Close ${title}`],
       );
       for (const b of buttons) expect(b).toHaveAttribute('type', 'button');

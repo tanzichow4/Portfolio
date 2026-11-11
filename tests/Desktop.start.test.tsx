@@ -283,3 +283,66 @@ describe('T15 AC10: Restart and Tidy up differ', () => {
     expect(winIds().sort()).toEqual([...DOCK_IDS].sort());
   });
 });
+
+describe('T15 AC15: hello buttons open, restore and raise their window', () => {
+  const BUTTONS: [string, WinId][] = [
+    ["See what I've built", 'proj'],
+    ['More about me', 'about'],
+    ["What I've been up to", 'exp'],
+  ];
+  const z = (id: string) => Number(winEl(id)!.style.zIndex);
+  const maxZ = () => Math.max(...allWins().map((w) => Number(w.style.zIndex)));
+  const helloBtn = (name: string) => within(winEl('hello')!).getByRole('button', { name });
+
+  for (const [label, id] of BUTTONS) {
+    it(`T15 AC15: "${label}" opens ${id} when closed, on top, at its layout position`, async () => {
+      const user = userEvent.setup();
+      render(<Desktop />);
+      expect(winEl(id)).toBeNull();
+      await user.click(helloBtn(label));
+      expect(winEl(id)).not.toBeNull();
+      expect(winEl(id)).toHaveAttribute('data-min', 'false');
+      expect(z(id)).toBe(maxZ());
+      expect(winEl(id)!.style.left).toBe(`${pos()[id].x}px`);
+    });
+
+    it(`T15 AC15: "${label}" restores a minimized ${id} and raises it`, async () => {
+      const user = userEvent.setup();
+      render(<Desktop />);
+      await user.click(helloBtn(label));
+      await user.click(screen.getByRole('button', { name: `Minimize ${WIN_TITLES[id]}` }));
+      expect(winEl(id)).toHaveAttribute('data-min', 'true');
+      await user.click(helloBtn(label));
+      expect(winEl(id)).toHaveAttribute('data-min', 'false');
+      expect(z(id)).toBe(maxZ());
+    });
+
+    it(`T15 AC15: "${label}" raises ${id} when it is open behind hello`, async () => {
+      const user = userEvent.setup();
+      render(<Desktop />);
+      await user.click(helloBtn(label));
+      fireEvent.pointerDown(winEl('hello')!.querySelector<HTMLElement>('.win-titlebar')!, {
+        pointerId: 1,
+        button: 0,
+        clientX: 300,
+        clientY: 150,
+      });
+      fireEvent.pointerUp(document.body, { pointerId: 1 });
+      expect(z('hello')).toBeGreaterThan(z(id));
+      await user.click(helloBtn(label));
+      expect(z(id)).toBe(maxZ());
+      expect(z(id)).toBeGreaterThan(z('hello'));
+    });
+
+    it(`T15 AC15: "${label}" never minimizes ${id} when it is already open and on top`, async () => {
+      const user = userEvent.setup();
+      render(<Desktop />);
+      await user.click(helloBtn(label));
+      await user.click(helloBtn(label));
+      await user.click(helloBtn(label));
+      expect(winEl(id)).not.toBeNull();
+      expect(winEl(id)).toHaveAttribute('data-min', 'false');
+      expect(z(id)).toBe(maxZ());
+    });
+  }
+});

@@ -6,6 +6,8 @@ import css from '../../src/windows/Hello.css?raw';
 import { stripComments } from '../helpers/cssTokens';
 import { EMAIL, HELLO_COPY, NAME, VERBS } from '../../src/data';
 import { WIN_META } from '../../src/logic/windows';
+import { DOCK_CLEARANCE, layout } from '../../src/logic/layout';
+import helloSrc from '../../src/windows/Hello.tsx?raw';
 
 const clean = stripComments(css);
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
@@ -190,6 +192,13 @@ describe('T07 Hello body: actions', () => {
     expect(document.activeElement).toBe(verbBtn());
     await user.tab();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: HELLO_COPY.primary }));
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the two new buttons sit between the primary button and Say hi.
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: HELLO_COPY.about }));
+    await user.tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: HELLO_COPY.experience }),
+    );
     await user.tab();
     expect(document.activeElement).toBe(screen.getByRole('link', { name: HELLO_COPY.secondary }));
   });
@@ -202,7 +211,8 @@ describe('T07 Hello body: actions', () => {
 
 describe('T07 Hello body: height', () => {
   it('T07 AC47: hello keeps its WIN_META height of 420 and y of 72', () => {
-    expect(WIN_META.hello.height).toBe(420);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): four buttons wrap to two rows, so the measured hello height is 473, not 420.
+    expect(WIN_META.hello.height).toBe(473);
     expect(WIN_META.hello.width).toBe(560);
   });
 });
@@ -388,5 +398,95 @@ describe('T07 Hello.css (motion)', () => {
   it('T07 AC7: motion rules use tokens only and no outline removal', () => {
     expect(clean).not.toMatch(/all:\s*unset/);
     expect(clean).not.toMatch(/outline:\s*(none|0)\b/);
+  });
+});
+
+describe('T15 hello buttons', () => {
+  const NEW: [string, 'about' | 'exp', string][] = [
+    ['More about me', 'about', HELLO_COPY.about],
+    ["What I've been up to", 'exp', HELLO_COPY.experience],
+  ];
+
+  it('T15 AC12: the new labels are the literal copy and come from HELLO_COPY', () => {
+    expect(HELLO_COPY.about).toBe('More about me');
+    expect(HELLO_COPY.experience).toBe("What I've been up to");
+    expect(HELLO_COPY.primary).toBe("See what I've built");
+    expect(HELLO_COPY.secondary).toBe('Say hi');
+  });
+
+  it('T15 AC12: Hello.tsx does not hard-code the new labels', () => {
+    expect(helloSrc).not.toContain('More about me');
+    expect(helloSrc).not.toContain("What I've been up to");
+  });
+
+  it('T15 AC11: .hello-actions holds primary, about, experience buttons then the Say hi link, in DOM order', () => {
+    const { container } = setup();
+    const row = container.querySelector('.hello-actions')!;
+    const kids = Array.from(row.children);
+    expect(kids.map((k) => k.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON', 'A']);
+    expect(kids.map((k) => k.textContent?.trim())).toEqual([
+      HELLO_COPY.primary,
+      HELLO_COPY.about,
+      HELLO_COPY.experience,
+      HELLO_COPY.secondary,
+    ]);
+  });
+
+  for (const [label, id, copy] of NEW) {
+    it(`T15 AC13/AC14: "${label}" is a native type=button named by HELLO_COPY`, () => {
+      setup();
+      const b = screen.getByRole('button', { name: copy });
+      expect(b.tagName).toBe('BUTTON');
+      expect(b).toHaveAttribute('type', 'button');
+      expect(b.textContent?.trim()).toBe(label);
+    });
+
+    it(`T15 AC13/AC14: "${label}" dispatches exactly one open ${id} on click, Enter and Space`, async () => {
+      const user = userEvent.setup();
+      const { dispatch } = setup();
+      const b = screen.getByRole('button', { name: copy });
+      await user.click(b);
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      expect(dispatch).toHaveBeenLastCalledWith({ type: 'open', id });
+      b.focus();
+      await user.keyboard('{Enter}');
+      expect(dispatch).toHaveBeenCalledTimes(2);
+      await user.keyboard(' ');
+      expect(dispatch).toHaveBeenCalledTimes(3);
+      for (const call of dispatch.mock.calls) expect(call[0]).toEqual({ type: 'open', id });
+    });
+
+    it(`T15 AC16: "${label}" uses the hello-cta host with a secondary face and no icon`, () => {
+      setup();
+      const b = screen.getByRole('button', { name: copy });
+      expect(b).toHaveClass('hello-cta');
+      const face = b.querySelector('.btn.btn-secondary.hello-cta-face');
+      expect(face).not.toBeNull();
+      expect(b.querySelector('svg')).toBeNull();
+      expect(b.querySelector('.btn-primary')).toBeNull();
+    });
+  }
+
+  it("T15 AC16: See what I've built is the only primary button in hello", () => {
+    const { container } = setup();
+    const primaries = container.querySelectorAll('.btn-primary');
+    expect(primaries).toHaveLength(1);
+    expect(screen.getByRole('button', { name: HELLO_COPY.primary }).contains(primaries[0])).toBe(
+      true,
+    );
+  });
+
+  it('T15 AC19: changing the verb dispatches nothing even with the new buttons present', async () => {
+    const user = userEvent.setup();
+    const { dispatch } = setup();
+    await user.click(verbBtn());
+    await user.click(screen.getByRole('button', { name: VERBS[1] }));
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('T15 AC17: at 1280x720 hello sits clear of the dock using its WIN_META height', () => {
+    expect(layout(1280, 720).hello.y + WIN_META.hello.height).toBeLessThanOrEqual(
+      720 - DOCK_CLEARANCE,
+    );
   });
 });

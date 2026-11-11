@@ -130,6 +130,8 @@ export const HELLO_COPY = {
   verbSuffix: 'stuff.',
   hint: 'psst — click the verb',
   primary: "See what I've built",
+  about: 'More about me',
+  experience: "What I've been up to",
   secondary: 'Say hi',
 } as const;
 

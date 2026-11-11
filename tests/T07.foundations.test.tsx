@@ -101,7 +101,10 @@ describe('T07 AC2: new copy constants', () => {
       verbPrefix: 'I',
       verbSuffix: 'stuff.',
       hint: 'psst — click the verb',
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello.txt gains two buttons, so HELLO_COPY gains about and experience.
       primary: "See what I've built",
+      about: 'More about me',
+      experience: "What I've been up to",
       secondary: 'Say hi',
     });
   });

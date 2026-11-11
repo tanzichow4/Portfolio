@@ -60,6 +60,20 @@ export default function Hello({ dispatch }: { dispatch: Dispatch<AppAction> }) {
             {HELLO_COPY.primary}
           </span>
         </button>
+        <button
+          type="button"
+          className="hello-cta"
+          onClick={() => dispatch({ type: 'open', id: 'about' })}
+        >
+          <span className="btn btn-secondary hello-cta-face">{HELLO_COPY.about}</span>
+        </button>
+        <button
+          type="button"
+          className="hello-cta"
+          onClick={() => dispatch({ type: 'open', id: 'exp' })}
+        >
+          <span className="btn btn-secondary hello-cta-face">{HELLO_COPY.experience}</span>
+        </button>
         <a className="hello-cta" href={`mailto:${EMAIL}`}>
           <span className="btn btn-secondary hello-cta-face">{HELLO_COPY.secondary}</span>
         </a>
