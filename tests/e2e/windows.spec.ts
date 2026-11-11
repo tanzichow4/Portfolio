@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openAllFromDock } from './helpers/openAll';
 
 const watchErrors = (page: Page): string[] => {
   const errors: string[] = [];
@@ -16,10 +17,14 @@ test.use({ colorScheme: 'dark' });
 type Id = 'hello' | 'about' | 'exp' | 'proj' | 'term' | 'site';
 const DEFAULT5: Id[] = ['hello', 'about', 'exp', 'proj', 'term'];
 // Heights from the T07 plan (WIN_META after the coder's measurements).
+const ABOUT_H = 396;
 const HEIGHTS: Record<Id, number> = {
-  hello: 420,
-  about: 331,
-  exp: 290,
+  // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello now wraps its four buttons onto two rows, so WIN_META.hello.height is 473 (AC17).
+  hello: 473,
+  // DELIBERATE REQUIREMENT CHANGE (T16 AC9): the 'See some data viz' button makes about taller, so WIN_META.about.height is the new measured value.
+  about: ABOUT_H,
+  // DELIBERATE REQUIREMENT CHANGE (T17 AC14): experience window grows from 290 to 400 (AC11).
+  exp: 400,
   proj: 385,
   term: 270,
   site: 282,
@@ -67,6 +72,8 @@ const chooseItem = async (page: Page, menu: string, item: string) => {
 const load = async (page: Page, size?: { width: number; height: number }) => {
   if (size) await page.setViewportSize(size);
   await page.goto('/');
+  // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock first.
+  await openAllFromDock(page);
   await page.evaluate(() => document.fonts.ready);
   await expect(win(page, 'hello')).toBeVisible();
 };
@@ -219,7 +226,8 @@ test.describe('T07 window contents, cross-window', () => {
     const errors = watchErrors(page);
     await load(page);
     await raise(page, 'exp');
-    const d = await box(panel(page).locator('.exp-desc'));
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC4): p.exp-desc is replaced by ul.exp-stats.
+    const d = await box(panel(page).locator('.exp-stats'));
     await page.mouse.move(d.x + 2, d.y + 4);
     await page.mouse.down();
     await page.mouse.move(d.x + d.width - 4, d.y + d.height - 4, { steps: 8 });
@@ -321,16 +329,25 @@ test.describe('T07 window contents, cross-window', () => {
     const errors = watchErrors(page);
     await load(page);
     await openSite(page);
-    const tile = (i: number) => win(page, 'proj').locator('a').nth(i);
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC5): tiles are .proj-open buttons, not links.
+    const tile = (i: number) => win(page, 'proj').locator('.proj-open').nth(i);
     const orders: Record<Id, Locator[]> = {
       hello: [
         minBtn(page, 'hello'),
         closeBtn(page, 'hello'),
         verb(page),
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the two new hello buttons add two tab stops, so 5 -> 7.
         win(page, 'hello').getByRole('button', { name: "See what I've built" }),
+        win(page, 'hello').getByRole('button', { name: 'More about me' }),
+        win(page, 'hello').getByRole('button', { name: "What I've been up to" }),
         win(page, 'hello').getByRole('link', { name: 'Say hi' }),
       ],
-      about: [minBtn(page, 'about'), closeBtn(page, 'about')],
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC6): about's body adds the 'See some data viz' stop.
+      about: [
+        minBtn(page, 'about'),
+        closeBtn(page, 'about'),
+        win(page, 'about').getByRole('button', { name: 'See some data viz' }),
+      ],
       exp: [minBtn(page, 'exp'), closeBtn(page, 'exp'), tabs(page).first(), panel(page)],
       proj: [minBtn(page, 'proj'), closeBtn(page, 'proj'), tile(0), tile(1), tile(2), tile(3)],
       term: [minBtn(page, 'term'), closeBtn(page, 'term'), input(page)],
@@ -347,7 +364,9 @@ test.describe('T07 window contents, cross-window', () => {
       expect(count, `${id} stop count`).toBe(orders[id].length);
     }
     expect(await tile(3).count()).toBe(1);
-    expect(await win(page, 'proj').locator('a').count()).toBe(4);
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC5): four tile buttons and no links in the list.
+    expect(await win(page, 'proj').locator('.proj-open').count()).toBe(4);
+    expect(await win(page, 'proj').locator('a').count()).toBe(0);
 
     for (const id of Object.keys(orders) as Id[]) {
       const stops = orders[id];
@@ -435,7 +454,8 @@ test.describe('T07 window contents, cross-window', () => {
     }
     expect(seen.has('about')).toBe(false);
     expect(seen.has('term')).toBe(false);
-    expect(seen.get('hello')?.size).toBe(5);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the two new hello buttons add two tab stops, so 5 -> 7.
+    expect(seen.get('hello')?.size).toBe(7);
     expect(seen.get('exp')?.size).toBe(4);
     expect(seen.get('proj')?.size).toBe(6);
     expect(errors).toEqual([]);
@@ -627,6 +647,9 @@ test.describe('T07 window contents, cross-window', () => {
     await verb(page).click();
     await verb(page).click();
     expect((await verb(page).innerText()).trim()).not.toBe(firstVerb);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello is now 473px tall and covers the third tab, so raise
+    // the experience window before clicking it.
+    await raise(page, 'exp');
     await tabs(page).nth(2).click();
     await expect(tabs(page).nth(2)).toHaveAttribute('aria-selected', 'true');
     await raise(page, 'term');

@@ -11,6 +11,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Desktop from '../src/Desktop';
+import { openAllFromDock } from './helpers/openAll';
 
 const html = document.documentElement;
 const reset = () => {
@@ -194,6 +195,8 @@ describe('wallpaper (AC25)', () => {
       throw new Error('denied');
     });
     const { container } = render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     expect(bg(container)).toContain('--wall-nebula');
     expect(document.querySelectorAll('[data-win]')).toHaveLength(5);
   });
@@ -327,11 +330,16 @@ describe('minimized windows stay unreachable (AC36)', () => {
   it('AC36: Minimize all leaves every window button inert and out of the accessibility tree', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await choose(user, 'Windows', 'Minimize all');
     const buttons = Array.from(document.querySelectorAll<HTMLElement>('[data-win] button'));
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds two native buttons, 10 -> 12;
     // the experience body adds three native tab buttons, 12 -> 15.
-    expect(buttons).toHaveLength(15);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello gains two buttons, 15 -> 17.
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC5): about gains the "See some data viz" button, 17 -> 18.
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC5): the four projects tiles are native buttons, 18 -> 22.
+    expect(buttons).toHaveLength(22);
     for (const b of buttons) expect(b.closest('[inert]')).not.toBeNull();
     for (const w of document.querySelectorAll<HTMLElement>('[data-win]')) {
       expect(w).toHaveAttribute('aria-hidden', 'true');
@@ -346,12 +354,16 @@ describe('minimized windows stay unreachable (AC36)', () => {
       'experience.log',
       'projects',
       'terminal',
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC18): the dock gains a dataviz button after terminal.
+      'dataviz',
     ]);
   });
 
   it('AC36: the Windows menu can bring a minimized window back', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await choose(user, 'Windows', 'Minimize all');
     await choose(user, 'Windows', 'terminal');
     expect(winEl('term')).toHaveAttribute('data-min', 'false');

@@ -6,9 +6,10 @@ import css from '../../src/windows/Projects.css?raw';
 import Desktop from '../../src/Desktop';
 import { stripComments } from '../helpers/cssTokens';
 import { topRule, reducedRule } from '../helpers/cssScope';
-import { PROJECTS, WIN_BAR_TITLES } from '../../src/data';
+import { PROJECTS, PROJECT_LABELS, WIN_BAR_TITLES } from '../../src/data';
 import { WIN_META } from '../../src/logic/windows';
 import { linkAttrs } from '../../src/logic/menu';
+import { openAllFromDock } from '../helpers/openAll';
 
 const clean = stripComments(css);
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
@@ -35,24 +36,28 @@ describe('T07 Projects body: structure', () => {
     expect(container.textContent?.trim().length).toBeGreaterThan(0);
   });
 
-  it('T07 AC31: a list with one link tile per PROJECTS entry, in order', () => {
+  // DELIBERATE REQUIREMENT CHANGE (T18 AC5): tiles are native buttons, not links, so the tile control is a button inside each li.
+  it('T07 AC31: a list with one button tile per PROJECTS entry, in order', () => {
     render(<Projects />);
     const list = screen.getByRole('list');
     const items = within(list).getAllByRole('listitem');
     expect(items).toHaveLength(PROJECTS.length);
-    const links = within(list).getAllByRole('link');
-    expect(links).toHaveLength(PROJECTS.length);
+    const buttons = within(list).getAllByRole('button');
+    expect(buttons).toHaveLength(PROJECTS.length);
+    expect(within(list).queryAllByRole('link')).toHaveLength(0);
     PROJECTS.forEach((p, i) => {
-      expect(items[i].contains(links[i])).toBe(true);
-      expect(within(links[i]).getByRole('heading', { name: p.name })).toBeInTheDocument();
+      expect(items[i].contains(buttons[i])).toBe(true);
+      const h = within(items[i]).getByRole('heading', { name: p.name });
+      expect(h.contains(buttons[i])).toBe(true);
     });
   });
 
+  // DELIBERATE REQUIREMENT CHANGE (T18 AC5): scope moves from the link to the li, since the tile is no longer an anchor.
   it('T07 AC31: each tile shows name as a heading, description and every tag', () => {
     render(<Projects />);
-    const links = screen.getAllByRole('link');
+    const items = screen.getAllByRole('listitem');
     PROJECTS.forEach((p, i) => {
-      const tile = within(links[i]);
+      const tile = within(items[i]);
       expect(tile.getByRole('heading', { name: p.name })).toBeInTheDocument();
       expect(tile.getByText(p.desc)).toBeInTheDocument();
       for (const t of p.tags) {
@@ -60,24 +65,40 @@ describe('T07 Projects body: structure', () => {
         expect(tag).toHaveClass('tag');
         expect(tag).toHaveClass('tag-neutral');
       }
-      expect(links[i].querySelectorAll('.tag')).toHaveLength(p.tags.length);
+      expect(items[i].querySelectorAll('.tag')).toHaveLength(p.tags.length);
     });
   });
 
-  it('T07 AC32: each href comes from PROJECTS', () => {
-    render(<Projects />);
-    screen.getAllByRole('link').forEach((a, i) => {
-      expect(a.getAttribute('href')).toBe(PROJECTS[i].href);
-    });
+  // DELIBERATE REQUIREMENT CHANGE (T18 AC6): tiles no longer link out, so no list element has an href; detail-view links (none today) carry the data hrefs.
+  it('T07 AC32: each href comes from PROJECTS', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Projects />);
+    expect(container.querySelectorAll('[href]')).toHaveLength(0);
+    for (const p of PROJECTS) {
+      await user.click(screen.getByRole('button', { name: p.name }));
+      const anchors = Array.from(container.querySelectorAll('a'));
+      expect(anchors.map((a) => a.getAttribute('href'))).toEqual(
+        (p.links ?? []).map((l) => l.href),
+      );
+      await user.click(screen.getByRole('button', { name: PROJECT_LABELS.back }));
+    }
   });
 
-  it('T07 AC32: target and rel come from linkAttrs (none for placeholder hrefs)', () => {
-    render(<Projects />);
-    screen.getAllByRole('link').forEach((a, i) => {
-      const want = linkAttrs(PROJECTS[i].href);
-      expect(a.getAttribute('target')).toBe(want.target ?? null);
-      expect(a.getAttribute('rel')).toBe(want.rel ?? null);
-    });
+  // DELIBERATE REQUIREMENT CHANGE (T18 AC12): target and rel now apply to detail-view links; the count must equal the data.
+  it('T07 AC32: target and rel come from linkAttrs (none for placeholder hrefs)', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Projects />);
+    for (const p of PROJECTS) {
+      await user.click(screen.getByRole('button', { name: p.name }));
+      const anchors = Array.from(container.querySelectorAll('a'));
+      expect(anchors).toHaveLength(p.links?.length ?? 0);
+      anchors.forEach((a, i) => {
+        const want = linkAttrs(p.links![i].href);
+        expect(a.getAttribute('target')).toBe(want.target ?? null);
+        expect(a.getAttribute('rel')).toBe(want.rel ?? null);
+      });
+      await user.click(screen.getByRole('button', { name: PROJECT_LABELS.back }));
+    }
     // The current data holds placeholders only, so no tile opens a new tab.
     expect(linkAttrs('#')).toEqual({});
   });
@@ -93,40 +114,43 @@ describe('T07 Projects body: structure', () => {
     });
   });
 
+  // DELIBERATE REQUIREMENT CHANGE (T18 AC6, AC9): the arrow is now a caret, and featured tiles add one Featured star (role img).
   it('T07 AC32: icons (project icon and arrow) are hidden from assistive technology', () => {
     const { container } = render(<Projects />);
-    const svgs = container.querySelectorAll('svg');
-    expect(svgs.length).toBe(PROJECTS.length * 2);
-    for (const s of svgs) expect(s.getAttribute('aria-hidden')).toBe('true');
+    const svgs = Array.from(container.querySelectorAll('svg'));
+    const featured = PROJECTS.filter((p) => p.featured).length;
+    expect(svgs.length).toBe(PROJECTS.length * 2 + featured);
+    const stars = svgs.filter((s) => s.getAttribute('role') === 'img');
+    expect(stars).toHaveLength(featured);
+    for (const s of stars) expect(s.getAttribute('aria-label')).toBe('Featured');
+    for (const s of svgs.filter((x) => x.getAttribute('role') !== 'img'))
+      expect(s.getAttribute('aria-hidden')).toBe('true');
   });
 
+  // DELIBERATE REQUIREMENT CHANGE (T18 AC6): the name is exactly the project name and the description is the accessible description.
   it('T07 AC32: the accessible name holds name and description as separate words', () => {
     render(<Projects />);
-    screen.getAllByRole('link').forEach((a, i) => {
+    const items = screen.getAllByRole('listitem');
+    screen.getAllByRole('button').forEach((b, i) => {
       const { name, desc } = PROJECTS[i];
-      const text = a.textContent ?? '';
-      // Name is followed by a word break before the description, never run together.
-      expect(text).toContain(name);
-      expect(text).toContain(desc);
-      const accessible = screen.getByRole('link', { name: new RegExp(name) }).textContent ?? '';
-      expect(accessible).toBe(text);
+      expect(b).toHaveAccessibleName(name);
+      expect(b).toHaveAccessibleDescription(expect.stringContaining(desc));
+      const text = items[i].textContent ?? '';
       expect(text.indexOf(desc)).toBeGreaterThan(text.indexOf(name) + name.length - 1);
     });
   });
 
+  // DELIBERATE REQUIREMENT CHANGE (T18 AC5): the control is a button inside the h2; tag whitespace is checked on the li.
   it('T07 AC32: the accessible name separates name, description and tags with whitespace', () => {
     render(<Projects />);
-    screen.getAllByRole('link').forEach((a, i) => {
-      const p = PROJECTS[i];
-      // The accessible-name computation joins block children with spaces; assert it reads as words.
-      const name = a.getAttribute('aria-label');
-      // No aria-label override: the name is computed from content with block separation.
-      expect(name).toBeNull();
-      const h = within(a).getByRole('heading');
+    const items = screen.getAllByRole('listitem');
+    PROJECTS.forEach((p, i) => {
+      const btn = within(items[i]).getByRole('button');
+      expect(btn.getAttribute('aria-label')).toBeNull();
+      const h = within(items[i]).getByRole('heading');
       expect(h.tagName).toBe('H2');
       expect(h.textContent).toBe(p.name);
-      // Adjacent tags are separated by a text space.
-      const tags = Array.from(a.querySelectorAll('.tag'));
+      const tags = Array.from(items[i].querySelectorAll('.tag'));
       for (let k = 1; k < tags.length; k++) {
         expect(tags[k].parentElement!.textContent).toMatch(/^\s/);
       }
@@ -142,6 +166,8 @@ describe('T07 Projects window: titlebar and names', () => {
   it('T07 AC34: the titlebar reads ~/projects while every other name stays projects', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, projects is closed at start, so open it from the dock.
+    openAllFromDock();
     const region = screen.getByRole('region', { name: 'projects' });
     expect(region.querySelector('.win-title')?.textContent).toBe('~/projects');
     expect(screen.queryByRole('region', { name: '~/projects' })).toBeNull();
@@ -159,6 +185,8 @@ describe('T07 Projects window: titlebar and names', () => {
 
   it('T07 AC34: the other windows keep their plain title in the titlebar', () => {
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the others from the dock.
+    openAllFromDock();
     for (const t of ['hello.txt', 'about.md', 'experience.log', 'terminal']) {
       const r = screen.getByRole('region', { name: t });
       expect(r.querySelector('.win-title')?.textContent).toBe(t);

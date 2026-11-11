@@ -88,3 +88,41 @@ Direction from Tanzi during this run: finish T08, defer T09 until after the MVP,
 - Assumptions: the switch is by width only, so 759 is phone and 760 is desktop; 760 to 1279px stays as it was; the résumé link opens a new tab, matching the menu rather than `linkAttrs`; the page has no theme toggle and no icons; tags use `.tag-outline` because filled tags nearly match the page in light mode.
 - Decision for you: a phone in landscape at 760px or wider (for example 844x390) gets the desktop at 390px high, with windows overlapping and the dock covering them, and nothing scrolls.
 - Gaps: real touch scrolling was exercised only in QA's iPhone emulation, not in the e2e suite; spacing is slightly uneven on the page; `tests/e2e/boot.spec.ts` boot timing failed once in a full run and then passed in 7 later runs, so it may be occasionally load-sensitive; most new tests had no mutation check. QA used scripted bundled Chromium.
+
+## Run on branch autobuild/2026-11-10 (round 2: T15-T18)
+
+Baseline before T15: GitHub link removed and tests updated on main (commits 1443f89, 4f84801). lint, typecheck, 1367 unit and 242 e2e all green.
+
+### T15 done
+
+- Shipped: only hello.txt opens on first load and after Restart; Tidy up still opens all five (reducer `tidy` and `restart` split, `tidyDesktop`); hello gets "More about me" and "What I've been up to" buttons (secondary style, same `open` action, copy in `HELLO_COPY`); `WIN_META.hello.height` 420 -> 473 because four buttons wrap to two rows.
+- Results: lint, typecheck, 1423 unit, 267 e2e green. QA: PASS (docs/qa/T15-qa.md), no fix rounds.
+- **Existing tests changed (review these):** many setup-only edits across unit and e2e specs, each marked `DELIBERATE REQUIREMENT CHANGE (T15 AC25)`, via new helpers `tests/helpers/openAll.ts` and `tests/e2e/helpers/openAll.ts`. Count/offset edits: hello tab stops +2, dock Tab total 31 -> 33, hello height 473. `phone.spec.ts` also needed setup, which the plan missed. No test deleted, skipped or weakened.
+- Assumptions: Tidy up stays "all open" (design spec); new buttons use `open`, not the dock toggle; no icons on new buttons.
+- Gaps: a newly opened window can cover hello's buttons until hello is raised; restoring a minimized window via a hello button was not walked by hand (unit and e2e cover it); QA used scripted Chromium; build and format:check not run by QA (format:check run by me).
+
+### T16 done
+
+- Shipped: about.md first paragraph rewritten (Tanzi's wording, two em phrases), "Currently building…" and facts unchanged; a "See some data viz" secondary button opens a new placeholder `viz` window (title `dataviz`, `ChartPieSlice` icon, "Coming soon", 280x160, starts closed, has a dock button and a Windows menu item); about height 331 -> 396; Windows menu now built from `DOCK_IDS`. Phone page shows the new copy, no viz.
+- Results: lint, typecheck, 1489 unit, 283 e2e green. QA: PASS (docs/qa/T16-qa.md), no fix rounds.
+- **Existing tests changed (review these):** dock/menu/start/boot/wiring/layout/window-list tests updated for six dock windows and a sixth menu item, hello/about tab stops, about height 396; each marked `DELIBERATE REQUIREMENT CHANGE (T16 ACn)`. Test helpers still open only the original five windows. No test deleted, skipped or weakened.
+- Assumptions: `INITIAL_ORDER` starts with `viz` so z-order is distinct after Tidy up; terminal `ls`/`open` do not know viz (`open viz` says no such file); viz sits at (960,158) so it does not cover the about button; plain `btn btn-secondary` for the about button (not the hello hover pattern).
+- Gaps: terminal `open viz` unsupported by design; QA did not check 1920x1080, reduced motion or light-mode manual walk of terminal Restart (e2e covers them); QA used scripted Chromium.
+
+### T17 done
+
+- Shipped: `desc` replaced by `stats: string[]` per role (desktop list and phone nested list); experience.log window 520x290 -> 600x400 (now at (64,244) at 1280x720, bottom exactly at the dock limit 644); `@ Company` is a light-purple pill via new tokens `--color-org-pill-bg` `#d2cefd` and `--color-org-pill-text` `#2b2741` (about 9.5:1, tested in both themes); the panel scrolls inside a fixed-height window.
+- Results: lint, typecheck, 1519 unit, 296 e2e green. QA: FAIL once, then PASS after one fix round (docs/qa/T17-qa.md). The failure was a font-load race in the T16 viz e2e test, fixed in tests only.
+- **Existing tests changed (review these):** exp height/width/position pins, `.exp-desc` -> `.exp-stats`, phone page list counts, and e2e click points on proj (`chrome.spec.ts`, `menubar.spec.ts`) plus a raise-first step in `dock.spec.ts` T06 AC13, because the bigger exp window now covers more of proj; each marked `DELIBERATE REQUIREMENT CHANGE (T17 ACn)`. No test deleted, skipped or weakened.
+- **Content to review (important):** there is no `experience/` folder in the repo, so no résumé was available. The stats are only the existing figures from the old `desc` text, split into bullets: Tartigrade 3, General Dynamics 3 (33 hours to 3, +80% coverage, deploy config automation), University of Calgary 1 (no figures). Nothing was invented, so you will likely want to add stronger numbers to `EXP[*].stats` in `src/data.ts`.
+- Assumptions: terminal `experience` output unchanged; phone page keeps plain `@ org` text, not a pill; after Tidy up hello covers more of exp than before.
+
+### T18 done
+
+- Shipped: project tiles are buttons (one tab stop each) that open an in-window detail view (back button, Escape, focus to Back on open and back to the tile on return, state resets on close/Restart); new optional `Project` fields `featured`, `details`, `highlights`, `links` with labels in `PROJECT_LABELS`; Indoor Garden is `featured` with a "Capstone project: …" detail text built only from its existing description and tags; a filled Phosphor Star ("Featured") on the tile, the detail view and the phone page; the project list scrolls inside the fixed 520x385 window with a token-only scroll bar.
+- Results: lint, typecheck, 1588 unit, 327 e2e green. QA: PASS (docs/qa/T18-qa.md), no fix rounds.
+- **Existing tests changed (review these):** Projects AC31/AC32 tile tests (links became buttons, href/target/rel checks moved to the detail view), per-window button counts in `Desktop.wiring`/`Desktop.menubar`/`chrome.spec.ts` (+4 tile buttons), `a.proj-tile` -> `.proj-tile`, the e2e `raise()` helper in `windows.motion.spec.ts` now skips tiles, phone page "no svg" now allows the one Featured star; each marked `DELIBERATE REQUIREMENT CHANGE (T18 ACn)`. No test deleted, skipped or weakened.
+- Content to review: only Indoor Garden has `details`; no project has `highlights` or `links`. `// TODO(Tanzi)` comments in `src/data.ts` mark the gaps, and nothing about them renders. Tile `href` values are still `#`; real links go in `links`.
+- Assumptions: the tile's external-link arrow became a caret because tiles no longer link out; no new src/logic module; terminal `projects` unchanged; no detail view on the phone page.
+- Possible flakiness (not reproduced): QA saw 1 of 1588 unit tests fail once (not identified; two reruns passed) and `start.spec.ts` T15 AC15 "What I've been up to never minimizes experience.log" time out once in a full e2e run (passed alone). Worth watching.
+- Observation from QA: in light mode the tags on list tiles show no pill background while the same tags in the detail view do. Possibly pre-existing (known `.tag-neutral` light-mode gap from T07).

@@ -17,7 +17,8 @@ const custom: Settings = { theme: 'light', wall: 'grid', wobble: false };
 
 /** An app where hello is minimized, term is closed and about has been dragged. */
 function busy(settings: Settings): App {
-  let a = initialApp(1280, 720, settings);
+  // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the all-open (Tidy up) state so closing term still changes something.
+  let a = appReducer(initialApp(1280, 720, settings), { type: 'tidy' });
   a = appReducer(a, { type: 'minimize', id: 'hello' });
   a = appReducer(a, { type: 'close', id: 'term' });
   a = appReducer(a, { type: 'move', id: 'about', x: 300, y: 200 });
@@ -138,7 +139,8 @@ describe('AC29: Restart and Tidy keep the settings', () => {
       expect(persistDiff(app.settings, next.settings)).toEqual([]);
       // The windows did reset.
       expect(next.desk.wins.hello.min).toBe(false);
-      expect(next.desk.wins.term.open).toBe(true);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): Restart now returns to the start state (terminal closed); Tidy up keeps it open.
+      expect(next.desk.wins.term.open).toBe(type === 'tidy');
     });
   }
 });
@@ -187,7 +189,8 @@ describe('appReducer delegation', () => {
     expect(app.desk.vw).toBe(1920);
     expect(app.desk.vh).toBe(1080);
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so term y at 1920x1080 is 700 (was 694).
-    expect(app.desk.wins.term).toMatchObject({ x: 1450, y: 700, open: true, min: false });
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the start state has only hello open, so the terminal starts closed.
+    expect(app.desk.wins.term).toMatchObject({ x: 1450, y: 700, open: false, min: false });
   });
 });
 

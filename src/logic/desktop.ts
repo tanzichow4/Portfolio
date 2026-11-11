@@ -1,7 +1,7 @@
 import type { State, Win, WinId } from '../types';
 import { clampPosition } from './drag';
 import { dockClickAction } from './dock';
-import { initialWindows } from './layout';
+import { initialWindows, tidyWindows } from './layout';
 import { raise } from './zorder';
 import { WIN_IDS, WIN_META } from './windows';
 
@@ -13,6 +13,11 @@ export type DesktopAction =
 
 export function initialDesktop(vw: number, vh: number): State {
   const { wins, order } = initialWindows(vw, vh);
+  return { wins, order, vw, vh };
+}
+
+export function tidyDesktop(vw: number, vh: number): State {
+  const { wins, order } = tidyWindows(vw, vh);
   return { wins, order, vw, vh };
 }
 
@@ -91,6 +96,7 @@ export function desktopReducer(state: State, action: DesktopAction): State {
     case 'showAll':
       return setAllMin(state, false);
     case 'tidy':
+      return tidyDesktop(state.vw, state.vh);
     case 'restart':
       return initialDesktop(state.vw, state.vh);
     case 'resize': {

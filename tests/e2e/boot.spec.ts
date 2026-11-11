@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openAllFromDock } from './helpers/openAll';
 
 const watchErrors = (page: Page): string[] => {
   const errors: string[] = [];
@@ -22,6 +23,17 @@ const slowBoot = async (page: Page) => {
 
 const WINS = ['hello', 'about', 'exp', 'proj', 'term'] as const;
 const win = (page: Page, id: string) => page.locator(`[data-win="${id}"]`);
+/**
+ * After Restart only hello is open. Assert that, then open the other four from the dock so the
+ * original per-window assertions can run unchanged.
+ */
+const expectOnlyHelloThenOpenAll = async (page: Page) => {
+  await expect(page.locator('[data-win]')).toHaveCount(1);
+  await expect(page.locator('[data-win="hello"]')).toBeVisible();
+  // DELIBERATE REQUIREMENT CHANGE (T16 AC16): dataviz is also closed after Restart.
+  await expect(page.locator('[data-win="viz"]')).toHaveCount(0);
+  await openAllFromDock(page);
+};
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Restarting tanzi.os' });
 const anyDialog = (page: Page) => page.locator('[role="dialog"]');
 const bar = (page: Page) => page.getByRole('banner');
@@ -164,6 +176,8 @@ test.describe('T08 first load and reload (AC1)', () => {
       }).observe(document, { childList: true, subtree: true });
     });
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     await page.waitForTimeout(300);
     await expect(anyDialog(page)).toHaveCount(0);
@@ -191,6 +205,8 @@ test.describe('T08 first load and reload (AC1)', () => {
     const errors = watchErrors(page);
     await slowBoot(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     await restartFromMenu(page);
     await expect(dialog(page)).toBeVisible();
@@ -212,6 +228,8 @@ test.describe('T08 boot from both entry points (AC2, AC5, AC8)', () => {
       const errors = watchErrors(page);
       await slowBoot(page);
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+      await openAllFromDock(page);
       await win(page, 'hello').waitFor();
       await installRecorder(page);
       if (entry === 'menu') await restartFromMenu(page);
@@ -222,6 +240,8 @@ test.describe('T08 boot from both entry points (AC2, AC5, AC8)', () => {
         '0',
       );
       await expect(dialog(page)).toHaveCount(0, { timeout: 4000 });
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after Restart only hello is open, so open the rest from the dock.
+      await expectOnlyHelloThenOpenAll(page);
       for (const id of WINS) await expect(win(page, id)).toBeVisible();
       const r = await recorded(page);
       expect(r.added).toHaveLength(1);
@@ -235,6 +255,8 @@ test.describe('T08 boot from both entry points (AC2, AC5, AC8)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/'); // real Math.random
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     await installRecorder(page);
     await restartFromMenu(page);
@@ -259,6 +281,8 @@ test.describe('T08 boot from both entry points (AC2, AC5, AC8)', () => {
       const errors = watchErrors(page);
       await slowBoot(page);
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+      await openAllFromDock(page);
       await win(page, 'hello').waitFor();
       if (th === 'light') await chooseItem(page, 'View', 'Light mode');
       expect(await theme(page)).toBe(th);
@@ -330,6 +354,8 @@ test.describe('T08 reduced motion (AC3)', () => {
       const errors = watchErrors(page);
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+      await openAllFromDock(page);
       await win(page, 'hello').waitFor();
       const fresh = await allPos(page);
       await installRecorder(page);
@@ -347,6 +373,8 @@ test.describe('T08 reduced motion (AC3)', () => {
 
       await expect(win(page, 'hello')).toBeVisible();
       await expect(win(page, 'hello')).toContainText('build');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after Restart only hello is open, so open the rest from the dock.
+      await expectOnlyHelloThenOpenAll(page);
       expect(await allPos(page)).toEqual(fresh);
       await page.waitForTimeout(1500); // longer than any boot
       const r = await recorded(page);
@@ -361,6 +389,8 @@ test.describe('T08 reduced motion (AC3)', () => {
     await slowBoot(page);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     await installRecorder(page);
     await restartFromMenu(page);
@@ -383,6 +413,8 @@ test.describe('T08 Restart end to end (AC30 section D)', () => {
       if (reduced) await page.emulateMedia({ reducedMotion: 'reduce' });
       else await slowBoot(page);
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+      await openAllFromDock(page);
       await win(page, 'hello').waitFor();
       const fresh = await allPos(page);
       const freshLines = await win(page, 'term').locator('.term-line').count();
@@ -420,6 +452,8 @@ test.describe('T08 Restart end to end (AC30 section D)', () => {
         await expect(dialog(page)).toHaveCount(0, { timeout: 4000 });
       }
 
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after Restart only hello is open, so open the rest from the dock.
+      await expectOnlyHelloThenOpenAll(page);
       for (const id of WINS) {
         await expect(win(page, id)).toBeVisible();
         await expect(win(page, id)).toHaveAttribute('data-min', 'false');
@@ -457,12 +491,16 @@ test.describe('T08 Restart end to end (AC30 section D)', () => {
     const errors = watchErrors(page);
     await slowBoot(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     for (const th of ['dark', 'light'] as const) {
       await chooseItem(page, 'View', th === 'light' ? 'Light mode' : 'Dark mode');
       await restartFromTerminal(page);
       await expect(dialog(page)).toBeVisible();
       await expect(dialog(page)).toHaveCount(0, { timeout: 4000 });
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after Restart only hello is open, so reopen the terminal for the next restart.
+      await expectOnlyHelloThenOpenAll(page);
       expect(await theme(page)).toBe(th);
       if (th === 'light') expect(await stored(page, 'tanzi-os:theme')).toBe(th);
     }
@@ -486,6 +524,8 @@ test.describe('T08 no fly-in after Restart (AC18)', () => {
     const errors = watchErrors(page);
     await slowBoot(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     // Close one window first so it is reopened by the reset.
     await page.getByRole('button', { name: 'Close hello.txt' }).click();
@@ -494,8 +534,9 @@ test.describe('T08 no fly-in after Restart (AC18)', () => {
     await expect(dialog(page)).toHaveCount(0, { timeout: 4000 });
     const r = await recorded(page);
     expect(r.atRemoval).not.toBeNull();
-    expect(Object.keys(r.atRemoval!).sort()).toEqual([...WINS].sort());
-    for (const id of WINS) {
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the reset commit now holds only hello, so the original no-transform check runs on it.
+    expect(Object.keys(r.atRemoval!).sort()).toEqual(['hello']);
+    for (const id of ['hello']) {
       expect(r.atRemoval![id].transform, id).toBe('none');
       expect(Number(r.atRemoval![id].opacity), id).toBe(1);
     }
@@ -534,6 +575,8 @@ test.describe('T08 no fly-in after Restart (AC18)', () => {
     const errors = watchErrors(page);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     await page.getByRole('button', { name: 'Close hello.txt' }).click();
     await restartFromMenu(page);
@@ -545,8 +588,9 @@ test.describe('T08 no fly-in after Restart (AC18)', () => {
       });
       return out;
     });
-    expect(Object.keys(snap).sort()).toEqual([...WINS].sort());
-    for (const id of WINS) {
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the reset now holds only hello, so the original no-transform check runs on it.
+    expect(Object.keys(snap).sort()).toEqual(['hello']);
+    for (const id of ['hello']) {
       expect(snap[id].transform, id).toBe('none');
       expect(Number(snap[id].opacity), id).toBe(1);
     }
@@ -561,6 +605,8 @@ test.describe('T08 input during a boot (AC21, AC22, AC24)', () => {
     const errors = watchErrors(page);
     await slowBoot(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     const verb = win(page, 'hello')
       .locator('button')
@@ -619,6 +665,8 @@ test.describe('T08 input during a boot (AC21, AC22, AC24)', () => {
     const errors = watchErrors(page);
     await slowBoot(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     await page.getByRole('button', { name: 'Minimize about.md' }).click();
     await restartFromMenu(page);
@@ -626,7 +674,13 @@ test.describe('T08 input during a boot (AC21, AC22, AC24)', () => {
     const states = await page.evaluate(() =>
       [...document.querySelectorAll('[data-win]')].map((el) => (el as HTMLElement).inert),
     );
-    expect(states).toEqual([false, false, false, false, false]);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after Restart only hello is open; open the rest, then keep the original five-window check.
+    expect(states).toEqual([false]);
+    await openAllFromDock(page);
+    const allStates = await page.evaluate(() =>
+      [...document.querySelectorAll('[data-win]')].map((el) => (el as HTMLElement).inert),
+    );
+    expect(allStates).toEqual([false, false, false, false, false]);
     expect(errors).toEqual([]);
   });
 
@@ -637,6 +691,8 @@ test.describe('T08 input during a boot (AC21, AC22, AC24)', () => {
       const errors = watchErrors(page);
       await slowBoot(page);
       await page.goto('/');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+      await openAllFromDock(page);
       await win(page, 'hello').waitFor();
       if (entry === 'pointer') await restartFromMenu(page);
       else {
@@ -673,6 +729,9 @@ test.describe('T08 focus and Tab order after Restart (AC25)', () => {
         const N = 14;
         const fresh = await tabSequence(page, N);
         expect(fresh[0]).toContain('tanzi.os');
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the fresh load shows only hello, so record the Tab sequence first, then open the
+        // other windows (the terminal is needed for the restart command, and zBefore needs windows).
+        await openAllFromDock(page);
 
         // Move things around, then restart.
         await page.getByRole('button', { name: 'Close hello.txt' }).click();
@@ -741,6 +800,9 @@ test.describe('T08 focus and Tab order after Restart (AC25)', () => {
     await win(page, 'hello').waitFor();
     const N = 14;
     const fresh = await tabSequence(page, N);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): record the fresh (hello only) sequence first, then open the terminal that types the
+    // restart command from the dock.
+    await openAllFromDock(page);
     await restartFromTerminal(page);
     await expect(trigger(page, 'tanzi.os')).toBeFocused();
     const after = [await describeActive(page), ...(await tabSequence(page, N - 1))];
@@ -756,6 +818,8 @@ test.describe('T08 drag through a boot (AC19)', () => {
     const errors = watchErrors(page);
     await slowBoot(page);
     await page.goto('/');
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock before dirtying state.
+    await openAllFromDock(page);
     await win(page, 'hello').waitFor();
     const fresh = await allPos(page);
     const tb = await box(win(page, 'hello').locator('.win-titlebar'));
@@ -773,6 +837,8 @@ test.describe('T08 drag through a boot (AC19)', () => {
     await page.mouse.move(sx + 200, sy + 90);
     await page.mouse.up();
     await page.waitForTimeout(300);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after the boot only hello is open, so open the rest from the dock.
+    await expectOnlyHelloThenOpenAll(page);
     expect(await allPos(page)).toEqual(fresh);
     expect(errors).toEqual([]);
   });

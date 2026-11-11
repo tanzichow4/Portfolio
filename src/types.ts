@@ -1,4 +1,4 @@
-export type WinId = 'hello' | 'about' | 'exp' | 'proj' | 'term' | 'site';
+export type WinId = 'hello' | 'about' | 'exp' | 'proj' | 'term' | 'viz' | 'site';
 export interface Win {
   x: number;
   y: number;

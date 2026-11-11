@@ -54,6 +54,13 @@ html.phone-view body {
   margin: 8px 0 0;
 }
 
+.phone-stats {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  list-style: disc;
+  color: var(--color-neutral-400);
+}
+
 .phone-em {
   font-style: normal;
   font-weight: 500;
@@ -93,6 +100,12 @@ html.phone-view body {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
+}
+
+.phone-star {
+  color: var(--color-accent);
+  vertical-align: -2px;
+  margin-left: 4px;
 }
 
 .phone-link {

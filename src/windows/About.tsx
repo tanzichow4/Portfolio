@@ -1,7 +1,9 @@
 import './About.css';
-import { ABOUT_COPY, FACTS } from '../data';
+import type { Dispatch } from 'react';
+import { ABOUT_COPY, ABOUT_LABELS, FACTS } from '../data';
+import type { AppAction } from '../logic/system';
 
-export default function About() {
+export default function About({ dispatch }: { dispatch: Dispatch<AppAction> }) {
   return (
     <div className="about-body">
       {ABOUT_COPY.map((para, i) => (
@@ -17,6 +19,13 @@ export default function About() {
           )}
         </p>
       ))}
+      <button
+        type="button"
+        className="btn btn-secondary about-viz"
+        onClick={() => dispatch({ type: 'open', id: 'viz' })}
+      >
+        {ABOUT_LABELS.viz}
+      </button>
       <ul className="about-facts">
         {FACTS.map(({ icon: FactIcon, label }) => (
           <li key={label} className="fact">

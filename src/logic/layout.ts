@@ -19,7 +19,7 @@ export function resolveView(desktopMatches: boolean | null, width: number): View
   return desktopMatches ? 'desktop' : 'phone';
 }
 
-export const INITIAL_ORDER: readonly WinId[] = ['proj', 'exp', 'term', 'about', 'hello'];
+export const INITIAL_ORDER: readonly WinId[] = ['viz', 'proj', 'exp', 'term', 'about', 'hello'];
 
 export function layout(vw: number, vh: number): Record<WinId, { x: number; y: number }> {
   const xClamp = (x: number, w: number) =>
@@ -35,6 +35,7 @@ export function layout(vw: number, vh: number): Record<WinId, { x: number; y: nu
     exp: { x: xClamp(vw * 0.05, w('exp')), y: yFit(Math.max(380, vh * 0.52), h('exp')) },
     proj: { x: xClamp(vw * 0.42, w('proj')), y: yFit(Math.max(300, vh * 0.38), h('proj')) },
     term: { x: xClamp(vw - 470, w('term')), y: yFit(Math.max(330, vh - 380), h('term')) },
+    viz: { x: xClamp(vw - 320, w('viz')), y: yFit(Math.max(140, vh * 0.22), h('viz')) },
     site: {
       x: Math.round(vw / 2 - 170) + 0,
       y: Math.max(MENUBAR_H, Math.round(vh / 2 - 180)) + 0,
@@ -42,14 +43,23 @@ export function layout(vw: number, vh: number): Record<WinId, { x: number; y: nu
   };
 }
 
-export function initialWindows(
-  vw: number,
-  vh: number,
-): { wins: Record<WinId, Win>; order: WinId[] } {
+export const START_OPEN: readonly WinId[] = ['hello'];
+
+type Built = { wins: Record<WinId, Win>; order: WinId[] };
+
+function buildWindows(vw: number, vh: number, isOpen: (id: WinId) => boolean): Built {
   const pos = layout(vw, vh);
   const wins = {} as Record<WinId, Win>;
   for (const id of WIN_IDS) {
-    wins[id] = { x: pos[id].x, y: pos[id].y, open: WIN_META[id].dock, min: false };
+    wins[id] = { x: pos[id].x, y: pos[id].y, open: isOpen(id), min: false };
   }
   return { wins, order: [...INITIAL_ORDER] };
+}
+
+export function initialWindows(vw: number, vh: number): Built {
+  return buildWindows(vw, vh, (id) => START_OPEN.includes(id));
+}
+
+export function tidyWindows(vw: number, vh: number): Built {
+  return buildWindows(vw, vh, (id) => WIN_META[id].dock);
 }

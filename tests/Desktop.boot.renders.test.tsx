@@ -52,6 +52,7 @@ vi.mock('../src/windows/WindowBody', async (orig) => {
 
 import Desktop from '../src/Desktop';
 import { initialApp } from '../src/logic/system';
+import { openAllFromDock } from './helpers/openAll';
 
 const input = () => screen.getByRole('textbox', { name: 'Terminal command', hidden: true });
 const tick = (n = 1) =>
@@ -93,6 +94,8 @@ describe('T08 progress ticks do not re-render the desktop (AC14)', () => {
         <Desktop />
       );
       render(ui);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       // Let the ready frame settle, then start the boot.
       act(() => {
         vi.advanceTimersByTime(50);

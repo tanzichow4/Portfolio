@@ -5,12 +5,14 @@ import PhonePage from '../src/PhonePage';
 import src from '../src/PhonePage.tsx?raw';
 import {
   ABOUT_COPY,
+  ABOUT_LABELS,
   EXP,
   EXPERIENCE_LABELS,
   FACTS,
   LINKS,
   NAME,
   PHONE_HEADINGS,
+  PROJECT_LABELS,
   PROJECTS,
   ROLE,
 } from '../src/data';
@@ -61,6 +63,16 @@ describe('T13 PhonePage content (AC10)', () => {
     expected.forEach((s, i) => expect(ems[i].textContent).toBe(s.text));
   });
 
+  it('T16 AC4: the About section shows the new first paragraph and the unchanged second one', () => {
+    render(<PhonePage />);
+    const about = section(PHONE_HEADINGS.about);
+    const paras = Array.from(about.querySelectorAll('p')).map((p) => p.textContent);
+    expect(paras).toContain(
+      "I'm a software engineer who enjoys seeing projects built from the ground up and making ideas come to life. I'm fascinated by random facts and love visualizing data.",
+    );
+    expect(paras).toContain('Currently building web platforms, automation and data tooling.');
+  });
+
   it('T13 AC10: every FACTS label is inside About, after the paragraphs', () => {
     render(<PhonePage />);
     const about = section(PHONE_HEADINGS.about);
@@ -76,14 +88,16 @@ describe('T13 PhonePage content (AC10)', () => {
     const exp = section(EXPERIENCE_LABELS.tablist);
     expect(within(exp).queryByRole('tab')).toBeNull();
     expect(within(exp).queryByRole('tablist')).toBeNull();
-    const items = within(exp).getAllByRole('listitem');
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC18): stats are nested ul/li, so count only the top-level items
+    const items = Array.from(exp.querySelectorAll<HTMLElement>(':scope ul.phone-list > li'));
     expect(items.length).toBe(EXP.length);
     EXP.forEach((e, i) => {
       const li = items[i];
       expect(within(li).getByRole('heading', { level: 3 }).textContent).toBe(e.role);
       expect(li.textContent).toContain(`${EXPERIENCE_LABELS.at} ${e.org}`);
       expect(li.textContent).toContain(e.when);
-      expect(li.textContent).toContain(e.desc);
+      // DELIBERATE REQUIREMENT CHANGE (T17 AC18): desc replaced by the stats list
+      for (const s of e.stats) expect(li.textContent).toContain(s);
       for (const t of e.tags) expect(within(li).getByText(t), t).toBeVisible();
     });
   });
@@ -114,7 +128,8 @@ describe('T13 PhonePage content (AC10)', () => {
   it('T13 AC10: tags in a row are separated by whitespace in textContent', () => {
     render(<PhonePage />);
     const exp = section(EXPERIENCE_LABELS.tablist);
-    const first = within(exp).getAllByRole('listitem')[0];
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC18): take the top-level item, stats are nested lists
+    const first = Array.from(exp.querySelectorAll<HTMLElement>(':scope ul.phone-list > li'))[0];
     const joined = EXP[0].tags.join(' ');
     expect(first.textContent).toContain(joined);
   });
@@ -223,15 +238,17 @@ describe('T13 PhonePage AC21: real lists', () => {
       [PHONE_HEADINGS.links, LINKS.length],
     ];
     for (const [name, n] of counts) {
-      const list = within(section(name)).getByRole('list');
-      expect(within(list).getAllByRole('listitem').length, name).toBe(n);
+      // DELIBERATE REQUIREMENT CHANGE (T17 AC18): experience has nested stat lists, so use the first (top-level) list and count its direct items
+      const list = within(section(name)).getAllByRole('list')[0];
+      expect(list.querySelectorAll(':scope > li').length, name).toBe(n);
     }
   });
 
   it('T13 AC21: every ul keeps list semantics explicitly', () => {
     const { container } = render(<PhonePage />);
     const uls = container.querySelectorAll('ul');
-    expect(uls.length).toBe(4);
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC18): one nested stats ul per experience entry
+    expect(uls.length).toBe(4 + EXP.length);
     uls.forEach((u) => expect(u.getAttribute('role')).toBe('list'));
   });
 });
@@ -265,9 +282,14 @@ describe('T13 PhonePage AC22: link attributes', () => {
 });
 
 describe('T13 PhonePage AC24: links', () => {
-  it('T13 AC24: no svg or img, and every link name equals its visible text', () => {
+  it('T13 AC24: no svg or img except the Featured star, and every link name equals its visible text', () => {
     const { container } = render(<PhonePage />);
-    expect(container.querySelector('svg')).toBeNull();
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC25): the only svg on the phone page is now the Featured star on Indoor Garden.
+    const svgs = container.querySelectorAll('svg');
+    expect(svgs.length).toBe(1);
+    expect(svgs[0].getAttribute('role')).toBe('img');
+    expect(svgs[0]).toHaveAccessibleName(PROJECT_LABELS.featured);
+    expect(svgs[0].closest('li')?.textContent).toContain('Indoor Garden');
     expect(container.querySelector('img')).toBeNull();
     const links = screen.getAllByRole('link');
     expect(links.length).toBe(PROJECTS.length + LINKS.length);
@@ -275,6 +297,51 @@ describe('T13 PhonePage AC24: links', () => {
       const text = (a.textContent ?? '').trim();
       expect(text.length).toBeGreaterThan(0);
       expect(screen.getAllByRole('link', { name: text }).includes(a)).toBe(true);
+    }
+  });
+});
+
+describe('T18 PhonePage Featured star (AC24, AC25)', () => {
+  const indoor = () => {
+    const { container } = render(<PhonePage />);
+    const li = screen.getByRole('link', { name: 'Indoor Garden' }).closest('li') as HTMLElement;
+    return { container, li };
+  };
+
+  it('T18 AC24: exactly one svg[role=img] named Featured, in the Indoor Garden h3 but outside its link', () => {
+    const { container, li } = indoor();
+    const stars = container.querySelectorAll('svg[role="img"]');
+    expect(stars.length).toBe(1);
+    expect(stars[0]).toHaveAccessibleName('Featured');
+    expect(li.contains(stars[0])).toBe(true);
+    expect(stars[0].closest('h3')).not.toBeNull();
+    expect(stars[0].closest('a')).toBeNull();
+  });
+
+  it('T18 AC24: the star is not focusable and has no tabindex', () => {
+    const { container } = indoor();
+    const star = container.querySelector('svg[role="img"]') as Element;
+    expect(star.hasAttribute('tabindex')).toBe(false);
+    expect(star.getAttribute('focusable')).not.toBe('true');
+  });
+
+  it('T18 AC24: non-featured projects show no star and the link name equals its visible text', () => {
+    const { container } = render(<PhonePage />);
+    for (const p of PROJECTS.filter((x) => !x.featured)) {
+      const li = screen.getByRole('link', { name: p.name }).closest('li') as HTMLElement;
+      expect(li.querySelector('svg')).toBeNull();
+    }
+    const link = screen.getByRole('link', { name: 'Indoor Garden' });
+    expect(link.textContent?.trim()).toBe('Indoor Garden');
+    expect(container.querySelectorAll('svg').length).toBe(1);
+  });
+
+  it('T18 AC25: no buttons and no details text on the phone page', () => {
+    const { container } = render(<PhonePage />);
+    expect(container.querySelector('button')).toBeNull();
+    for (const p of PROJECTS) {
+      if (p.details) expect(container.textContent).not.toContain(p.details);
+      for (const h of p.highlights ?? []) expect(container.textContent).not.toContain(h);
     }
   });
 });
@@ -332,5 +399,66 @@ describe('T13 PhonePage AC11/AC24/AC27: source checks', () => {
     ]) {
       expect(src, w).not.toContain(w);
     }
+  });
+});
+
+describe('T16 PhonePage has no data viz entry', () => {
+  it('T16 AC22: no viz button, link or dataviz text on the phone page', () => {
+    const { container } = render(<PhonePage />);
+    expect(container.textContent).not.toContain(ABOUT_LABELS.viz);
+    expect(container.textContent?.toLowerCase()).not.toContain('dataviz');
+    expect(screen.queryByRole('button', { name: ABOUT_LABELS.viz })).toBeNull();
+    expect(screen.queryByRole('link', { name: /data ?viz/i })).toBeNull();
+    expect(container.querySelector('[data-win]')).toBeNull();
+  });
+});
+
+describe('T17 PhonePage experience stats (AC18, AC19)', () => {
+  const topItems = () => {
+    render(<PhonePage />);
+    const exp = section(EXPERIENCE_LABELS.tablist);
+    return {
+      exp,
+      items: Array.from(exp.querySelectorAll(':scope ul.phone-list > li')) as HTMLElement[],
+    };
+  };
+
+  it('T17 AC18: each entry has one nested ul[role=list] whose li texts equal stats in order', () => {
+    const { items } = topItems();
+    EXP.forEach((e, i) => {
+      const nested = items[i].querySelectorAll('ul');
+      expect(nested.length).toBe(1);
+      expect(nested[0].getAttribute('role')).toBe('list');
+      const texts = Array.from(nested[0].querySelectorAll(':scope > li')).map((l) => l.textContent);
+      expect(texts).toEqual(e.stats);
+    });
+  });
+
+  it('T17 AC18: stats come after the when line and before the tags', () => {
+    const { items } = topItems();
+    EXP.forEach((e, i) => {
+      const li = items[i];
+      const ul = li.querySelector('ul') as HTMLElement;
+      const when = within(li).getByText(e.when);
+      const tag = within(li).getByText(e.tags[0]);
+      expect(follows(when, ul)).toBe(true);
+      expect(follows(ul, tag)).toBe(true);
+    });
+  });
+
+  it('T17 AC18: no phone-desc in the experience section and nothing focusable', () => {
+    const { exp } = topItems();
+    expect(exp.querySelector('.phone-desc')).toBeNull();
+    expect(exp.textContent).not.toContain('Software engineering degree');
+    expect(within(exp).queryAllByRole('button')).toHaveLength(0);
+    expect(within(exp).queryAllByRole('tab')).toHaveLength(0);
+    expect(exp.querySelectorAll('a, button, input, [tabindex]').length).toBe(0);
+  });
+
+  it('T17 AC19: projects still render their desc in .phone-desc', () => {
+    render(<PhonePage />);
+    const proj = section(PHONE_HEADINGS.projects);
+    const descs = Array.from(proj.querySelectorAll('.phone-desc')).map((d) => d.textContent);
+    expect(descs).toEqual(PROJECTS.map((p) => p.desc));
   });
 });

@@ -3,6 +3,7 @@ import type { WinId } from './types';
 import {
   Briefcase,
   ChartLineUp,
+  ChartPieSlice,
   Code,
   EnvelopeSimple,
   Folder,
@@ -25,7 +26,7 @@ export interface Exp {
   when: string;
   role: string;
   org: string;
-  desc: string;
+  stats: string[];
   tags: string[];
 }
 export interface Project {
@@ -34,6 +35,10 @@ export interface Project {
   href: string;
   desc: string;
   tags: string[];
+  featured?: boolean;
+  details?: string;
+  highlights?: string[];
+  links?: { label: string; href: string }[];
 }
 export interface LinkItem {
   label: string;
@@ -60,28 +65,39 @@ export const EXP: Exp[] = [
     when: '2026 — Now',
     role: 'Software Developer',
     org: 'Tartigrade Ltd.',
-    desc: 'Led onboarding for a multi-tenant web platform and built a natural-language-to-SQL engine on a local model. Also wrote a security review.',
+    stats: [
+      'Led onboarding for a multi-tenant web platform',
+      'Built a natural-language-to-SQL engine on a local model',
+      'Wrote a security review',
+    ],
     tags: ['React', 'Express', 'Keycloak', 'LLMs'],
   },
   {
     when: '2024 — 2026',
     role: 'Software Developer / Tester',
     org: 'General Dynamics Mission Systems',
-    desc: 'Redesigned a legacy system, cutting runtime from 33 hours to 3. Automated deploy config in Python and raised coverage by 80% with PyTest.',
+    stats: [
+      'Redesigned a legacy system, cutting runtime from 33 hours to 3',
+      'Raised coverage by 80% with PyTest',
+      'Automated deploy config in Python',
+    ],
     tags: ['Python', 'PyTest', 'GitLab CI/CD'],
   },
   {
     when: '2021 — 2026',
     role: 'B.Sc. Software Engineering',
     org: 'University of Calgary',
-    desc: 'Software engineering degree, with IoT, data and ML projects.',
+    stats: ['IoT, data and ML projects'],
     tags: ['Software Engineering', 'IoT', 'ML'],
   },
 ];
 
+// TODO(Tanzi): add `links` (real project URLs) per project; none exist in the repo yet.
+// TODO(Tanzi): add `highlights` per project once there is a source (resume or notes).
 // `icon` is a Phosphor component
 export const PROJECTS: Project[] = [
   {
+    // TODO(Tanzi): add `details` for Voice Calendar.
     name: 'Voice Calendar',
     icon: Microphone,
     href: '#',
@@ -94,8 +110,12 @@ export const PROJECTS: Project[] = [
     href: '#',
     desc: 'IoT garden monitoring, live dashboard for 10+ sensors.',
     tags: ['Docker', 'React'],
+    featured: true,
+    details:
+      'Capstone project: IoT garden monitoring with a live dashboard for 10+ sensors, built with Docker and React.',
   },
   {
+    // TODO(Tanzi): add `details` for Grocery Prices.
     name: 'Grocery Prices',
     icon: ChartLineUp,
     href: '#',
@@ -103,6 +123,7 @@ export const PROJECTS: Project[] = [
     tags: ['Airflow', 'Spark'],
   },
   {
+    // TODO(Tanzi): add `details` for Driver Safety.
     name: 'Driver Safety',
     icon: Smiley,
     href: '#',
@@ -130,6 +151,8 @@ export const HELLO_COPY = {
   verbSuffix: 'stuff.',
   hint: 'psst — click the verb',
   primary: "See what I've built",
+  about: 'More about me',
+  experience: "What I've been up to",
   secondary: 'Say hi',
 } as const;
 
@@ -142,9 +165,11 @@ export interface AboutSegment {
 export const ABOUT_COPY: AboutSegment[][] = [
   [
     {
-      text: "I'm a software engineer who enjoys the whole arc of a project — the sketch, the gnarly middle, and the ",
+      text: "I'm a software engineer who enjoys seeing projects built from the ground up and ",
     },
-    { text: 'last pixel', em: true },
+    { text: 'making ideas come to life', em: true },
+    { text: ". I'm fascinated by random facts and love " },
+    { text: 'visualizing data', em: true },
     { text: '.' },
   ],
   [
@@ -153,6 +178,8 @@ export const ABOUT_COPY: AboutSegment[][] = [
     { text: '.' },
   ],
 ];
+
+export const VIZ_COPY = { body: 'Coming soon' } as const;
 
 export const SITE_COPY = {
   mark: 'TC',
@@ -168,7 +195,15 @@ export const BOOT_COPY = {
   done: 'tanzi.os restarted',
 } as const;
 
+export const ABOUT_LABELS = { viz: 'See some data viz' } as const;
+
 export const EXPERIENCE_LABELS = { tablist: 'Experience', at: '@' } as const;
+export const PROJECT_LABELS = {
+  back: 'Back to projects',
+  featured: 'Featured',
+  highlights: 'Highlights',
+  links: 'Links',
+} as const;
 
 export const PHONE_HEADINGS = { about: 'About', projects: 'Projects', links: 'Links' } as const;
 
@@ -186,6 +221,7 @@ export const WIN_TITLES: Readonly<Record<WinId, string>> = {
   exp: 'experience.log',
   proj: 'projects',
   term: 'terminal',
+  viz: 'dataviz',
   site: 'About this site',
 };
 
@@ -195,6 +231,7 @@ export const WIN_ICONS: Readonly<Record<WinId, Icon>> = {
   exp: Briefcase,
   proj: Folder,
   term: TerminalWindow,
+  viz: ChartPieSlice,
   site: Info,
 };
 

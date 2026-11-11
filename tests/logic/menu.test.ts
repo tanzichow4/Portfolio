@@ -16,9 +16,13 @@ import { initialApp } from '../../src/logic/system';
 import { appReducer } from '../../src/logic/system';
 import type { Settings } from '../../src/logic/settings';
 import { EMAIL, WIN_TITLES } from '../../src/data';
+import { DOCK_IDS } from '../../src/logic/windows';
 
 const dflt: Settings = { theme: 'dark', wall: 'nebula', wobble: true };
-const desk = () => initialApp(1280, 720, dflt).desk;
+// DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the explicit all-open (Tidy up) state.
+const allOpen = (): ReturnType<typeof initialApp> =>
+  appReducer(initialApp(1280, 720, dflt), { type: 'tidy' });
+const desk = () => allOpen().desk;
 const ctx = (settings: Settings = dflt, wins = desk().wins) => ({ wins, settings });
 
 type Item = Extract<MenuEntry, { kind: 'item' }>;
@@ -58,6 +62,8 @@ describe('menuModel: Windows', () => {
       'experience.log',
       'projects',
       'terminal',
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC19): the Windows menu lists dataviz as its sixth window.
+      'dataviz',
       '---',
       'Minimize all',
       'Show all',
@@ -88,7 +94,8 @@ describe('menuModel: Windows', () => {
     });
   });
   it('AC19: checked means open and not minimized (open, minimized and closed)', () => {
-    let app = initialApp(1280, 720, dflt);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the all-open state.
+    let app = allOpen();
     app = appReducer(app, { type: 'minimize', id: 'about' });
     app = appReducer(app, { type: 'close', id: 'exp' });
     const m = menuModel('win', ctx(dflt, app.desk.wins));
@@ -99,7 +106,8 @@ describe('menuModel: Windows', () => {
     expect(find(m, 'terminal').checked).toBe(true);
   });
   it('AC19: with everything closed no window is checked', () => {
-    let app = initialApp(1280, 720, dflt);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the all-open state.
+    let app = allOpen();
     for (const id of ['hello', 'about', 'exp', 'proj', 'term'] as const)
       app = appReducer(app, { type: 'close', id });
     const m = items(menuModel('win', ctx(dflt, app.desk.wins))).slice(0, 5);
@@ -235,29 +243,29 @@ describe('index helpers', () => {
 
 describe('item navigation', () => {
   const win = menuModel('win', ctx());
-  // win: items at 0-4, separator at 5, items at 6-8.
+  // DELIBERATE REQUIREMENT CHANGE (T16 AC19): six window items now, so win: items at 0-5, separator at 6, items at 7-9.
   it('AC14: itemIndexes lists non-separator positions', () => {
-    expect(itemIndexes(win)).toEqual([0, 1, 2, 3, 4, 6, 7, 8]);
+    expect(itemIndexes(win)).toEqual([0, 1, 2, 3, 4, 5, 7, 8, 9]);
   });
   it('AC14: stepItem moves down and skips the separator', () => {
-    expect(stepItem(win, 4, 1)).toBe(6);
+    expect(stepItem(win, 5, 1)).toBe(7);
     expect(stepItem(win, 0, 1)).toBe(1);
   });
   it('AC14: stepItem moves up and skips the separator', () => {
-    expect(stepItem(win, 6, -1)).toBe(4);
+    expect(stepItem(win, 7, -1)).toBe(5);
     expect(stepItem(win, 3, -1)).toBe(2);
   });
   it('AC14: stepItem wraps at both ends', () => {
-    expect(stepItem(win, 8, 1)).toBe(0);
-    expect(stepItem(win, 0, -1)).toBe(8);
+    expect(stepItem(win, 9, 1)).toBe(0);
+    expect(stepItem(win, 0, -1)).toBe(9);
   });
   it('AC13/AC14: from -1, stepping down gives the first item and up gives the last', () => {
     expect(stepItem(win, -1, 1)).toBe(0);
-    expect(stepItem(win, -1, -1)).toBe(8);
+    expect(stepItem(win, -1, -1)).toBe(9);
   });
   it('AC14: firstItem and lastItem ignore separators', () => {
     expect(firstItem(win)).toBe(0);
-    expect(lastItem(win)).toBe(8);
+    expect(lastItem(win)).toBe(9);
     const view = menuModel('view', ctx());
     expect(firstItem(view)).toBe(0);
     expect(lastItem(view)).toBe(view.length - 1);
@@ -334,5 +342,26 @@ describe('linkAttrs', () => {
     expect(linkAttrs('/resume.pdf')).toEqual({});
     expect(linkAttrs('')).toEqual({});
     expect(linkAttrs('javascript:alert(1)')).toEqual({});
+  });
+});
+
+describe('T16 menuModel: dataviz window item', () => {
+  it('T16 AC19: the window items equal DOCK_IDS in order and open the matching window', () => {
+    const w = items(menuModel('win', ctx())).slice(0, DOCK_IDS.length);
+    expect(w.map((i) => i.label)).toEqual(DOCK_IDS.map((id) => WIN_TITLES[id]));
+    expect(w.map((i) => i.cmd)).toEqual(
+      DOCK_IDS.map((id) => ({ type: 'action', action: { type: 'open', id } })),
+    );
+    expect(w).toHaveLength(6);
+  });
+
+  it('T16 AC19: dataviz is checked only when viz is open and not minimized', () => {
+    const base = desk().wins;
+    const at = (viz: { open: boolean; min: boolean }) =>
+      find(menuModel('win', ctx(dflt, { ...base, viz: { ...base.viz, ...viz } })), 'dataviz');
+    expect(at({ open: true, min: false }).checked).toBe(true);
+    expect(at({ open: true, min: true }).checked).toBe(false);
+    expect(at({ open: false, min: false }).checked).toBe(false);
+    expect(at({ open: true, min: false }).role).toBe('menuitemcheckbox');
   });
 });

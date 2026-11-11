@@ -6,6 +6,7 @@ import { LINKS, WIN_TITLES } from '../src/data';
 import { layout } from '../src/logic/layout';
 import { DOCK_IDS, WIN_META } from '../src/logic/windows';
 import type { WinId } from '../src/types';
+import { openAllFromDock } from './helpers/openAll';
 
 const html = document.documentElement;
 const reset = () => {
@@ -42,9 +43,20 @@ const ALL_OPEN: Record<string, DockState> = {
   exp: 'Open',
   proj: 'Open',
   term: 'Open',
+  // DELIBERATE REQUIREMENT CHANGE (T16 AC18): openAllFromDock opens the five original windows only; viz starts Closed.
+  viz: 'Closed',
 };
 const states = (patch: Partial<Record<WinId, DockState>> = {}) =>
   ({ ...ALL_OPEN, ...patch }) as Record<WinId, DockState>;
+
+const START_CLOSED: Partial<Record<WinId, DockState>> = {
+  about: 'Closed',
+  exp: 'Closed',
+  proj: 'Closed',
+  term: 'Closed',
+  // DELIBERATE REQUIREMENT CHANGE (T16 AC16): viz also starts Closed.
+  viz: 'Closed',
+};
 
 async function choose(user: ReturnType<typeof userEvent.setup>, menu: string, item: string) {
   await user.click(trigger(menu));
@@ -100,6 +112,10 @@ describe('T06 dock on the desktop', () => {
     Object.defineProperty(window, 'innerHeight', { value: 720, configurable: true });
     try {
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC14): the helper opens five windows, so open viz from the dock too and the loop covers all six.
+      fireEvent.click(dockBtn('viz'));
       for (const id of DOCK_IDS) {
         const s = winEl(id)!.style;
         expect(parseFloat(s.top) + parseFloat(s.minHeight), id).toBeLessThanOrEqual(644);
@@ -112,7 +128,8 @@ describe('T06 dock on the desktop', () => {
 
   it('T06 AC15: initially all five windows read Open with full dots', () => {
     render(<Desktop />);
-    expectAll(states());
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): first load opens only hello (T15 AC1, AC5); the other four read Closed.
+    expectAll(states(START_CLOSED));
   });
 });
 
@@ -120,37 +137,49 @@ describe('T06 AC9 click outcomes through the full desktop', () => {
   it('T06 AC9: closed -> the window opens and becomes front-most', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(screen.getByRole('button', { name: 'Close terminal' }));
     expect(winEl('term')).toBeNull();
     expectDock('term', 'Closed');
     await user.click(dockBtn('term'));
     expect(winEl('term')).not.toBeNull();
     expect(winEl('term')).toHaveAttribute('data-min', 'false');
-    for (const id of DOCK_IDS.filter((i) => i !== 'term')) expect(z('term')).toBeGreaterThan(z(id));
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): viz is closed here, so only compare against windows that are mounted (the same five as before).
+    for (const id of DOCK_IDS.filter((i) => i !== 'term' && winEl(i)))
+      expect(z('term')).toBeGreaterThan(z(id));
     expectDock('term', 'Open');
   });
 
   it('T06 AC9: minimized -> the window restores and becomes front-most', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(screen.getByRole('button', { name: 'Minimize projects' }));
     expect(winEl('proj')).toHaveAttribute('data-min', 'true');
     expectDock('proj', 'Minimized');
     await user.click(dockBtn('proj'));
     expect(winEl('proj')).toHaveAttribute('data-min', 'false');
-    for (const id of DOCK_IDS.filter((i) => i !== 'proj')) expect(z('proj')).toBeGreaterThan(z(id));
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): viz is closed here, so only compare against windows that are mounted (the same five as before).
+    for (const id of DOCK_IDS.filter((i) => i !== 'proj' && winEl(i)))
+      expect(z('proj')).toBeGreaterThan(z(id));
     expectDock('proj', 'Open');
   });
 
   it('T06 AC9: open but not front-most -> it becomes front-most and keeps its position', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     // hello is front-most on load, so projects is behind it.
     expect(z('proj')).toBeLessThan(z('hello'));
     const before = pos('proj');
     await user.click(dockBtn('proj'));
     expect(winEl('proj')).toHaveAttribute('data-min', 'false');
-    for (const id of DOCK_IDS.filter((i) => i !== 'proj')) expect(z('proj')).toBeGreaterThan(z(id));
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): viz is closed here, so only compare against windows that are mounted (the same five as before).
+    for (const id of DOCK_IDS.filter((i) => i !== 'proj' && winEl(i)))
+      expect(z('proj')).toBeGreaterThan(z(id));
     expect(pos('proj')).toEqual(before);
     expectAll(states());
   });
@@ -158,6 +187,8 @@ describe('T06 AC9 click outcomes through the full desktop', () => {
   it('T06 AC9: open and front-most -> it minimizes', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(dockBtn('hello'));
     expect(winEl('hello')).toHaveAttribute('data-min', 'true');
     expectAll(states({ hello: 'Minimized' }));
@@ -224,6 +255,8 @@ describe('T06 AC15 dock stays in sync with every other route', () => {
   it('T06 AC15: the window Minimize and Close buttons', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(screen.getByRole('button', { name: 'Minimize about.md' }));
     expectAll(states({ about: 'Minimized' }));
     await user.click(screen.getByRole('button', { name: 'Close experience.log' }));
@@ -232,6 +265,8 @@ describe('T06 AC15 dock stays in sync with every other route', () => {
 
   it('T06 AC15: title-bar double-click', () => {
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     const bar = winEl('about')!.querySelector<HTMLElement>('.win-titlebar')!;
     fireEvent.doubleClick(bar);
     expectAll(states({ about: 'Minimized' }));
@@ -240,13 +275,18 @@ describe('T06 AC15 dock stays in sync with every other route', () => {
   it('T06 AC15: each Windows menu item restores or opens its window and the dock follows', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): open viz from the dock too, so the loop over every dock window can close and reopen it.
+    await user.click(dockBtn('viz'));
     for (const id of DOCK_IDS) {
       await user.click(screen.getByRole('button', { name: `Close ${WIN_TITLES[id]}` }));
       expectDock(id, 'Closed');
       await choose(user, 'Windows', WIN_TITLES[id]);
       expectDock(id, 'Open');
     }
-    expectAll(states());
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): viz was opened above, so it ends Open.
+    expectAll(states({ viz: 'Open' }));
     // From minimized too.
     await user.click(screen.getByRole('button', { name: 'Minimize projects' }));
     expectDock('proj', 'Minimized');
@@ -257,6 +297,8 @@ describe('T06 AC15 dock stays in sync with every other route', () => {
   it('T06 AC15: Minimize all, then Show all', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(screen.getByRole('button', { name: 'Close terminal' }));
     await choose(user, 'Windows', 'Minimize all');
     expectAll(
@@ -275,20 +317,33 @@ describe('T06 AC15 dock stays in sync with every other route', () => {
   it('T06 AC15: Tidy up and Restart reset the dock to all open', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC16): Tidy up also opens viz and Restart closes it again, so track its expected state locally.
+    let viz: DockState = 'Closed';
     for (const label of ['Tidy up', 'Restart…']) {
       await user.click(screen.getByRole('button', { name: 'Close terminal' }));
       await user.click(screen.getByRole('button', { name: 'Minimize about.md' }));
-      expectAll(states({ term: 'Closed', about: 'Minimized' }));
+      expectAll(states({ term: 'Closed', about: 'Minimized', viz }));
       await choose(user, label === 'Restart…' ? 'tanzi.os' : 'Windows', label);
       // DELIBERATE REQUIREMENT CHANGE (T08 AC32): Restart now applies when the boot ends.
-      if (label === 'Restart…') await waitFor(() => expectAll(states()), { timeout: 3000 });
-      expectAll(states());
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): Restart returns to the start state (only hello open, T15 AC8); Tidy up still opens all five.
+      // After Restart the windows are opened from the dock again so the next loop pass starts from all open.
+      if (label === 'Restart…') {
+        await waitFor(() => expectAll(states(START_CLOSED)), { timeout: 3000 });
+        expectAll(states(START_CLOSED));
+        openAllFromDock();
+      }
+      viz = label === 'Restart…' ? 'Closed' : 'Open';
+      expectAll(states({ viz }));
     }
   });
 
   it('T06 AC15: the Windows menu checks follow a dock click', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     const checks = async () => {
       await user.click(trigger('Windows'));
       const out = Object.fromEntries(
@@ -315,6 +370,8 @@ describe('T06 AC16 dock links leave the desktop alone', () => {
   it('T06 AC16: clicking each link changes no window state and reaches the link', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(screen.getByRole('button', { name: 'Minimize about.md' }));
     await user.click(screen.getByRole('button', { name: 'Close terminal' }));
     const snapshot = states({ about: 'Minimized', term: 'Closed' });
@@ -338,6 +395,8 @@ describe('T06 AC25 and AC26 keyboard', () => {
   it('T06 AC25: Tab runs menubar, window controls, then the seven dock controls in order', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     const stops: HTMLElement[] = [];
     // DELIBERATE REQUIREMENT CHANGE: GitHub link removed per Tanzi (LINKS is now LinkedIn and Email). 33 -> 31 stops (one fewer menubar link, one fewer dock link).
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds three tab stops (verb,
@@ -347,33 +406,42 @@ describe('T06 AC25 and AC26 keyboard', () => {
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the projects body adds four tile links, so
     // 28 -> 32 stops and the dock starts at index 24.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the terminal body adds its input as a stop, so 32 -> 33 stops and the dock starts at index 25.
-    for (let i = 0; i < 31; i++) {
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello gains two buttons, so 31 -> 33 stops and the dock starts at index 26.
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): the dock gains a dataviz stop, 33 -> 34 stops; the dock still starts at index 26.
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC5): the about body gains the "See some data viz" stop, 34 -> 35 stops; the dock starts at index 27.
+    for (let i = 0; i < 35; i++) {
       await user.tab();
       stops.push(document.activeElement as HTMLElement);
     }
     expect(stops[0]).toBe(trigger('tanzi.os'));
     expect(stops[4]).toBe(screen.getByRole('button', { name: 'Minimize hello.txt' }));
-    const tail = stops.slice(24);
+    const tail = stops.slice(27);
     expect(tail.map((e) => e.getAttribute('aria-label'))).toEqual([
       'hello.txt',
       'about.md',
       'experience.log',
       'projects',
       'terminal',
+      'dataviz',
       'LinkedIn',
       'Email',
     ]);
     for (const e of tail) expect(dock().contains(e)).toBe(true);
     // Each is its own stop: no duplicates.
-    expect(new Set(stops).size).toBe(31);
+    expect(new Set(stops).size).toBe(35);
   });
 
   it('T06 AC25: tabbing back from the dock does not skip a control (shift+tab walks the same order)', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
     dockBtn('term').focus();
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): Tab from terminal now lands on the dataviz button, then LinkedIn; shift+tab walks back through viz and terminal.
+    await user.tab();
+    expect(document.activeElement).toBe(dockBtn('viz'));
     await user.tab();
     expect(document.activeElement).toBe(within(dock()).getByRole('link', { name: 'LinkedIn' }));
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(dockBtn('viz'));
     await user.tab({ shift: true });
     expect(document.activeElement).toBe(dockBtn('term'));
     await user.tab({ shift: true });
@@ -387,6 +455,8 @@ describe('T06 AC25 and AC26 keyboard', () => {
     it(`T06 AC25/AC26: ${name} activates a dock button and focus stays on it in all four outcomes`, async () => {
       const user = userEvent.setup();
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
 
       // closed -> open
       await user.click(screen.getByRole('button', { name: 'Close terminal' }));

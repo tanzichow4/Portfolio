@@ -64,7 +64,13 @@ export default function Experience() {
           {EXPERIENCE_LABELS.at} {entry.org}
         </div>
         <div className="exp-when">{entry.when}</div>
-        <p className="exp-desc">{entry.desc}</p>
+        <ul className="exp-stats" role="list">
+          {entry.stats.map((s) => (
+            <li key={s} className="exp-stat">
+              {s}
+            </li>
+          ))}
+        </ul>
         <div className="exp-tags">
           {entry.tags.map((t) => (
             <span key={t} className="tag tag-accent">

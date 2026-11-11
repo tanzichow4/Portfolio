@@ -9,6 +9,7 @@ import { WIN_META } from '../src/logic/windows';
 import { zIndexFor } from '../src/logic/zorder';
 import { INITIAL_ORDER } from '../src/logic/layout';
 import type { WinId } from '../src/types';
+import { openAllFromDock } from './helpers/openAll';
 
 const DOCK5: WinId[] = ['hello', 'about', 'exp', 'proj', 'term'];
 const original = { w: window.innerWidth, h: window.innerHeight };
@@ -29,6 +30,8 @@ afterEach(() => {
 describe('Desktop wiring', () => {
   it('AC20/AC23: renders the five dock windows at layout positions and no site window', () => {
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     const pos = layout(window.innerWidth, window.innerHeight);
     expect(document.querySelectorAll('[data-win]')).toHaveLength(5);
     for (const id of DOCK5) {
@@ -44,6 +47,8 @@ describe('Desktop wiring', () => {
 
   it('AC20: z-index comes from zIndexFor of the initial order', () => {
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     for (const id of DOCK5) {
       expect(box(id)!.style.zIndex).toBe(String(zIndexFor(id, INITIAL_ORDER)));
     }
@@ -51,12 +56,16 @@ describe('Desktop wiring', () => {
 
   it('AC20: each window is a labelled region named by its title from data.ts', () => {
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     const expected: Record<string, string> = {
       hello: 'hello.txt',
       about: 'about.md',
       exp: 'experience.log',
       proj: 'projects',
       term: 'terminal',
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC11): WIN_TITLES gains viz: dataviz.
+      viz: 'dataviz',
       site: 'About this site',
     };
     expect(WIN_TITLES).toEqual(expected);
@@ -72,6 +81,8 @@ describe('Desktop wiring', () => {
   // superseded by this stricter test (title, labelled region, exactly two labelled buttons).
   it('AC22 -> T04 AC5-AC7 (deliberate requirement change, supersedes the T03 no-buttons criterion): each window shows its title, a labelled region and exactly its labelled minimize and close buttons', () => {
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): the menubar adds exactly one native button (the
     // theme toggle). The window count stays 10 and every other button on the page is pinned.
     const winButtons = Array.from(document.querySelectorAll<HTMLElement>('[data-win]')).flatMap(
@@ -79,7 +90,10 @@ describe('Desktop wiring', () => {
     );
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds two native buttons (the verb
     // and "See what I've built"), so the window-button count goes from 10 to 12.
-    expect(winButtons).toHaveLength(12);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello gains "More about me" and "What I've been up to", 12 -> 14.
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC5): about gains the "See some data viz" button, 14 -> 15.
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC5): projects tiles are now four native buttons, 15 -> 19.
+    expect(winButtons).toHaveLength(19);
     const outside = screen.getAllByRole('button').filter((b) => !b.closest('[data-win]'));
     // DELIBERATE REQUIREMENT CHANGE (T06 AC30): the dock adds five native buttons after the
     // theme toggle, so the page-wide list pins the toggle and then the five dock buttons.
@@ -90,6 +104,8 @@ describe('Desktop wiring', () => {
       'experience.log',
       'projects',
       'terminal',
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC18): the dock gains a dataviz button after terminal.
+      'dataviz',
     ]);
     for (const id of DOCK5) {
       const title = WIN_TITLES[id];
@@ -108,8 +124,28 @@ describe('Desktop wiring', () => {
       // primary button after its two chrome buttons. Every other window keeps exactly two.
       expect(buttons.map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual(
         id === 'hello'
-          ? [`Minimize ${title}`, `Close ${title}`, 'build', "See what I've built"]
-          : [`Minimize ${title}`, `Close ${title}`],
+          ? [
+              `Minimize ${title}`,
+              `Close ${title}`,
+              'build',
+              "See what I've built",
+              'More about me',
+              "What I've been up to",
+            ]
+          : id === 'about'
+            ? // DELIBERATE REQUIREMENT CHANGE (T16 AC5): about adds its viz button after the chrome buttons.
+              [`Minimize ${title}`, `Close ${title}`, 'See some data viz']
+            : id === 'proj'
+              ? // DELIBERATE REQUIREMENT CHANGE (T18 AC5): the four project tiles are buttons named by project, after the chrome buttons.
+                [
+                  `Minimize ${title}`,
+                  `Close ${title}`,
+                  'Voice Calendar',
+                  'Indoor Garden',
+                  'Grocery Prices',
+                  'Driver Safety',
+                ]
+              : [`Minimize ${title}`, `Close ${title}`],
       );
       for (const b of buttons) expect(b).toHaveAttribute('type', 'button');
       expect(within(el).getByRole('button', { name: `Minimize ${title}` })).toBeInTheDocument();
@@ -129,6 +165,8 @@ describe('Desktop wiring', () => {
 
   it('AC23: after a smaller resize the positions are re-clamped', () => {
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     const before = Object.fromEntries(
       DOCK5.map((id) => [id, { x: px(box(id)!.style.left), y: px(box(id)!.style.top) }]),
     );
@@ -151,6 +189,8 @@ describe('Desktop wiring', () => {
 
   it('AC23: growing the viewport back does not move windows', () => {
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     setSize(600, 400);
     act(() => {
       window.dispatchEvent(new Event('resize'));
@@ -166,6 +206,8 @@ describe('Desktop wiring', () => {
   it('AC17: initial state is read lazily from the window size at mount', () => {
     setSize(1920, 1080);
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     expect(px(box('term')!.style.left)).toBe(1450);
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so term y at 1920x1080 is 700 (was 694).
     expect(px(box('term')!.style.top)).toBe(700);
@@ -204,6 +246,8 @@ describe('Desktop resize listener', () => {
 
   it('AC18: the listener dispatches the new inner size (mount-time size change is caught)', () => {
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, the terminal is closed at start, so open it from the dock.
+    openAllFromDock();
     setSize(900, 600);
     act(() => {
       window.dispatchEvent(new Event('resize'));

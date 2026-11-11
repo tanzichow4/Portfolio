@@ -21,7 +21,10 @@ const api: { dispatch: (a: DesktopAction) => void; state: State | null } = {
 };
 
 function Harness({ renderBody }: { renderBody?: (id: WinId) => React.ReactNode }) {
-  const [state, dispatch] = useReducer(desktopReducer, undefined, () => initialDesktop(1280, 720));
+  const [state, dispatch] = useReducer(desktopReducer, undefined, () =>
+    // // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the explicit all-open (Tidy up) state.
+    desktopReducer(initialDesktop(1280, 720), { type: 'tidy' }),
+  );
   useEffect(() => {
     api.dispatch = dispatch;
     api.state = state;
@@ -63,7 +66,8 @@ describe('T07 WindowLayer renderBody', () => {
         }}
       />,
     );
-    expect([...seen].sort()).toEqual(['about', 'exp', 'hello', 'proj', 'term']);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC17): the Tidy harness opens viz, so renderBody is also called for viz.
+    expect([...seen].sort()).toEqual(['about', 'exp', 'hello', 'proj', 'term', 'viz']);
     expect(document.querySelector('[data-testid="body-site"]')).toBeNull();
   });
 
@@ -98,7 +102,10 @@ describe('T07 AC2: new copy constants', () => {
       verbPrefix: 'I',
       verbSuffix: 'stuff.',
       hint: 'psst — click the verb',
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello.txt gains two buttons, so HELLO_COPY gains about and experience.
       primary: "See what I've built",
+      about: 'More about me',
+      experience: "What I've been up to",
       secondary: 'Say hi',
     });
   });

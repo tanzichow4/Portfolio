@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openAllFromDock } from './helpers/openAll';
 
 const watchErrors = (page: Page): string[] => {
   const errors: string[] = [];
@@ -17,11 +18,14 @@ test('AC24: at 1280x720 the five windows sit at the reference positions and site
 }) => {
   const errors = watchErrors(page);
   await page.goto('/');
+  // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello is open on load, so open the other windows from the dock first.
+  await openAllFromDock(page);
   const want = {
     hello: { x: 77, y: 72 },
     about: { x: 640, y: 64 },
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): exp height 300 -> 290, so y 344 -> 354.
-    exp: { x: 64, y: 354 },
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC12): exp height 290 -> 400, so y 354 -> 244.
+    exp: { x: 64, y: 244 },
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): proj height 330 -> 385, so y 300 -> 644 - 385 = 259.
     proj: { x: 538, y: 259 },
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so y 334 -> 340.
@@ -38,6 +42,8 @@ test('AC24: at 1280x720 the five windows sit at the reference positions and site
 
 test('AC24: windows are labelled regions with their titles', async ({ page }) => {
   await page.goto('/');
+  // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+  await openAllFromDock(page);
   for (const name of ['hello.txt', 'about.md', 'experience.log', 'projects', 'terminal']) {
     await expect(page.getByRole('region', { name, exact: true })).toBeVisible();
   }
@@ -50,6 +56,8 @@ test('AC24: 1920x1080 then resize to 1280x720 moves term to 1200,660 and keeps a
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/');
+  // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+  await openAllFromDock(page);
   // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so term y at 1920x1080 is 700 (was 694).
   expect(await pos(page, 'term')).toMatchObject({ x: 1450, y: 700 });
 
@@ -76,6 +84,8 @@ test('T07 AC47: the About this site window renders within 2px of its 340x282 hei
 }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('/');
+  // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
+  await openAllFromDock(page);
   await page.getByRole('menuitem', { name: 'tanzi.os', exact: true }).click();
   await page.getByRole('menu').locator('[role^="menuitem"]').first().click();
   const w = page.locator('[data-win="site"]');

@@ -359,3 +359,20 @@ describe('banner and email', () => {
     expect(count).toBe(1);
   });
 });
+
+describe('T16 viz is not openable from the terminal', () => {
+  it('T16 AC20: open viz and open dataviz print no-such-file with no effect', () => {
+    for (const n of ['viz', 'dataviz']) {
+      const r = runCommand(`open ${n}`);
+      expect(r.lines[1]).toEqual(dim(`open: no such file: ${n}`));
+      expect(r.effects).toEqual([]);
+    }
+  });
+
+  it('T16 AC20: ls does not list viz or dataviz', () => {
+    const text = runCommand('ls')
+      .lines.map((l) => l.text)
+      .join('\n');
+    expect(text).not.toMatch(/viz/i);
+  });
+});

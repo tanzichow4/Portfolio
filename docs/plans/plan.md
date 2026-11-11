@@ -1,322 +1,208 @@
-# T13 plan: phone fallback page (<760px)
+# T18 plan: project detail view, scrolling project list and a Featured star
 
-Source: `docs/plans/00-requirements.md` (Current state, Assumptions 1-9, AC1-AC34), `CLAUDE.md`, `docs/design-decisions.md` (decisions 3-5, 7, 11, 13), the responsive note in `design_handoff_tanzi_os/README.md`. Existing code read: `src/{main,Desktop}.tsx`, `src/theme.css`, `src/data.ts`, `src/storage.ts`, `src/logic/{layout,menu}.ts`, `src/hooks/reducedMotion.ts`, `src/windows/{About,Experience,Projects}.tsx`, `index.html`, `vite.config.ts`, `playwright.config.ts`, and every test that scans `src/`, reads `main.tsx` or sets a viewport.
+Source: `docs/plans/T18-requirements.md` (identical to `00-requirements.md`: Current state, Assumptions 1-10, AC1-AC29), `CLAUDE.md`, `docs/design-decisions.md` (decisions 5, 9, 11, 13) and the T17 plan's method. Code read: `src/data.ts` (`Project`, `PROJECTS`), `src/windows/{Projects.tsx,Projects.css}`, `src/Window.tsx` (`minHeight: meta.height`, `overflow: hidden`, `.win-body`), `src/PhonePage.tsx`, `src/theme.css` (accent, neutral ramps, global `:focus-visible`, `.btn-ghost`), `src/MenuBar.tsx` (only other Escape handler), `eslint.config.js` (no jsx-a11y). Tests grepped: every file under `tests/` that pins `a.proj-tile`, `.proj-*`, `locator('a')` in proj, project svg counts, phone `svg`, stop names and counts, plus the purity, copy-ban, token, dependency and contrast tests.
 
-T1-T4 below are tasks inside ticket T13, not backlog tickets.
+T1-T3 below are tasks inside ticket T18, not backlog tickets.
 
 ## 1. Goal and scope
 
-**Goal.** A viewport narrower than 760 CSS px gets a plain, scrolling, single-column page with name, about, experience, projects, links and résumé from `src/data.ts`, and the desktop is not mounted (decision 13). A viewport 760px or wider gets the existing desktop, unchanged.
+**Goal.** Activating a project tile swaps the projects grid for an in-window detail view (back button, Escape to go back, managed focus) built only from optional `Project` fields that restate facts already in the repo. The list scrolls inside the fixed 520x385 window with a token-styled scroll bar, and Indoor Garden (the capstone) shows a filled Phosphor `Star` named "Featured" on its tile, in its detail view and on the phone page.
 
-**Out of scope** (carried over):
-
-- The OS-style mobile design: window stack, tab-bar dock, TC menu (T11, and the README's responsive note).
-- A theme toggle, terminal, windows or any interactive feature on the phone page.
-- Any change to the 760 to 1279px range, including an "unsupported size" message.
-- A separate rule for phones in landscape wider than 760px, for short viewports, or for touch devices.
-- Code-splitting the desktop out of the phone bundle.
-- Preserving window state, scroll position or focus across a crossing.
-- Live following of a changed OS colour scheme on the phone page.
-- Real content and the résumé PDF (T10). The `<noscript>` summary and OG tags (decision 10, T12). The app-wide accessibility pass (T09).
-- Editing `docs/design-decisions.md` or `design_handoff_tanzi_os/`.
+**Out of scope** (carried over): inventing details, highlights, metrics, links, screenshots or repo URLs (`href` stays `'#'`); any terminal change; a detail view, buttons, highlights or links on the phone page; deep links or hash routing; persisting the selected project; changing `WIN_META.proj`, `layout()`, z-order, other windows or the titlebar text per view; animated list/detail transitions; new `PROJECTS` entries; styled scroll bars in other windows; editing `docs/design-decisions.md` or `design_handoff_tanzi_os/`.
 
 ## 2. Acceptance criteria
 
-Copied from `00-requirements.md` with the same numbers. No AC is added.
+Copied from `T18-requirements.md` with the same numbers. No AC is added. Two test-list gaps found by grep (`tests/e2e/windows.spec.ts` "a" count line 366 and the `.proj-arrow` CSS test) are handled in section 7a, not as new ACs.
 
-### A. Choosing the view
+### A. Data
 
-- **AC1** The view depends only on viewport width in CSS px. Width below 760 shows the phone page. Width 760 or more shows the desktop. Height, orientation, user agent and touch support are not consulted. Exact boundaries: 759 is phone, 760 is desktop, and a fractional width such as 759.5 is phone.
-- **AC2** The 760 breakpoint is defined in exactly one place in source. The width-to-view rule is a pure, unit-tested function, and any viewport read stays outside `src/logic`.
-- **AC3** On a load below 760px the desktop never mounts. From document start to settled, the DOM never contains the system menu bar, the dock, a window or the boot status region, including under StrictMode. No frame shows the desktop or an empty intermediate view once React has rendered.
-- **AC4** On a load at 760px or wider the phone page never mounts or paints, and the rendered desktop is the same as before this ticket.
-- **AC5** Resizing or rotating across 760 swaps the view with no reload, and the outgoing view is fully unmounted in the same commit that mounts the incoming one. No frame shows both views or neither. After the swap no console error or warning appears.
-- **AC6** Repeated or rapid crossings, including a return within one frame, end on the view matching the final width, with exactly one view mounted. Listeners registered by the switch are removed on unmount.
-- **AC7** Resizing or rotating without crossing 760 does not remount the current view. The phone page keeps its scroll position as the browser allows, and the desktop keeps its window state.
-- **AC8** Crossing into the phone page shows it from the top of the page. Crossing back shows a fresh desktop at the current viewport, with no page scrollbars and no leftover scroll offset visible. Window positions and window-local state are not preserved across a crossing, the same as a reload (decisions 4, 5). A Restart boot running at a crossing is discarded, with no further progress and no warning.
+- **AC1** `Project` in `src/data.ts` gains four optional fields: `featured?: boolean`, `details?: string`, `highlights?: string[]`, `links?: { label: string; href: string }[]`. `name`, `icon`, `href`, `desc` and `tags` stay required, and their values and the order of `PROJECTS` are unchanged.
+- **AC2** Indoor Garden has `featured: true` and a `details` string that contains the word `Capstone` (capital C) and otherwise restates only facts already in its `desc` and `tags` (IoT garden monitoring, live dashboard, 10+ sensors, Docker, React). No other project is featured.
+- **AC3** No new fact, number, tool, URL or claim is introduced: every `details`, `highlights` and `links` value present in `PROJECTS` uses only text already in that project's `desc`/`tags` (plus "Capstone" for Indoor Garden). Because no real project URLs exist in the repo, no project has `links`. Fields with no source are omitted (not empty strings, not empty arrays), and a `// TODO(Tanzi): ...` comment in `src/data.ts` marks each gap. No string value anywhere in `PROJECTS` contains `TODO`.
+- **AC4** All new visible copy (the back button label, the "Featured" accessible name, any detail section headings such as "Highlights" and "Links") lives in a labels constant in `src/data.ts` (for example `PROJECT_LABELS`), not in components.
 
-### B. Between 760px and 1280px
+### B. Project list (tiles)
 
-- **AC9** The range 760 to 1279px keeps today's behaviour: the desktop renders, with no message, redirect, scaling or layout change. It remains an unsupported size (decision 7). At 1280x720 and up, all existing unit and e2e tests pass unchanged.
+- **AC5** Each tile is a single native `<button type="button">` control (one tab stop per tile, no `<a>` in the list). The list still has one `li` per `PROJECTS` entry, in order, each showing the icon, the name as an `h2` heading, the `desc` and every tag (`.tag.tag-neutral`), and the markup is valid HTML (no heading or other block content inside the button).
+- **AC6** The tile button's accessible name is exactly the project name. Its accessible description contains the project `desc`, and for a featured project also contains "Featured". Clicking anywhere on the visible tile face, or pressing Enter or Space on the focused button, opens that project's detail view. The `ArrowUpRight` external-link arrow is removed from tiles (tiles no longer link out); any replacement affordance icon is decorative (`aria-hidden`).
+- **AC7** Tile hover lift/tilt, `--shadow-md`, pressed `scale(.97)`, the transition, the "only the face transforms" rule and the reduced-motion `transform: none` overrides behave as before (T07 AC8, AC9, AC33). The focus ring on a tile is visible and not clipped by the scroller or the window (T07 AC11 ring checks).
+- **AC8** Tile project icons stay decorative (`aria-hidden`). Non-featured tiles contain no star.
 
-### C. Content
+### C. Featured star
 
-- **AC10** The page shows, top to bottom, in this order:
-  1. `NAME` and `ROLE`.
-  2. About: every `ABOUT_COPY` paragraph, with `em` segments emphasized, then every `FACTS` label.
-  3. Experience: every `EXP` entry in array order, all visible at once with no tabs, showing role, `EXPERIENCE_LABELS.at` plus org, `when`, `desc` and all tags.
-  4. Projects: every `PROJECTS` entry in array order, showing name, `desc` and all tags, with the name as the link to `href`.
-  5. Links: every `LINKS` item by its visible text `label`, followed by the résumé link to `RESUME_URL`, labelled with `MENU_ITEMS.resume`.
-- **AC11** All copy comes from `src/data.ts`. Existing constants are reused wherever they fit. Only copy with no existing constant is added, which is expected to be just the section headings. The file-style `WIN_TITLES` values are not used as headings. No email, URL or label is hard-coded elsewhere, and the rendered text changes when the data does.
-- **AC12** The page has no theme toggle, terminal, windows, dock, menubar, boot screen, verb game, wallpaper or wobble.
+- **AC9** A featured project's tile and its detail view each render exactly one filled Phosphor `Star` (`weight="fill"`) exposed as `role="img"` with accessible name exactly `Featured` (from `src/data.ts`). It is not focusable and has no `tabindex`. Non-featured projects render no star anywhere.
+- **AC10** The star colour is a theme token (no hard-coded colour) and has at least 3:1 contrast (WCAG 1.4.11 non-text) against both `--color-bg` and `--color-surface` in dark and in light. This is verified by a unit test in `tests/contrast.test.ts` using `resolveTheme` and `contrastRatio`, one test per theme and background, ratio in the failure message.
 
-### D. Layout and scrolling
+### D. Detail view
 
-- **AC13** The page is a single column on a `--color-bg` background and uses existing tokens only, with no new colours and no change to any token value. Spacing, size and component choices are the planner's, within these criteria.
-- **AC14** The page scrolls vertically by touch, wheel and keyboard, and all content down to the résumé link can be reached.
-- **AC15** At widths 320, 375, 414 and 759, and at short landscape sizes such as 667x375, there is no horizontal scrolling. `document.documentElement.scrollWidth` is at most the viewport width, and long text and tag rows wrap.
-- **AC16** At 760 and up, `body` still does not scroll and all overflow behaviour of the desktop is unchanged. Below 760, text on the page is selectable. The desktop's `user-select: none` does not apply.
+- **AC11** Activating a tile replaces the list with that project's detail view inside the same window. The window's position, size (520x385), titlebar text (`~/projects`), region name (`projects`), z-order and minimize/close controls are unchanged. The list is not rendered (or is hidden from the accessibility tree and not focusable) while the detail view is shown.
+- **AC12** The detail view shows, in DOM order: a back button, the project icon (decorative), the name as an `h2` heading, the star if featured, the `desc`, then `details` as a paragraph if present, `highlights` as a `<ul>` with one `li` per string in order if present, the tags (`.tag`), and `links` as a list of anchors if present (each `href` from data, `target`/`rel` from `linkAttrs`). A missing field renders nothing: no empty element, no heading for an absent section, no placeholder or `TODO` text.
+- **AC13** The back button is a native `<button type="button">` with a visible text label from `src/data.ts` (for example "Back to projects"), any arrow icon `aria-hidden`. Activating it (click, Enter or Space) returns to the list.
+- **AC14** When the detail view opens (by click or keyboard), focus moves to the back button. When the user goes back (back button or Escape), the list is shown again and focus moves to the tile button of the project that was open, which is scrolled into view if needed.
+- **AC15** Pressing Escape while focus is anywhere inside the projects window and the detail view is shown goes back to the list (same result as AC14). Escape while the list is shown does nothing in the projects window: it does not close or minimize the window. Escape does not affect other windows, and Escape inside an open menubar menu still only closes the menu.
+- **AC16** In the detail view the tab stops inside the projects window are, in order: Minimize, Close, the back button, then each detail link (none with current data). No tile is focusable while the detail view is shown.
+- **AC17** With the current data the detail view fits in the window at 1280x720 without clipping the window chrome. If detail content is taller than the body, it scrolls vertically inside the window body (no horizontal scroll), never the page, and scrolling does not start a window drag.
+- **AC18** The selected project lives only in the `Projects` component (no new `Desktop` state or reducer action). Closing the window and reopening it (dock, Windows menu, hello "See what I've built", terminal `open projects`) shows the list. Restart also shows the list. Minimizing and restoring keeps whatever view was showing. Opening, going back and switching projects cause no console errors or warnings.
 
-### E. Theme
+### E. Scrolling list
 
-- **AC17** The page renders in whichever theme the existing no-flash init set: the stored preference, else `prefers-color-scheme`, else dark when storage throws. Dark and light both render correctly, with no flash of the other theme on load.
-- **AC18** The page never changes `<html data-theme>` and writes nothing to `localStorage`. Stored theme, wallpaper and wobble are the same after a phone session as before it.
-- **AC19** Crossing 760 in either direction leaves `<html data-theme>` unchanged, including a theme changed on the desktop in the current session while storage is throwing.
+- **AC19** The list area scrolls vertically (`overflow-y: auto`) inside the window body when tiles exceed the available height; there is no horizontal scroll and the page does not scroll. `WIN_META.proj` stays `{ width: 520, height: 385, dock: true }` and the rendered window height stays within 2px of 385 whatever the number of projects (verified with at least 8 projects, by mocking `PROJECTS` in a unit test and by injecting extra tiles in e2e). With the current four projects nothing visibly changes: same 2x2 grid, 10px gap, 14px padding, and the grid content still reaches within 2px of the window bottom.
+- **AC20** The scroll container adds no extra tab stop while it contains focusable tiles; tabbing to a tile below the fold scrolls it into view.
+- **AC21** The scroll bar is styled with theme tokens only (`scrollbar-width: thin` and `scrollbar-color: <thumb> <track>`), with no hard-coded colours (T07 AC7 check still passes). The thumb has at least 3:1 contrast against its track in dark and light, verified in `tests/contrast.test.ts`. The scroll bar has no motion.
 
-### F. Semantics and links
+### F. Unchanged surfaces
 
-- **AC20** The page has exactly one `h1`, whose text is `NAME`, and one `main` landmark. About, Experience, Projects and Links are each a `section` named by an `h2`. Each experience entry and project is headed by an `h3`. No heading level is skipped.
-- **AC21** Facts, experience entries, projects and links are real lists, and `html lang` stays `en`.
-- **AC22** Every `LINKS` and `PROJECTS` link uses `linkAttrs(href)`, so `http(s)` links open in a new tab with `rel="noopener noreferrer"` and `mailto:` and `#` links get neither attribute. The résumé link matches the existing menu item, with `target="_blank"` and `rel="noopener noreferrer"` (see Assumption 3).
+- **AC22** The terminal `projects` output is byte for byte unchanged; terminal tests pass without edits. `ls`, `open projects` and `help` are unchanged.
+- **AC23** Desktop tab order counts are unchanged while the list is shown: the projects window still has six stops (Minimize, Close, four tiles), named `Voice Calendar`, `Indoor Garden`, `Grocery Prices`, `Driver Safety` in the existing chrome e2e stop-name helper, and the whole-desktop count in `tests/Desktop.dock.test.tsx` stays 35.
 
-### G. Accessibility and motion
+### G. Phone page
 
-- **AC23** Every link is reachable by Tab in reading order, with the global `:focus-visible` ring visible and not clipped. The page has no positive `tabindex` and no focus trap.
-- **AC24** Icons, if used, are decorative (`aria-hidden`, not focusable), and every link has visible text as its accessible name.
-- **AC25** Each standalone link in the Projects and Links sections has a tap target at least 44 CSS px high.
-- **AC26** All text meets WCAG AA in both themes on the background it sits on, checked by unit tests using `tests/helpers/contrast.ts` for each text and background token pair the page uses, including any `color-mix` or `opacity` applied. Existing muted styles are not assumed to pass (see Assumption 7).
-- **AC27** Essentially no motion, with or without reduced motion: no CSS animation, no transition, no smooth scrolling and no scripted movement. A hover or focus style change is immediate. In e2e, `document.getAnimations()` is empty on the page, with both motion settings.
-- **AC28** The page does not disable pinch zoom, and the existing viewport meta tag stays as it is. Crossing 760 moves no focus programmatically and announces nothing.
+- **AC24** The phone page projects section shows the Featured star (filled Phosphor `Star`, `role="img"`, accessible name `Featured`, not focusable, token colour meeting AC10) for Indoor Garden only, placed outside the project name link so the link's accessible name still equals its visible text. Non-featured projects show no star.
+- **AC25** The phone page has no detail view: no buttons, no `details`, `highlights` or `links` content, and nothing else changes (name link with `p.href`, `phone-desc`, tags, four sections, heading structure, list counts, link-only interactivity, no horizontal overflow at 320px). The only svg on the phone page is the Featured star.
 
-### H. Constraints and quality
+### H. Tests and quality
 
-- **AC29** No new dependency in `package.json`.
-- **AC30** Unit and component tests cover AC1, AC2, AC10-AC12, AC17-AC18, AC20-AC22, AC24 and AC26, plus the view choice in an environment without `matchMedia` (jsdom), which must not throw and must render the desktop at jsdom's default width.
-- **AC31** Playwright, using explicit viewport sizes on top of the 1280x720 config, covers:
-  - no desktop in the DOM at any point on a phone load, using a mutation record from document start (AC3)
-  - the exact 759 and 760 boundary (AC1)
-  - crossing in both directions and a rotation-style swap of width and height, with no frame of both views (AC5, AC8)
-  - rapid crossings (AC6) and non-crossing resize keeping the view (AC7)
-  - vertical scroll and no horizontal overflow (AC14, AC15)
-  - theme from stored value and from emulated colour scheme, with no storage writes (AC17, AC18), and theme kept across a crossing (AC19)
-  - keyboard Tab order and link attributes in a real browser (AC22, AC23)
-  - no animations (AC27)
-  - no console errors or warnings
-- **AC32** QA screenshots the page at 375x667 in dark and light, and records the result in the QA report.
-- **AC33** No existing test is deleted, skipped or weakened. If a new `src/logic` module is added, adding it to the purity `EXPECTED` list is the one expected test edit. It must be commented and listed in the QA report as a deliberate requirement change.
-- **AC34** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass.
+- **AC26** Unit tests cover: AC1 to AC4 in `tests/data.test.ts`; AC5, AC6, AC8, AC9, AC11 to AC16 and AC18 in `tests/windows/Projects.test.tsx` plus a Desktop-level close/reopen and Restart test; AC19 with mocked extra projects; AC10 and AC21 in `tests/contrast.test.ts`; AC24 and AC25 in `tests/PhonePage.test.tsx`.
+- **AC27** Playwright at 1280x720 covers: open a detail view by click and by keyboard (Enter and Space), back button focused, back by button and by Escape with focus returned to the same tile (AC13 to AC15); the detail tab order (AC16); window still 520x385 at y 259 in list and detail view (AC11, AC19); the list scrolls inside the window with extra injected tiles, scroll bar computed `scrollbar-color` matches the tokens in dark and light (AC19, AC21); star visible with name `Featured` on Indoor Garden in the tile and detail, and on the phone page (AC9, AC24); no console errors or warnings.
+- **AC28** Existing tests that pin the old link tiles are updated, never deleted, skipped or weakened. Each edit carries `// DELIBERATE REQUIREMENT CHANGE (T18 ACn): <reason>` and is listed in the QA report and the autobuild log. The confirmed list is in section 7a.
+- **AC29** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass.
 
 ## 3. Architecture
 
-**Approach.** `main.tsx` renders a new `App`, which picks `<PhonePage />` or `<Desktop />` from a `useView()` hook. `Desktop`, its CSS and `theme.css` are not edited.
+**Approach.** Data, one component, CSS and the phone page. No `Desktop`, reducer, `Window`, terminal or `src/logic` change. No new logic module: the only "logic" is `selected: string | null` plus an Escape check, both trivial and DOM-bound. Adding a module would also force an edit to the exact module list in `tests/logic/purity.test.ts` (`EXPECTED`), which is not justified here.
 
-**View rule (AC1, AC2), added to `src/logic/layout.ts`.** It goes in the existing module, beside the other viewport-driven constants, so no new logic module exists and the purity `EXPECTED` list needs no edit.
+**`src/data.ts`** (AC1-AC4)
 
-- `export const PHONE_BREAKPOINT = 760;`: the only occurrence of `760` anywhere in `src/`, comments included.
-- ``export const DESKTOP_QUERY = `(min-width: ${PHONE_BREAKPOINT}px)`;``
-- `export type View = 'phone' | 'desktop';`
-- `viewForWidth(width: number): View`: `width < PHONE_BREAKPOINT ? 'phone' : 'desktop'`.
-- `resolveView(desktopMatches: boolean | null, width: number): View`: `null` means no media query is available, so it returns `viewForWidth(width)`. Otherwise `desktopMatches ? 'desktop' : 'phone'`.
-- Purity: this file must not contain the words `window` or `document` outside comments. No DOM read happens here.
+- `Project` adds `featured?: boolean; details?: string; highlights?: string[]; links?: { label: string; href: string }[]`.
+- Indoor Garden only: `featured: true`, `details: 'Capstone project: IoT garden monitoring with a live dashboard for 10+ sensors, built with Docker and React.'`
+- `// TODO(Tanzi): ...` comments (comments only, never values): above `PROJECTS` for `links` (no real URLs in the repo) and `highlights` (no résumé source), and one per non-featured project for `details`.
+- `export const PROJECT_LABELS = { back: 'Back to projects', featured: 'Featured', highlights: 'Highlights', links: 'Links' } as const;` next to `EXPERIENCE_LABELS`.
 
-**Viewport read, `src/hooks/useView.ts` (new).**
+**`src/windows/Projects.tsx`** (AC5-AC9, AC11-AC18)
 
-- `readDesktopQuery(): MediaQueryList | null` guards a missing or throwing `matchMedia` with the same `typeof` and `try/catch` as `reducedMotion.ts`.
-- `getSnapshot()` returns `resolveView(readDesktopQuery()?.matches ?? null, window.innerWidth)`. It returns a string, so React compares it by value.
-- `subscribe(cb)` adds `cb` as a `resize` listener on `window` and as a `change` listener on the query, and removes both in its cleanup (AC6). Write the query side as `mql?.addEventListener?.('change', cb)`, because older Safari has no `addEventListener` on `MediaQueryList` and a throw here would blank the page. The `resize` listener is what keeps those browsers and jsdom working.
-- `useView()` is `useSyncExternalStore(subscribe, getSnapshot)`, with `subscribe` and `getSnapshot` at module level so they are stable.
+- State: `const [selected, setSelected] = useState<string | null>(null)` (project name). Lives only here, so close/Restart (unmount) resets it and minimize (still mounted, `inert`) keeps it (AC18).
+- Root: `<div className="proj-body" ref={rootRef}>` holding either the list or the detail (conditional render, so the list is absent from the DOM in detail view, AC11, AC16).
+- Tile markup (valid HTML, AC5): `li.proj-item > div.proj-tile[onClick=open] > div.proj-face > [div.proj-top: icon(aria-hidden), Star (if featured), CaretRight.proj-arrow(aria-hidden)] [h2.proj-name > button.proj-open type=button aria-describedby="{descId} {starId?}" ref] [p.proj-desc id=descId] [div.proj-tags]`.
+  - The button sits inside the `h2`, so it holds only text and its accessible name is exactly `p.name` (AC6). The chrome e2e helper reads `textContent`, so names match unchanged (AC23).
+  - The click handler is on `.proj-tile` (the non-transforming host), so a click anywhere on the face, including the bottom edge while the face is lifted, opens the detail. Enter/Space on the button fire a `click` that bubbles to the same handler. One handler, no double fire.
+  - `CaretRight` replaces `ArrowUpRight` (decorative in-window affordance, AC6) and keeps the `.proj-arrow` class, so the existing colour test passes unedited.
+  - Ids from `useId()`.
+- Star: `<Star weight="fill" role="img" aria-label={PROJECT_LABELS.featured} className="proj-star" id={starId} />`. No `tabIndex`; the svg is not focusable (AC9).
+- Detail markup (AC12, AC13): `div.proj-detail > button.btn.btn-ghost.proj-back[type=button, ref] (ArrowLeft aria-hidden + PROJECT_LABELS.back)`, `div.proj-detail-head` (icon aria-hidden, `h2.proj-detail-name`, star if featured), `p.proj-detail-desc`, `details && p.proj-details`, `highlights?.length && (h3 + ul > li)`, `div.proj-tags` (same tag markup as tiles), `links?.length && (h3 + ul > li > a href {...linkAttrs(href)})`. Absent fields render nothing.
+- Focus (AC14): a `useEffect` on `selected`: if non-null, focus the back button. On back, store the name in a `returnTo` ref, set `selected` to null, and the effect focuses `tileRefs.current[name]` then clears `returnTo`. On first mount nothing is focused (no focus steal). Plain `focus()` scrolls the tile into the nearest scroller (no `scrollIntoView`, which jsdom lacks).
+- Escape (AC15): while `selected !== null`, a `document` `keydown` listener (cleaned up on change/unmount, same pattern as `MenuBar`) goes back when `e.key === 'Escape'` and `rootRef.current?.closest('[data-win]')?.contains(e.target as Node)`. This covers focus on the titlebar Minimize/Close too. Focus in a menubar menu is outside the window, so the menu keeps sole control. No listener when the list is shown, so Escape never closes or minimizes the window.
 
-Why these reads:
+**`src/windows/Projects.css`** (AC7, AC17, AC19-AC21)
 
-- `matchMedia` is the only exact read of a fractional width. `innerWidth` is rounded by the browser, so it could report 759.5 as 760 (AC1). `innerWidth` is only the fallback when `matchMedia` is absent.
-- `clientWidth` is forbidden because it excludes the scrollbar, and the phone page's own scrollbar could then flip the view. `visualViewport` is forbidden because pinch zoom would change it (AC1, AC28).
-- `useSyncExternalStore` reads during render, so the first commit is already the right view (AC3, AC4, Assumption 9). Store updates render synchronously and re-read the latest value, which covers AC5 and AC6. `useState` plus an effect would paint the wrong view first.
+- Fixed height, same proven pattern as T17 exp: `.win-body:has(> .proj-body) { position: relative; }`, `.proj-body { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: var(--color-neutral-500) var(--color-surface); }`. `Window` keeps `minHeight: 385`, so the window is exactly 385 whatever the content.
+- `.proj-grid` unchanged (2 columns, 10px gap, 14px padding), so the four tiles look the same and the padding keeps the 2px+2px focus ring inside the scroller.
+- `.proj-tile` keeps its rules plus `cursor: pointer`; hover/active/reduced-motion rules unchanged. `.proj-open` resets button styles without `all: unset` (`margin:0; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer`). Global `:focus-visible` gives the 2px accent ring. Add `.proj-tile:has(.proj-open:focus-visible) .proj-face { box-shadow: 0 0 0 2px var(--color-accent); }` so the whole tile reads as focused.
+- `.proj-star { color: var(--color-accent); }`. Detail: `.proj-detail { display:flex; flex-direction:column; gap:8px; padding:14px; }`, `.proj-back { align-self: flex-start; }`, head row flex with gap 8px, name 16px/500 `--color-text`, desc and details 13px `--color-neutral-400`. Tokens only, no hex/rgb, no `760`, no transitions on new rules.
 
-**`src/App.tsx` (new).** `const view = useView(); return view === 'phone' ? <PhonePage /> : <Desktop />;`. React replaces the two different element types in one commit, so the old view is fully unmounted with the new one mounted (AC5). A non-crossing resize returns the same snapshot and remounts nothing (AC7). `Desktop` unmount already clears its listeners, the boot interval and the timers (T08 AC12), which gives the discarded boot of AC8.
+**`src/PhonePage.tsx` + `PhonePage.css`** (AC24, AC25): inside the project `h3`, after the `a.phone-link`, render `{' '}<Star weight="fill" role="img" aria-label={PROJECT_LABELS.featured} className="phone-star" />` when `p.featured`. `.phone-star { color: var(--color-accent); vertical-align: -2px; margin-left: 4px; }`. No `tabIndex`, no focus or scroll calls (T13 source checks).
 
-**`src/main.tsx`.** Replace `import Desktop from './Desktop'` with `import App from './App'` and render `<App />` inside `StrictMode`. The three font imports stay exactly as they are.
+**Data and API changes.** Four optional `Project` fields, one labels constant. No new tokens, exports beyond `PROJECT_LABELS`, actions, state or storage.
 
-**Theme (AC17-AC19).** No code. The inline script sets `data-theme` before React, and `PhonePage` never reads or writes it, or storage. On a crossing to the desktop, `readSettings()` reads the attribute and `persistDiff` sees no difference, so nothing is written, and a session theme survives a throwing `setItem`.
-
-**Scroll scoping (AC14, AC16).** `theme.css` is untouched: `body { overflow: hidden }` and `html, body, #root { height: 100% }` stay as the default, so the desktop gets exactly the rules it has today. `PhonePage` opts out only while mounted:
-
-- `PhonePage` has `useLayoutEffect(() => { document.documentElement.classList.add('phone-view'); return () => document.documentElement.classList.remove('phone-view'); }, [])`. A layout effect runs in the commit, so the class and the page appear before the same paint, and the cleanup runs in the commit that mounts the desktop. StrictMode's add, remove, add is harmless.
-- `PhonePage.css` overrides, all prefixed so they cannot match without the class:
-  - `html.phone-view, html.phone-view body, html.phone-view #root { height: auto; }`. Specificity beats the `#root` rule in `theme.css`.
-  - `html.phone-view body { overflow: visible; }`, so the document itself scrolls.
-- Rejected alternatives:
-  - A CSS media query would be a second definition of the breakpoint (AC2).
-  - `body:has(.phone)` needs no JS, but on a browser without `:has` the phone content would be cut off with no way to scroll, and this page is the one served to arbitrary phones.
-  - An inner scroll container (`.phone { height: 100%; overflow: auto }`) would lose keyboard scrolling until focused and the browser's collapsing address bar.
-- No `overflow-x: hidden` anywhere: AC15 is met by wrapping, not clipping, and clipping would also threaten the focus ring (AC23).
-- AC8 holds without code. The document only overflows while the phone page is mounted, so the offset clamps to 0 when it unmounts, and a page mounted after the desktop starts at 0. Do not call `window.scrollTo` (jsdom logs an error for it, and it is unnecessary).
-
-**`src/PhonePage.tsx` (new), default export, no props, no state.** No icons, so AC24 holds trivially. Markup, top to bottom:
-
-- `main.phone` containing `div.phone-intro` with `h1.phone-name` (`NAME`) and `p.phone-role` (`ROLE`). Do not use a `<header>` element, so `header` selectors can only ever mean the desktop's menu bar.
-- Four `section.phone-section`, each with `aria-labelledby` pointing at its `h2.phone-h2`, using the fixed ids `phone-about`, `phone-experience`, `phone-projects`, `phone-links`.
-- About: heading `PHONE_HEADINGS.about`. Each `ABOUT_COPY` paragraph is `p.phone-para`, where `em` segments render as `<em className="phone-em">` and others as text. Then `ul.phone-facts` with one plain text `li` per `FACTS` label.
-- Experience: heading `EXPERIENCE_LABELS.tablist`. `ul.phone-list`, one `li` per entry: `h3.phone-h3` (role), `p.phone-meta` (`{EXPERIENCE_LABELS.at} {org}`), `p.phone-meta` (`when`), `p.phone-desc`, tags.
-- Projects: heading `PHONE_HEADINGS.projects`. `ul.phone-list`, one `li` per entry: `h3.phone-h3` holding `<a className="phone-link" href={p.href} {...linkAttrs(p.href)}>{p.name}</a>`, then `p.phone-desc`, tags.
-- Links: heading `PHONE_HEADINGS.links`. `ul.phone-links`, one `li` per `LINKS` item with `a.phone-link` and `{...linkAttrs(l.href)}` and `l.label`, then a final `li` with `<a className="phone-link" href={RESUME_URL} target="_blank" rel="noopener noreferrer">{MENU_ITEMS.resume}</a>` (Assumption 3).
-- Tags: a local, non-exported `Tags({ tags })` renders `div.phone-tags` with `<span className="tag tag-outline">` per tag, and a `{' '}` text node between them so assistive technology and `textContent` keep them apart, as `Projects.tsx` does.
-- Every `ul` has `role="list"`, because Safari drops list semantics under `list-style: none` (AC21).
-- Keys are array indexes. The lists are static, and T10's real data may repeat an org or a tag, which would otherwise produce a duplicate-key console error.
-
-**`src/PhonePage.css` (new), tokens only, every selector prefixed `.phone` or `html.phone-view`.**
-
-- `.phone`: `max-width: 640px; margin: 0 auto; padding: var(--space-8) var(--space-6); overflow-wrap: anywhere`. Background comes from the global `body` rule (`--color-bg`).
-- `.phone-name`: 32px, margin 0. `.phone-role`: neutral-400, margin 4px 0 0.
-- `.phone-section`: `margin-top: 40px`. `.phone-h2`: 20px, margin 0 0 12px. `.phone-h3`: 17px, margin 0.
-- `.phone-para`, `.phone-desc`: neutral-400. `.phone-para`: margin 0 0 12px. `.phone-desc`: margin 8px 0 0.
-- `.phone-em`: `font-style: normal; font-weight: 500; color: var(--color-text)`. Inter italic is not shipped, so a real italic is not an option.
-- `.phone-meta`: 13px, neutral-400, margin 2px 0 0.
-- `.phone-list`, `.phone-facts`, `.phone-links`: `list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column`. Gap is `var(--space-8)` on `.phone-list`, `var(--space-2)` on `.phone-facts`, 0 on `.phone-links`. `.phone-facts li`: neutral-400.
-- `.phone-tags`: `display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px`.
-- `.phone-link`: `display: inline-flex; align-items: center; min-height: 44px; max-width: 100%` (AC25). Global `a` gives the accent colour and underline.
-- No `transition`, `animation`, `scroll-behavior`, `opacity`, `color-mix`, `@media`, `user-select` or `touch-action`.
-
-**Colours (AC13, AC26).** Only three text tokens on one background, with no surface, no opacity and no mix: `--color-text`, `--color-neutral-400` and `--color-accent` on `--color-bg`. By hand in light mode, neutral-400 is about 5.0:1 and accent about 4.8:1; in dark, accent is about 5.5:1. `.text-muted`, `.card-meta` and `.card-body` are not used. Tags use `.tag-outline` (accent on the page background) because `--color-neutral-800` and `--color-accent-800` are almost the same as `--color-bg` in light mode, so the filled tag styles would lose their shape.
-
-**Copy (AC11), in `src/data.ts`.** `export const PHONE_HEADINGS = { about: 'About', projects: 'Projects', links: 'Links' } as const;`. Experience reuses `EXPERIENCE_LABELS.tablist` (Assumption 6).
-
-**Hard naming rule.** `tests/MenuBar.test.tsx` ("AC5: no email, link URL or menu copy is hard-coded outside data.ts") scans every `.ts` and `.tsx` file in `src/` except `data.ts`, **including comments and identifiers**, case-sensitively, for: `Restart`, `Tidy up`, `Minimize all`, `Show all`, `Terminal commands`, `Say hi`, `Dark mode`, `Light mode`, `System menu bar`, `Switch to light mode`, `Switch to dark mode`, `Wobbly windows`, `https://github.com`, `https://linkedin.com`, and the `EMAIL` and `RESUME_URL` values. `tests/logic/terminal.test.ts` also fixes the email literal to one occurrence, in `data.ts`. So import the constants, and do not write those strings in comments. `main.tsx` must also not contain `700`, `italic` or `variable` (`tests/fonts.test.ts`).
-
-**Files and public surface.**
-
-- New: `src/App.tsx`, `src/PhonePage.tsx`, `src/PhonePage.css`, `src/hooks/useView.ts`.
-- Edited: `src/main.tsx` (entry), `src/logic/layout.ts` (additions only), `src/data.ts` (one constant), `vite.config.ts` (add `/PhonePage\.css/` to `test.css.include`, as every component stylesheet has).
-
-**Data and API changes.** The additions above, plus the `phone-view` class on `<html>` while the page is mounted. No change to `Desktop`, `State`, reducers, storage or network.
-
-**Dependencies.** None added (AC29).
+**Dependencies.** None (`Star`, `CaretRight`, `ArrowLeft` come from the existing `@phosphor-icons/react`; the T13 AC29 dependency test stays green).
 
 ## 4. Design
 
-**User flow.** A visitor on a phone opens the site and sees the name and role, then scrolls through About, Experience, Projects and Links, ending at the résumé link. Links open as specified in AC22. Narrowing or widening past the breakpoint swaps views at once with no reload.
+**User flow.** The visitor opens projects (dock, Windows menu, hello "See what I've built", `open projects`). Four tiles as before; Indoor Garden has a small filled accent star at top right next to a caret. Clicking a tile (or Tab to it and Enter/Space) swaps the body to the detail: "Back to projects" ghost button at top (focused), then icon, name, star, desc, the capstone paragraph for Indoor Garden, tags. Back or Escape returns to the grid with focus on the same tile.
 
 **States.**
 
-- Loading: none of its own. `#root` is empty until the script runs, as today (Assumption 9), and the body already has the right theme background.
-- Empty: not designed. `tests/data.test.ts` requires the content lists to be non-empty, and the page has no fetch.
-- Error: no failure path in the page. A missing or throwing `matchMedia` falls back to `innerWidth`. Storage is never touched. The missing `/resume.pdf` and the `#` project links are T10 placeholders (Assumption 5).
-- Success: the page, in the current theme, with text selectable.
+- Loading: none (static data).
+- Empty: an empty `PROJECTS` renders an empty `ul` (not reachable with current data, no placeholder copy).
+- Error: none, nothing async. An unknown `selected` (not possible) falls back to the list.
+- Success: list view or detail view. A detail with only required fields still shows name, icon, desc and tags, never blank.
 
-**1280x720 and larger, and 760-1279px.** The desktop, unchanged. The `.phone` rules are inert because no matching element exists, and `html.phone-view` never applies.
+**1280x720 and larger.** Window unchanged at (x, 259), 520x385, bottom at the dock clearance. The list scrolls inside the body only when more than four projects exist; the detail fits with current data. Mobile is not built; the phone page only gains the star.
 
-**Below 760px (this ticket is the one that asks for it).** One column, capped at 640px and centered, at any height including 667x375.
+**Accessibility.** One tab stop per tile, name = project name, description = desc (+ "Featured"); headings preserved (`h2` per tile, `h2` in detail, `h3` only for present sections); focus moved on open and returned on back; Escape scoped to the window; star is `role="img"` named "Featured", non-focusable; other svgs `aria-hidden`; minimized window stays `inert` (existing). Contrast: star accent on bg/surface (dark about 5:1 and 6:1, light 4.8:1 and 5.4:1); scroll thumb `neutral-500` on `surface` (dark about 5:1, light about 5.2:1); text colours reuse already-tested pairs.
 
-**Accessibility.** One `h1`, one `main`, four labelled sections, `h3` per entry, real lists, native links in DOM order with the global focus ring, and 44px link height. Side padding (`--space-6`, 16.8px) leaves room for the 4px ring, and no ancestor clips. No focus moves or announcements at a crossing (Assumption 8, AC28). The viewport meta tag is not edited.
-
-**Reduced motion.** Nothing moves in either setting, so no special case is needed (AC27).
+**Reduced motion.** List/detail swap is instant. No new transitions. Existing tile `transform: none` overrides unchanged. Scroll bar has no motion.
 
 ## 5. Risk and security
 
-Auth, secrets and server data do not apply. There is no new input surface: all text is static `data.ts` content rendered as React text. `PROJECTS` and `LINKS` hrefs are developer-owned constants.
+No auth, input, network or secrets. All strings render as text; no `dangerouslySetInnerHTML` (guarded by the Terminal source test).
 
-- **R1. A wrong view painted first (AC3, AC4).** Safeguard: `useSyncExternalStore` read during render (T3). Unit test with a `Desktop` render counter at phone width under StrictMode; e2e mutation record from document start (T4).
-- **R2. The desktop's overflow or height changing (AC4, AC16).** Safeguard: `theme.css` not edited, every override prefixed `html.phone-view` (T2). A raw CSS test pins the prefix and pins the `theme.css` rules; e2e checks `body` overflow at 760 and after a crossing back (T4).
-- **R3. The class left behind after unmount, leaving the desktop scrollable (AC8, AC16).** Safeguard: the layout-effect cleanup (T2), tested on unmount, under StrictMode, and e2e after a crossing back.
-- **R4. Breakpoint disagreements or a scrollbar feedback loop (AC1, AC2).** Safeguard: one constant, no CSS media query, no `clientWidth` or `visualViewport` (T1, T3). A test scans `src/` for the number.
-- **R5. A fractional width misread (AC1).** Safeguard: `matchMedia` preferred over `innerWidth` (T3). Test: query says no match while `innerWidth` reports 760, the page is the phone page.
-- **R6. The switch throwing on an old browser, a blank page (AC30).** Safeguard: guarded read and optional `addEventListener` (T3). Tests with no `matchMedia`, a throwing one and one without `addEventListener`.
-- **R7. Text failing AA (AC26).** Safeguard: three token pairs only (T2). Contrast test, plus a raw CSS test that no other `color` value, `opacity` or `color-mix` appears, and a source test that the muted classes are not used.
-- **R8. Horizontal overflow from long text or tags (AC15).** Safeguard: `overflow-wrap: anywhere`, wrapping tag row, `max-width: 100%` on links (T2). The e2e injects a long unbroken string into a tag and paragraph at 320px as well as checking normal content.
-- **R9. Listener leaks (AC6).** Safeguard: `subscribe` cleanup (T3). Spies compare adds and removes under StrictMode after unmount.
-- **R10. Copy-ban and purity tests failing on new code.** Safeguard: the naming rule in section 3 and no DOM words in `layout.ts` (T1-T3).
-- **R11. An existing test tripping on the switch.** Checked in 7a: none does.
+- **R1. Invented claims (AC3).** Safeguard (T1 test): Indoor Garden `details` contains `Capstone`, `IoT`, `dashboard`, `10+`, `Docker`, `React`; every number in any `details`/`highlights` appears in that project's `desc`; no project has `links`; no `highlights` key; non-featured projects have no `details` key; no `TODO` in any string value.
+- **R2. Window height grows with content (AC19).** `Window` only sets `minHeight`. Safeguard: absolute `.proj-body` takes content out of flow; e2e injects 8 extra tiles and asserts 385 +/- 2.
+- **R3. Bottom-edge click misses while the face is lifted (AC6, T07 AC9).** Safeguard: the click handler lives on the non-transforming `.proj-tile`; the existing bottom-edge click e2e is kept and extended to assert the detail opened.
+- **R4. Focus ring clipped by the new scroller (AC7).** The T07 AC11 e2e walks every clipping ancestor. Safeguard: the button sits inside the face with 14px grid padding plus 14px face padding; the 4px ring cannot reach the scroller edge.
+- **R5. Escape conflicts (AC15).** The listener exists only in detail view and only acts when the event target is inside the projects window. Safeguard: unit tests for Escape in list view (no change, window still open), Escape from the Close button in detail view, Escape inside another window and with a menubar menu open.
+- **R6. `focus()` scrolling the overflow-hidden window section.** The nearest scroller (`.proj-body`) absorbs it; e2e checks the window box and `document.scrollingElement.scrollTop` stay put after back.
+- **R7. Copy-ban and purity.** New copy only in `PROJECT_LABELS`; no `src/logic` change; no email, URLs, `760` or banned menu strings added.
+- **R8. Unverified edit list.** This plan comes from grep, not a suite run. Safeguard: the test-writer runs each suite at the start of every task and reconciles 7a against real failures; a failure outside 7a is a regression to fix in `src/`, not a test edit.
 
 ## 6. Gaps check
 
-- **Auth:** none in this app, not applicable.
-- **Validation:** no input. `viewForWidth` takes a number from the browser.
-- **Error handling:** guarded `matchMedia` read with an `innerWidth` fallback. Nothing else can fail.
-- **Mobile:** this ticket is the requested mobile work, limited to the fallback page. T11 stays out of scope.
-- **Accessibility:** AC20-AC28, covered in sections 3 and 4.
-- **Config and env vars:** one `vite.config.ts` test-only line. No env vars.
-- **Tests:** logic, component, raw CSS, contrast and e2e, all in new files. See 7a for existing tests.
+- **Auth:** none in this app.
+- **Validation:** no user input; data shape validated by T1 tests.
+- **Error handling:** no failure path; unknown selection falls back to the list.
+- **Mobile:** not built; the phone page only adds the star (unit + 320px e2e).
+- **Accessibility:** section 4 (button semantics, names/descriptions, focus management, Escape, star `role="img"`, contrast tests).
+- **Config and env vars:** none.
+- **Tests:** data, Projects component (list, detail, focus, Escape, many-projects mock), Desktop close/reopen/Restart, contrast, phone, a new e2e spec, plus the 7a edits.
 
 ## 7. Tasks
 
-Coder edits `src/` plus the one `vite.config.ts` line in T2. Test-writer runs after coder on each task and owns `tests/`. Each task must leave lint, typecheck and unit tests green once test-writer has finished. New tests are named with a `T13 ACn:` prefix. Tests go in new files only, so the `git diff` of existing test files stays empty.
+The coder edits `src/` only, the test-writer owns `tests/`. Each task leaves `npm run lint`, `npm run typecheck`, `npm test` and `npm run format:check` green. New tests use a `T18 ACn:` prefix. Every edit to an existing test carries `// DELIBERATE REQUIREMENT CHANGE (T18 ACn): <reason>`.
 
-**Test-writer guidance for the view switch.**
+- **T1. Data fields, labels, star contrast, phone star.** ACs: AC1-AC4, AC10, AC21 (contrast part), AC24, AC25, AC26 (data, contrast, phone), AC28 (unit).
+  - Coder: `data.ts` type, Indoor Garden fields, TODO comments, `PROJECT_LABELS`; `PhonePage.tsx` star + `.phone-star` CSS. (The tile star waits for T2 so the tile svg test is edited once.)
+  - Test-writer: apply 7a "T1". New: `tests/data.test.ts` `describe('T18 project data')` (R1 checks, required fields and order deep-equal literals, only Indoor Garden featured, `PROJECT_LABELS` values); `tests/contrast.test.ts` `T18 AC10: ${theme}: star (accent) on bg|surface >= 3` (4 tests) and `T18 AC21: ${theme}: scroll thumb (neutral-500) on track (surface) >= 3` (2 tests), ratio in the message; `tests/PhonePage.test.tsx`: exactly one `svg[role="img"]` named `Featured`, inside the Indoor Garden `li`'s `h3` but not inside its link, no `tabindex`; no `button`; the Indoor Garden `details` text is absent.
+- **T2. Tiles as buttons, detail view, focus and Escape, scrolling list.** ACs: AC5-AC9, AC11-AC20, AC21 (CSS part), AC22, AC23, AC26 (component, Desktop), AC28 (unit).
+  - Coder: `Projects.tsx` and `Projects.css` per section 3.
+  - Test-writer: apply 7a "T2". New, in `tests/windows/Projects.test.tsx` `describe('T18 ...')`: AC5 one `button` per `li`, no `a`, the `h2` contains the button, no block element inside any button; AC6 `toHaveAccessibleName(p.name)`, `toHaveAccessibleDescription` contains desc (+ `Featured` for Indoor Garden only), a click on `.proj-face` (not the button) opens the detail, `{Enter}` and `{ }` on the focused button open it; AC8/AC9 star count 1 in the Indoor Garden tile and detail, 0 elsewhere, no `tabindex`; AC11 detail shown, no `ul.proj-grid`, no tile buttons; AC12 DOM order and absent sections (no `h3`, no `ul`, no `TODO`) for Indoor Garden and Voice Calendar; AC13 back by click, Enter, Space; AC14 focus on back after open, on the same tile after back; AC15 Escape from the back button and from the Close button (in `<Desktop />`) goes back, Escape in list view leaves the window open and not minimized, Escape with focus in another window or in an open menubar menu leaves the detail shown; AC16 focusable elements in the window in detail view are Minimize, Close, back; AC18 in `<Desktop />`: open detail, close, reopen via dock shows the list; minimize and restore keeps the detail; Restart shows the list; no `console.error`/`warn` spy calls. CSS: `.proj-body` `overflow-y: auto`, `overflow-x: hidden`, `position: absolute`, `inset: 0`, `scrollbar-width: thin`, `scrollbar-color: var(--color-neutral-500) var(--color-surface)`; `.win-body:has(> .proj-body)` `position: relative`; `.proj-star` colour `var(--color-accent)`; no `transition` in new rules. New `tests/windows/Projects.many.test.tsx` (vi.mock `PROJECTS` to 8 entries): 8 `li`, 8 buttons, all inside `.proj-body`, `WIN_META.proj` still `{520, 385, true}`.
+  - Terminal tests run unedited (AC22); `Desktop.dock.test.tsx` 35 stays unedited (AC23).
+- **T3. End to end.** ACs: AC7, AC11, AC14-AC21, AC23, AC24, AC27, AC28 (e2e), AC29.
+  - Test-writer: apply 7a "T3". New `tests/e2e/projects.detail.spec.ts`, `watchErrors` in every test, 1280x720: open by click, Enter and Space, back focused; back by button and by Escape, focus on the same tile; Tab order in detail (Minimize, Close, back, then focus leaves the window); window 520x385 +/- 2 at y 259 in both views. Scroll: prepend 8 cloned `li` to `.proj-grid` via `page.evaluate`; the window is still 385 +/- 2, `.proj-body` `scrollHeight > clientHeight` and `scrollWidth <= clientWidth`; a wheel over the list raises `scrollTop` while window x/y and page scroll stay put; AC20: focus Close projects and press Tab 12 times, the focused element is the `Driver Safety` button, its rect lies inside the `.proj-body` rect, `scrollTop > 0`, and `.proj-body` itself is never focused. Computed `scrollbar-color` of `.proj-body` equals a probe's computed `var(--color-neutral-500)` and `var(--color-surface)` in dark and light. Star visible via `getByRole('img', { name: 'Featured' })` in the Indoor Garden tile and detail; phone viewport 320x700 shows one Featured star and no horizontal overflow.
+  - Run the full AC29 set.
 
-- jsdom has `innerWidth` 1024 and no `matchMedia`. Set a width with `Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: w })`, and restore it after each test.
-- For a browser-like run, use `vi.stubGlobal('matchMedia', ...)` with a fake that answers `DESKTOP_QUERY` from a test-controlled width, returns `matches: false` for any other query (so the reduced-motion read in `Desktop` is unaffected), and records `change` listeners. Fire them inside `act`, and `vi.unstubAllGlobals()` afterwards.
-- Render `App` for anything about the choice of view. Existing tests render `<Desktop />` directly and are not affected.
+**After T3 (QA).** Confirm `git diff` on existing tests shows only 7a edits plus additive cases, each with the marker; list every edit in the QA report and autobuild log.
 
-Tasks:
+### 7a. Existing tests this ticket changes (sanctioned under AC28)
 
-- **T1. View rule and heading copy.** ACs: AC1 (rule), AC2, AC11 (constant), AC29.
-  - Coder: the `layout.ts` additions and `PHONE_HEADINGS` in `data.ts`, as in section 3.
-  - Test-writer: new `tests/logic/view.test.ts`: `viewForWidth` at 0, 320, 759, 759.5, 759.999 (phone) and 760, 760.5, 1024, 1280 (desktop); `resolveView(true, 0)` is desktop, `resolveView(false, 5000)` is phone, `resolveView(null, 759)` is phone and `resolveView(null, 760)` is desktop; `DESKTOP_QUERY` equals `(min-width: 760px)`; `PHONE_HEADINGS` literals. AC2: `import.meta.glob('/src/**/*.{ts,tsx,css}', { query: '?raw', import: 'default', eager: true })`, then `/\b760\b/` matches once in `/src/logic/layout.ts` and nowhere else. No 7a edits.
-- **T2. `PhonePage`, not yet wired.** ACs: AC10-AC13, AC14 and AC16 (CSS), AC15 (CSS), AC18, AC20-AC22, AC24-AC27.
-  - Coder: `PhonePage.tsx`, `PhonePage.css`, the `vite.config.ts` line.
-  - Test-writer: new `tests/PhonePage.test.tsx`:
-    - AC10: every item from `data.ts` present and in the listed order, using `compareDocumentPosition`; `em` count equals the `em` segments; `FACTS` inside About; every tag checked individually; no tabs.
-    - AC12: no `button`, `input`, `nav`, `header`, `[role="menubar"]`, `[data-win]`, `[role="status"]`.
-    - AC18: `Storage.prototype.setItem` spy has no calls, `data-theme` unchanged after mount and unmount, in both themes.
-    - AC20: heading structure with no skipped level, one `main`, each section's accessible name from its `h2`.
-    - AC21: `ul`/`li` for facts, experience, projects, links.
-    - AC22: attributes for each `http(s)`, `mailto:` and `#` link, and the résumé link attributes.
-    - AC24: no `svg`; each link's accessible name equals its text.
-    - `phone-view` on `<html>` after mount, under StrictMode too, and absent after unmount.
-    - Source checks on the raw `PhonePage.tsx`: no `text-muted`, `card-meta`, `card-body`, `dangerouslySetInnerHTML`, `tabIndex`, `WIN_TITLES`.
-  - Test-writer: new `tests/PhonePage.data.test.tsx`, `vi.mock('../src/data', ...)` over the original to change `NAME`, one `LINKS` item, one heading and `MENU_ITEMS.resume`, and assert the render follows (AC11).
-  - Test-writer: new `tests/PhonePage.css.test.ts`, raw CSS and `theme.css`:
-    - every `html`, `body` or `#root` selector in `PhonePage.css` starts with `html.phone-view`, and every other selector starts with `.phone`
-    - `theme.css` still has `body { overflow: hidden }` and the `height: 100%` rule (AC16)
-    - every `color` value is one of the three tokens, and no hex, `rgb(`, `opacity` or `color-mix`
-    - none of `transition`, `animation`, `scroll-behavior`, `@media`, `overflow-x`, `user-select`, `touch-action` (AC27, AC16)
-    - `.phone-link` has `min-height: 44px` (AC25) and `.phone` has `overflow-wrap: anywhere` (AC15)
-  - Test-writer: new `tests/phone.contrast.test.ts`, modelled on `tests/windows.contrast.test.ts`: `text`, `neutral-400` and `accent` on `bg`, dark and light, at least 4.5:1 (AC26). No 7a edits.
-- **T3. Switch and wiring.** ACs: AC1, AC3-AC9, AC16, AC19, AC28, AC30.
-  - Coder: `useView.ts`, `App.tsx`, the `main.tsx` change.
-  - Test-writer: new `tests/App.test.tsx`, real `Desktop` unless noted, and new `tests/App.renders.test.tsx` for the `vi.mock` counters:
-    - jsdom default: `typeof window.matchMedia` is undefined (so the case is not vacuous), no throw, desktop rendered (AC30).
-    - `innerWidth` 500 with no `matchMedia`: phone page, and the desktop's menu bar, dock, `[data-win]` and `.boot-status` absent (AC3).
-    - Stubbed query: 759 phone and 760 desktop; a throwing `matchMedia` and a query without `addEventListener` both fall back without throwing (R6); query no-match with `innerWidth` 760 is phone (R5).
-    - `App.renders`: `vi.mock` `Desktop` and `PhonePage` with mount counters. Under StrictMode a phone-width load never mounts `Desktop` and a desktop-width load never mounts `PhonePage` (AC3, AC4). A non-crossing change fires a listener and neither remounts (AC7).
-    - Crossing: firing the fake's listeners swaps views with exactly one present after `act`, `phone-view` follows the view, no `console.error` (AC5, AC8).
-    - Repeated crossings end on the final width with one view (AC6).
-    - AC6: `window` and fake query listener adds equal removes after unmount, under StrictMode.
-    - AC19: set `data-theme` to the non-default value, make `setItem` throw, cross both ways, the attribute is unchanged. No 7a edits.
-- **T4. End to end.** ACs: AC1, AC3, AC5-AC9, AC14-AC19, AC22, AC23, AC25, AC27, AC28, AC31.
-  - Coder: nothing unless a real bug appears.
-  - Test-writer: new `tests/e2e/phone.spec.ts` with `watchErrors` in every test (copy the helper from `boot.spec.ts`), and `colorScheme` pinned as other specs do. Use `test.use({ viewport })` or `page.setViewportSize` before `goto`, since the config default of 1280x720 is the desktop. Desktop presence means any of `[aria-label="System menu bar"]`, `nav[aria-label="Dock"]`, `[data-win]`, `.boot-status`. Phone presence means `main.phone`. Cover:
-    - AC3: `addInitScript` with a `MutationObserver` on `document` (`childList`, `subtree`) that records any node matching the desktop selectors; at 500x800 the record is empty once the page is visible.
-    - AC1: 759 phone, 760 desktop, on load and by resize. AC4 and AC9: at 760 and 1000, no `main.phone`, no `html.phone-view`, desktop present.
-    - AC5: an observer on `#root` plus a `requestAnimationFrame` sampler that, on every sample once the first view exists, counts views; never 2 and never 0, while crossing both ways and swapping 800x400 to 400x800.
-    - AC6: a burst of `setViewportSize` calls across 760, ending on each side, exactly one view.
-    - AC7: phone, scroll, mark `main` with `dataset`, resize 375 to 414: the mark stays and `scrollY` is greater than 0. Desktop: typed terminal text survives 1280 to 1000.
-    - AC8: scrolled phone page to desktop, `scrollY` 0, `scrollHeight` at most `innerHeight`, window positions at defaults; desktop to phone at top; a boot running at a crossing is gone with no boot screen after returning, with `Math.random` fixed as in `boot.spec.ts`.
-    - AC14: `page.mouse.wheel`, and `End` and `PageDown` keys, change `scrollY`; the résumé link can be scrolled into the viewport. Touch relies on native document scrolling: assert no `touch-action` on `html`, `body` or `main.phone`.
-    - AC15: for 320x568, 375x667, 414x896, 759x900, 667x375: `scrollWidth` at most `innerWidth`; at 320 also after injecting a 300-character unbroken string into a tag and a paragraph.
-    - AC16: `body` computed overflow `hidden` at 760 and after crossing back; `scrollHeight` not exceeding `innerHeight`; `user-select` on a paragraph is not `none` on the page.
-    - AC17: stored `dark` and `light`, and emulated scheme with nothing stored; body background matches; `html[data-theme]` already correct at the first mutation record; a storage-throwing init falls back to dark.
-    - AC18: spy on `Storage.prototype.setItem` in `addInitScript`; no calls in a phone session; `localStorage` contents unchanged.
-    - AC19: change theme on the desktop with `setItem` throwing, cross both ways, attribute unchanged.
-    - AC22, AC23: Tab through all links, order equals DOM order, each has a visible `outline-style` of `solid`; the outline box is inside the viewport; `target` and `rel` read in the browser. AC25: every `.phone-link` box is at least 44 high.
-    - AC27: `document.getAnimations()` is empty with both reduced-motion settings.
-    - AC28: viewport meta unchanged; `activeElement` is `body` after a crossing and no `aria-live` element exists on the page.
+Located by grep. Every assertion is kept; only selectors, expected values or counting scope change.
 
-**After T4 (QA stage, no coder or test-writer work).** Run the full AC34 set. Complete AC32 at 375x667 in both themes. Confirm `git diff` on existing test files is empty, and record that no deliberate requirement change was needed (AC33).
+**Checked, no edit expected:** `tests/logic/terminal.test.ts`, `tests/windows/Terminal.test.tsx` (AC22); `tests/Desktop.dock.test.tsx` 35 stops (AC23); `tests/e2e/chrome.spec.ts` stop names (the helper reads `textContent`, button text = name) and 35-stop labels; `tests/e2e/windows.spec.ts` T07 AC10 `seen.get('proj').size` 6; `tests/e2e/windows.motion.spec.ts` hover, press, stability and reduced-motion tile tests (`.proj-tile` host and `.proj-face` keep their roles); `tests/e2e/projects.spec.ts` T07 AC47 grid-bottom probe (`.proj-grid` is still the measured element) and AC34; `tests/windows/Projects.test.tsx` T07 AC31 grid/face/icon/arrow/name/tag CSS, T07 AC33/AC9/AC8 motion CSS, T07 AC7 tokens, AC34, AC47/AC48, and the pure `linkAttrs` https test; `tests/data.test.ts` existing cases; `tests/PhonePage.test.tsx` AC10/AC20/AC21/AC22 and source checks; `tests/PhonePage.data.test.tsx`; `tests/logic/purity.test.ts` (no new module); `tests/logic/view.test.ts` (no new dependency, no `760`); `tests/MenuBar.test.tsx` copy-ban; `tests/e2e/phone.spec.ts` (no svg probe).
 
-### 7a. Existing tests this ticket changes
+**T1 (unit)**
 
-**None.** Checked:
+| File                       | Edit                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/PhonePage.test.tsx` | **T13 AC24 "no svg or img, and every link name equals its visible text"** (AC25): `querySelector('svg')` toBeNull becomes: `querySelectorAll('svg')` has length 1, it has `role="img"` and accessible name `Featured`, and it sits in the Indoor Garden `li`. `img` null, the link count and the link-name loop are unchanged. Title gains "except the Featured star". |
 
-- `tests/logic/purity.test.ts`: no module is added, so `EXPECTED` is unchanged. The additions to `layout.ts` import nothing and contain no forbidden word.
-- `tests/MenuBar.test.tsx` AC5 and `tests/logic/terminal.test.ts` AC32: both scan new source, and the naming rule keeps them green.
-- `tests/fonts.test.ts`: font imports unchanged, and `App` adds no forbidden word to `main.tsx`.
-- Every unit test of the desktop renders `<Desktop />` directly, not `App` or `main.tsx`, so setting `innerWidth` or stubbing `matchMedia` in them cannot reach the switch.
-- Every existing e2e spec loads at the 1280x720 config default or larger. The only smaller resize is 1000x600 in `tests/e2e/boot.spec.ts`, above the breakpoint. They all stay on the desktop.
-- `tests/e2e/build.preview.spec.ts`: theme, same-origin and font checks are unaffected.
+**T2 (unit), all in `tests/windows/Projects.test.tsx`**
+
+| Test                                                                          | Edit                                                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T07 AC31 "one link tile per PROJECTS entry, in order" (AC5)                   | `getAllByRole('link')` becomes `getAllByRole('button')`; `items[i].contains(buttons[i])` kept; the heading check moves from `within(links[i])` to `within(items[i])` and also asserts the heading contains the button. Add `queryAllByRole('link')` length 0. |
+| T07 AC31 "each tile shows name as a heading, description and every tag" (AC5) | Scope `within(items[i])` (the `li`) instead of the link; all heading, desc, tag-class and tag-count assertions kept.                                                                                                                                          |
+| T07 AC32 "each href comes from PROJECTS" (AC6, AC12)                          | Tiles have no href: assert no element in the list has an `href`; for every project with `links` (none today) the detail anchors' `href` equals data. The phone page `href` assertion (T13 AC10) still pins `p.href`, so href-from-data stays covered.         |
+| T07 AC32 "target and rel come from linkAttrs" (AC12)                          | Iterate detail-view anchors for each project (none with current data, so the loop also asserts the count equals `p.links?.length ?? 0`); `expect(linkAttrs('#')).toEqual({})` kept.                                                                           |
+| T07 AC32 "icons (project icon and arrow) are hidden" (AC6, AC9)               | svg count `PROJECTS.length * 2` becomes `PROJECTS.length * 2 + featuredCount` (icon + caret per tile, plus the star); every svg without `role="img"` is `aria-hidden="true"`; the one `role="img"` svg is named `Featured`.                                   |
+| T07 AC32 "accessible name holds name and description as separate words" (AC6) | The name check becomes `toHaveAccessibleName(p.name)`; desc moves to `toHaveAccessibleDescription(expect.stringContaining(p.desc))`; the "desc after name" order check is kept on the `li` textContent.                                                       |
+| T07 AC32 "separates name, description and tags with whitespace" (AC6)         | `aria-label` null kept (on the button); heading `H2` with text `p.name` found via the `li`; the tag whitespace check is scoped to the `li`.                                                                                                                   |
+
+**T3 (e2e)**
+
+| File                               | Edit                                                                                                                                                                                                                                         |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/e2e/projects.spec.ts`       | **T07 AC31** locator `a.proj-tile` becomes `.proj-tile` (still 4, same 2x2 geometry and 10px gaps) (AC5, AC19).                                                                                                                              |
+| `tests/e2e/windows.spec.ts`        | **T07 AC11** `tile = win('proj').locator('a').nth(i)` becomes `locator('.proj-open').nth(i)`; line 366 `locator('a').count()` 4 becomes `locator('.proj-open').count()` 4 plus `locator('a').count()` 0 (AC5, AC23). Stop count 6 unchanged. |
+| `tests/e2e/windows.motion.spec.ts` | **T07 AC9 "a click at the bottom edge of a tile reaches the link (navigation is cancelled)"** becomes "reaches the tile and opens the detail view": `__clicks` 1 kept, plus the back button is visible and focused (AC6, AC14).              |
 
 ## 8. Open questions
 
-None need a human. Decided unattended from the spec, decisions log and requirements:
+None need a human. Decided unattended:
 
-1. **The view rule goes in `logic/layout.ts`,** so no new logic module is added and the purity list needs no edit (AC33 allows either).
-2. **`matchMedia` is the primary read, `innerWidth` the fallback,** because only the media query is exact for fractional widths (AC1) and jsdom has none (AC30).
-3. **`useSyncExternalStore` drives the switch,** giving a correct first commit and an atomic swap with no extra state.
-4. **Scrolling is scoped by a `phone-view` class set in a layout effect,** not a media query (a second breakpoint definition, AC2), not `:has()` (unscrollable on older phones), and not an inner scroller (keyboard and address bar problems).
-5. **`theme.css` is not edited,** so the desktop's CSS is the same as before by construction.
-6. **New heading copy is `PHONE_HEADINGS`** with About, Projects and Links. Experience reuses `EXPERIENCE_LABELS.tablist` (Assumption 6).
-7. **No icons,** the simplest way to meet AC24.
-8. **Tags use `.tag-outline`,** since the filled tag styles nearly match the page background in light mode.
-9. **All text sits directly on `--color-bg` in three tokens,** so no muted class, `opacity` or `color-mix` needs a contrast check (AC26).
-10. **`<em>` is shown with weight and colour, not italics,** matching `About` and the fonts that ship.
-11. **`role="list"` on each `ul`,** because `list-style: none` removes list semantics in Safari (AC21).
-12. **Touch scrolling is not exercised directly in e2e.** The page uses the browser's native document scroll, and the config's Desktop Chrome project has no touch. T4 asserts nothing blocks it, and the QA screenshot step covers the visual result.
+1. **Button inside the `h2`, click handler on the non-transforming `.proj-tile` host.** Valid HTML, name = project name, and the whole face is clickable even while lifted. A stretched `::after` would move with the transformed face and miss bottom-edge clicks.
+2. **`CaretRight` with the `.proj-arrow` class replaces `ArrowUpRight`**, so the arrow colour test needs no edit and tiles keep a decorative "opens" cue.
+3. **Escape via a `document` listener scoped to the window element**, active only in detail view, so titlebar buttons are covered and the menubar is untouched.
+4. **No new `src/logic` module**; the state is one `useState`, and a module would force a purity-list edit.
+5. **Scroll colours: `neutral-500` thumb on a `surface` track** (an explicit track so contrast is testable; about 5:1 in both themes). The star uses `--color-accent`.
+6. **`details` text** is "Capstone project: IoT garden monitoring with a live dashboard for 10+ sensors, built with Docker and React."
+7. **Task split** deviates slightly from the suggestion: the tile star moves to T2 so the tile svg-count test is edited once; T1 still carries the data, labels, phone star and contrast tests.
+8. **Phone star inside the `h3`, after the link**, so the link name is unchanged and the star reads with the project heading.

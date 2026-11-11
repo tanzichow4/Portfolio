@@ -15,7 +15,10 @@ interface Probe {
 }
 
 function Harness({ probe, flyIn = false }: { probe: Probe; flyIn?: boolean }) {
-  const [state, dispatch] = useReducer(desktopReducer, undefined, () => initialDesktop(1280, 720));
+  const [state, dispatch] = useReducer(desktopReducer, undefined, () =>
+    // // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the explicit all-open (Tidy up) state.
+    desktopReducer(initialDesktop(1280, 720), { type: 'tidy' }),
+  );
   const { attach } = probe;
   useEffect(() => {
     attach(dispatch);
@@ -58,7 +61,8 @@ afterEach(() => {
 describe('WindowLayer wiring', () => {
   it('AC1: renders the five open dock windows through the chrome and not site', () => {
     render(<Harness probe={newProbe()} />);
-    expect(document.querySelectorAll('[data-win]')).toHaveLength(5);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC17): the Tidy harness opens viz too, so six windows; DOCK5 still checks the original five.
+    expect(document.querySelectorAll('[data-win]')).toHaveLength(6);
     for (const id of DOCK5) expect(region(id)!.querySelector('.win-titlebar')).not.toBeNull();
     expect(region('site')).toBeNull();
   });
@@ -151,7 +155,8 @@ describe('WindowLayer wiring', () => {
     expect(r).toHaveAttribute('inert');
     expect(screen.queryByRole('region', { name: 'terminal' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Close terminal' })).toBeNull();
-    expect(document.querySelectorAll('[data-win]')).toHaveLength(5);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC17): the Tidy harness has six mounted windows (viz added), 5 -> 6.
+    expect(document.querySelectorAll('[data-win]')).toHaveLength(6);
   });
 
   it('AC17: double-clicking a titlebar minimizes its window', () => {
