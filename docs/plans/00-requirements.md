@@ -1,95 +1,106 @@
-# T17 requirements: experience.log, bigger window, key stats and an org pill
+# T18 requirements: project detail view, scrolling project list and a Featured star
 
 ## Goal
 
-The experience.log window gets bigger (600x400, still clear of the menubar and dock at 1280x720), and each role's one-sentence `desc` is replaced by a short list of impactful stats (`stats: string[]` in `src/data.ts`) taken only from figures already in the data. The `@ Company` line becomes a light-purple pill coloured by new Nocturne tokens in `src/theme.css` that meet WCAG AA text contrast in dark and light, while the terminal `experience` command and the phone page keep working.
+Clicking (or activating from the keyboard) a project tile in the projects window swaps the grid for an in-window detail view of that project, with a back button, Escape to go back and managed focus, built from new optional `Project` fields in `src/data.ts` that hold only facts already in the repo. The project list scrolls inside a fixed-height window with a token-styled scroll bar, and featured projects (Indoor Garden, Tanzi's capstone) show a filled Phosphor `Star` named "Featured" on the desktop tile, in the detail view and on the phone page.
 
 ## Current state (observed, so the planner does not redo finished work)
 
-- `Exp` in `src/data.ts` is `{ when; role; org; desc; tags }`. `EXP` has three entries: Tartigrade Ltd., General Dynamics Mission Systems, University of Calgary. The `desc` strings are the only place where the figures live ("33 hours to 3", "coverage by 80% with PyTest", "natural-language-to-SQL engine on a local model", "multi-tenant web platform", "security review").
-- There is no `experience/` folder in the repo (no résumés to read). The data comment in `src/data.ts` refers to it, but the files are not there. The figures in `EXP[*].desc` are the only source.
-- `src/windows/Experience.tsx` renders a vertical tablist (one tab per `EXP` org) and one `tabpanel` (`#exp-panel`, `tabIndex=0`) with `h2.exp-role`, `div.exp-org` (`{EXPERIENCE_LABELS.at} {org}`, so its text is `@ Tartigrade Ltd.`), `div.exp-when`, `p.exp-desc` and `.tag.tag-accent` tags.
-- `Experience.css`: `.exp-rail` 150px wide, `.exp-panel` `min-height: 250px`, `.exp-org` is plain text in `var(--color-accent)`, `.exp-desc` 13.5px / 1.6 / `neutral-400`. No scroll rules. The window height comes from content.
-- `WIN_META.exp` is `{ width: 520, height: 290, dock: true }`. `layout()` places exp at `x = xClamp(0.05 * vw)`, `y = yFit(max(380, 0.52 * vh))`, so at 1280x720 it is at (64, 354) and its bottom is at 644 (= 720 - 76).
-- Other defaults at 1280x720 (x..right, y..bottom): hello 77..637, 72..545; about 640..1060, 64..460; proj 538..1058, 259..644; term 810..1250, 340..610. Hello already covers most of the exp tab rail after Tidy up (e2e `boot.spec.ts` uses `dispatchEvent` for that reason). Only hello is open on first load (T15).
-- The terminal `experience` command prints `when.padEnd(12) + role + ' @ ' + org` per entry. It does not use `desc`.
-- `PhonePage` renders each entry as an `li` in `ul.phone-list` with `h3` role, `p.phone-meta` `@ org`, `p.phone-meta` when, `p.phone-desc` desc and tags. Phone tests count `listitem`s in the section and call `getByRole('list')` inside it, so a nested list would change those counts.
-- `tests/contrast.test.ts` resolves theme tokens with `resolveTheme(css, theme)` and checks pairs with `contrastRatio` (opaque `#rrggbb` only) at 4.5:1 for dark and light (`TAG_PAIRS`).
+- `Project` in `src/data.ts` is `{ name; icon; href; desc; tags }`. `PROJECTS` has four entries in this order: Voice Calendar, Indoor Garden, Grocery Prices, Driver Safety. Every `href` is the placeholder `'#'`. There is no `experience/` folder in the repo (no résumés), so `desc`, `tags` and Tanzi's statement that Indoor Garden was their capstone are the only sources.
+- `src/windows/Projects.tsx` takes no props and renders `ul.proj-grid` (2 columns, gap 10px, padding 14px) of `li.proj-item > a.proj-tile` (href from `p.href`, `linkAttrs`) wrapping `div.proj-face` with the icon, an `ArrowUpRight` arrow, `h2.proj-name`, `p.proj-desc` and `.tag.tag-neutral.proj-tag` tags. Both svgs are `aria-hidden`. Hover/press motion lives on `.proj-tile:hover .proj-face` / `.proj-tile:active .proj-face` with a reduced-motion override. `Projects.css` has no overflow rules.
+- `WIN_META.proj` is `{ width: 520, height: 385, dock: true }`; at 1280x720 it is at y 259 with its bottom at the dock clearance (644). The e2e test checks the grid reaches within 2px of the window bottom. `WIN_BAR_TITLES` is `{ proj: '~/projects' }`; the region and every other name stay `projects`.
+- No component handles Escape today except `MenuBar` (document `keydown`, closes an open menu).
+- The terminal `projects` command prints `p.name.padEnd(12) + p.desc` per entry.
+- `PhonePage` renders each project as an `li` with `h3 > a.phone-link` (href `p.href`), `p.phone-desc` and tags. The phone page has no svg at all today (T13 AC24 asserts this).
+- Accent tokens: dark `--color-accent #9184d9` on `--color-bg #161826` / `--color-surface #232532`; light `#6558ad` on `#e4e7f5` (4.8:1) / `#f3f5fe` (5.4:1). `tests/contrast.test.ts` has `resolveTheme` and `contrastRatio` helpers.
 
 ## Acceptance criteria
 
 ### A. Data
 
-- **AC1** `Exp` in `src/data.ts` is `{ when: string; role: string; org: string; stats: string[]; tags: string[] }`. The `desc` field is removed from the type and from every entry, and `desc` is not read for experience anywhere in `src/`.
-- **AC2** `EXP[*].stats` are exactly these strings, in this order (no trailing full stop, straight characters):
-  - Tartigrade Ltd.: `"Led onboarding for a multi-tenant web platform"`, `"Built a natural-language-to-SQL engine on a local model"`, `"Wrote a security review"`.
-  - General Dynamics Mission Systems: `"Redesigned a legacy system, cutting runtime from 33 hours to 3"`, `"Raised coverage by 80% with PyTest"`, `"Automated deploy config in Python"`.
-  - University of Calgary: `"IoT, data and ML projects"`.
-- **AC3** Every figure in `stats` already appeared in the old `desc` text (33 hours, 3, 80%). No new number, percentage, metric, employer, tool or claim is introduced. No stat string is empty, and no stat contains `TODO`. `when`, `role`, `org`, `tags` and the order of `EXP` are unchanged.
+- **AC1** `Project` in `src/data.ts` gains four optional fields: `featured?: boolean`, `details?: string`, `highlights?: string[]`, `links?: { label: string; href: string }[]`. `name`, `icon`, `href`, `desc` and `tags` stay required, and their values and the order of `PROJECTS` are unchanged.
+- **AC2** Indoor Garden has `featured: true` and a `details` string that contains the word `Capstone` (capital C) and otherwise restates only facts already in its `desc` and `tags` (IoT garden monitoring, live dashboard, 10+ sensors, Docker, React). No other project is featured.
+- **AC3** No new fact, number, tool, URL or claim is introduced: every `details`, `highlights` and `links` value present in `PROJECTS` uses only text already in that project's `desc`/`tags` (plus "Capstone" for Indoor Garden). Because no real project URLs exist in the repo, no project has `links`. Fields with no source are omitted (not empty strings, not empty arrays), and a `// TODO(Tanzi): ...` comment in `src/data.ts` marks each gap. No string value anywhere in `PROJECTS` contains `TODO`.
+- **AC4** All new visible copy (the back button label, the "Featured" accessible name, any detail section headings such as "Highlights" and "Links") lives in a labels constant in `src/data.ts` (for example `PROJECT_LABELS`), not in components.
 
-### B. Experience window content
+### B. Project list (tiles)
 
-- **AC4** The panel shows, in DOM order: the role heading (`h2.exp-role`), the org pill, the date (`.exp-when`), a stats list, then the tags. `p.exp-desc` no longer exists.
-- **AC5** The stats list is a semantic `<ul>` with one `<li>` per string of the selected entry's `stats`, in order, and the `li` text equals the data string exactly. It shows only the selected entry's stats (never another entry's), and it changes when the tab changes. Any bullet icon or marker is decorative (`aria-hidden`, not focusable). Stat text uses theme tokens only and passes the existing text contrast checks (for example `neutral-400` or `text`), at a size of at least 13px.
-- **AC6** Tabs, tab keyboard behaviour (Arrow Up/Down wrap, Home, End, roving `tabindex`), `aria-controls`, the panel's accessible name (the selected org) and the reset-on-close behaviour are unchanged.
+- **AC5** Each tile is a single native `<button type="button">` control (one tab stop per tile, no `<a>` in the list). The list still has one `li` per `PROJECTS` entry, in order, each showing the icon, the name as an `h2` heading, the `desc` and every tag (`.tag.tag-neutral`), and the markup is valid HTML (no heading or other block content inside the button).
+- **AC6** The tile button's accessible name is exactly the project name. Its accessible description contains the project `desc`, and for a featured project also contains "Featured". Clicking anywhere on the visible tile face, or pressing Enter or Space on the focused button, opens that project's detail view. The `ArrowUpRight` external-link arrow is removed from tiles (tiles no longer link out); any replacement affordance icon is decorative (`aria-hidden`).
+- **AC7** Tile hover lift/tilt, `--shadow-md`, pressed `scale(.97)`, the transition, the "only the face transforms" rule and the reduced-motion `transform: none` overrides behave as before (T07 AC8, AC9, AC33). The focus ring on a tile is visible and not clipped by the scroller or the window (T07 AC11 ring checks).
+- **AC8** Tile project icons stay decorative (`aria-hidden`). Non-featured tiles contain no star.
 
-### C. Org pill
+### C. Featured star
 
-- **AC7** The `@ Company` line is rendered as a pill: still the element with class `exp-org`, its `textContent` is still `${EXPERIENCE_LABELS.at} ${org}` (for example `@ Tartigrade Ltd.`), and `@` still comes from `EXPERIENCE_LABELS.at`. It has a filled background, a fully rounded or tag-like border radius, horizontal padding, and sizes to its content (it does not stretch across the panel). It is not focusable and not interactive.
-- **AC8** `src/theme.css` gains two opaque `#rrggbb` tokens, `--color-org-pill-bg` and `--color-org-pill-text`, defined in `:root` (dark) and overridden in `[data-theme='light']`. The pill background reads as a light purple in both themes and is from the existing accent family (default `#d2cefd` background with `#2b2741` text in both themes, about 9.5:1). In light mode the pill background differs from the tag background (`--color-accent-800`) so the pill does not look like a tag.
-- **AC9** Text contrast of `--color-org-pill-text` on `--color-org-pill-bg` is at least 4.5:1 in dark and in light. This is verified by a unit test in `tests/contrast.test.ts` that resolves both tokens per theme with the existing `resolveTheme` helper and checks them with `contrastRatio`, in the same style as `TAG_PAIRS` (one test per theme, the ratio in the failure message).
-- **AC10** `Experience.css` uses only `var(--…)` tokens for the pill (no hard-coded colours, the existing T07 AC7 check still passes). The pill has no hover or motion. The phone page `@ org` line is not changed to a pill (see Out of scope).
+- **AC9** A featured project's tile and its detail view each render exactly one filled Phosphor `Star` (`weight="fill"`) exposed as `role="img"` with accessible name exactly `Featured` (from `src/data.ts`). It is not focusable and has no `tabindex`. Non-featured projects render no star anywhere.
+- **AC10** The star colour is a theme token (no hard-coded colour) and has at least 3:1 contrast (WCAG 1.4.11 non-text) against both `--color-bg` and `--color-surface` in dark and in light. This is verified by a unit test in `tests/contrast.test.ts` using `resolveTheme` and `contrastRatio`, one test per theme and background, ratio in the failure message. (The default `--color-accent` is expected to clear this comfortably; light is 4.8:1 on bg and 5.4:1 on surface.)
 
-### D. Window size, position and scrolling
+### D. Detail view
 
-- **AC11** `WIN_META.exp` is `{ width: 600, height: 400, dock: true }`. The rail stays 150px wide.
-- **AC12** The `layout()` formula for exp is unchanged, so the new height alone moves it. The resulting exp positions are: 1280x720 (64, 244); 1366x768 (68, 292); 1440x900 (72, 424); 1536x864 (77, 388); 1920x1080 (96, 562). Every other window's position is unchanged at every supported size.
-- **AC13** At 1280x720 and every supported size the whole exp window is on screen: `y >= 36` (below the menubar), `y + 400 <= vh - 76` (above the dock clearance), `x >= 16` and `x + 600 <= vw - 16`. At 1280x720 its right edge (664) stays left of term (810) and its bottom (644) touches but does not cross the dock clearance.
-- **AC14** The rendered exp window height is within 2px of 400 at 1280x720 on every tab, in dark and light (fixed height, not content height). The rail and panel fill the body height.
-- **AC15** When the selected entry's content is taller than the panel, the panel scrolls vertically (`overflow-y: auto`), not the window or the page, and there is no horizontal scroll. The panel stays keyboard focusable (`tabIndex=0`) so it can be scrolled from the keyboard, and its focus ring is still visible. With the AC2 data at 1280x720, all three entries fit without clipping the window chrome. Scrolling inside the panel does not start a window drag.
-- **AC16** Opening exp from the dock, the Windows menu, the hello "What I've been up to" button or the terminal `open experience` raises it above hello, so the whole window (tabs, pill, stats) is visible and clickable. Drag clamp, minimize (genie) and close behave as before for the new size.
+- **AC11** Activating a tile replaces the list with that project's detail view inside the same window. The window's position, size (520x385), titlebar text (`~/projects`), region name (`projects`), z-order and minimize/close controls are unchanged. The list is not rendered (or is hidden from the accessibility tree and not focusable) while the detail view is shown.
+- **AC12** The detail view shows, in DOM order: a back button, the project icon (decorative), the name as an `h2` heading, the star if featured, the `desc`, then `details` as a paragraph if present, `highlights` as a `<ul>` with one `li` per string in order if present, the tags (`.tag`), and `links` as a list of anchors if present (each `href` from data, `target`/`rel` from `linkAttrs`). A missing field renders nothing: no empty element, no heading for an absent section, no placeholder or `TODO` text.
+- **AC13** The back button is a native `<button type="button">` with a visible text label from `src/data.ts` (for example "Back to projects"), any arrow icon `aria-hidden`. Activating it (click, Enter or Space) returns to the list.
+- **AC14** When the detail view opens (by click or keyboard), focus moves to the back button. When the user goes back (back button or Escape), the list is shown again and focus moves to the tile button of the project that was open, which is scrolled into view if needed.
+- **AC15** Pressing Escape while focus is anywhere inside the projects window and the detail view is shown goes back to the list (same result as AC14). Escape while the list is shown does nothing in the projects window: it does not close or minimize the window. Escape does not affect other windows, and Escape inside an open menubar menu still only closes the menu.
+- **AC16** In the detail view the tab stops inside the projects window are, in order: Minimize, Close, the back button, then each detail link (none with current data). No tile is focusable while the detail view is shown.
+- **AC17** With the current data the detail view fits in the window at 1280x720 without clipping the window chrome. If detail content is taller than the body, it scrolls vertically inside the window body (no horizontal scroll), never the page, and scrolling does not start a window drag.
+- **AC18** The selected project lives only in the `Projects` component (no new `Desktop` state or reducer action). Closing the window and reopening it (dock, Windows menu, hello "See what I've built", terminal `open projects`) shows the list. Restart also shows the list. Minimizing and restoring keeps whatever view was showing. Opening, going back and switching projects cause no console errors or warnings.
 
-### E. Terminal and phone page
+### E. Scrolling list
 
-- **AC17** The terminal `experience` output is byte for byte unchanged (one row per entry: `when.padEnd(12) + role + ' @ ' + org`). The terminal tests pass without edits.
-- **AC18** The phone page experience section shows, per entry: role `h3`, `@ org`, when, the entry's `stats` as a nested `<ul role="list">` with one `li` per stat in order, then the tags. There is no `desc` text. The section has no tabs, no buttons and no focusable elements, and the page still has no horizontal overflow at 320px (a long stat wraps).
-- **AC19** Nothing else on the phone page changes (about, projects, links, heading structure, four sections, link-only interactivity).
+- **AC19** The list area scrolls vertically (`overflow-y: auto`) inside the window body when tiles exceed the available height; there is no horizontal scroll and the page does not scroll. `WIN_META.proj` stays `{ width: 520, height: 385, dock: true }` and the rendered window height stays within 2px of 385 whatever the number of projects (verified with at least 8 projects, for example by mocking `PROJECTS` in a unit test and by injecting extra tiles in e2e). With the current four projects nothing visibly changes: same 2x2 grid, 10px gap, 14px padding, and the grid content still reaches within 2px of the window bottom.
+- **AC20** The scroll container adds no extra tab stop while it contains focusable tiles; tabbing to a tile below the fold scrolls it into view.
+- **AC21** The scroll bar is styled with theme tokens only (for example `scrollbar-width: thin` and `scrollbar-color: <thumb> <track>`, plus optional `::-webkit-scrollbar` rules), with no hard-coded colours (T07 AC7 check still passes). The thumb has at least 3:1 contrast against its track (or against `--color-surface` if the track is transparent) in dark and light, verified in `tests/contrast.test.ts`. The scroll bar has no motion.
 
-### F. Tests and quality
+### F. Unchanged surfaces
 
-- **AC20** Unit tests cover: AC1 to AC3 (exact stats per entry, no `desc` key, no empty or `TODO` stat, figures only from the old text) in `tests/data.test.ts` or a new T17 data test; AC4 to AC7 and AC10 in `tests/windows/Experience.test.tsx` (stats `ul` order and text per tab, only the selected entry's stats, pill text, pill class and token-only CSS, no `.exp-desc`); AC9 in `tests/contrast.test.ts`; AC11 to AC13 in `tests/logic/layout.test.ts`; AC18 in `tests/PhonePage.test.tsx`.
-- **AC21** Playwright at 1280x720 covers: exp window renders 600 wide and within 2px of 400 tall on every tab (AC11, AC14); exp fully above the dock and below the menubar (AC13); the pill is visible with `@ Tartigrade Ltd.` and its computed background and text colours match the theme tokens in dark and light (AC7, AC8); the stats list shows the AC2 strings for each tab (AC5); the panel scrolls rather than the window when content is forced taller (AC15); no console errors or warnings.
-- **AC22** Existing tests that pin the old size, position or `desc` are updated, never deleted, skipped or weakened. Each edit carries `// DELIBERATE REQUIREMENT CHANGE (T17 ACn): <reason>` and is listed in the QA report and the autobuild log. Known cases (the planner must confirm the full list by running the suites):
-  - Height pin: `tests/windows/Experience.test.tsx` T07 AC47 `WIN_META.exp.height` is 290 (becomes 400); T07 AC27 `.exp-panel` `min-height: 250px` if the fixed-height panel changes it.
-  - `desc` in the window: `tests/windows/Experience.test.tsx` T07 AC30 "shows role heading, @ org, date, description and tags" (`toContain(e.desc)`), T07 AC30 "for every entry the panel shows that entry only" (`e.desc` / `o.desc`, switch to stats), T07 AC30 "panel text sizes" (`.exp-desc` font size, line height, colour; and `.exp-org` colour `var(--color-accent)`, which becomes the pill tokens).
-  - Layout: `tests/logic/layout.test.ts` T16 `BEFORE` literal exp positions at all five sizes (exp moves to the AC12 values; the other windows stay pinned). AC3 and AC4 stay as written and must still pass.
-  - E2e heights and positions: `tests/e2e/windows.spec.ts` `HEIGHTS.exp` 290 (T07 AC47 every-window height and "keeps its height on every tab"); exp reference position `{ x: 64, y: 354 }` in `tests/e2e/desktop.spec.ts`, `tests/e2e/menubar.spec.ts` and `tests/e2e/start.spec.ts`.
-  - Hello and exp overlap: `tests/e2e/boot.spec.ts` (the exp tab `dispatchEvent` "hello overlaps it" path), `tests/e2e/windows.spec.ts` and `tests/e2e/windows.motion.spec.ts` `raise(page, 'exp')` / exposed-point helpers, and `tests/e2e/dock.spec.ts` "no window overlaps the dock". These should pass unchanged with exp now at y 244; edit only if a hit-test point moves, and keep the assertion.
-  - Phone: `tests/PhonePage.test.tsx` T13 AC10 "org, when, desc and each tag" (`e.desc` becomes the stats), T13 AC10 and T13 AC21 list counts (`getAllByRole('listitem')` and `getByRole('list')` in the experience section must count only the top-level entries once stats are a nested list). `tests/e2e/phone.spec.ts` T13 AC16 overflow and selectable-text probes use `.phone-desc`, which now matches the first project; they keep passing, and a stat probe may be added.
-- **AC23** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass.
+- **AC22** The terminal `projects` output is byte for byte unchanged; terminal tests pass without edits. `ls`, `open projects` and `help` are unchanged.
+- **AC23** Desktop tab order counts are unchanged while the list is shown: the projects window still has six stops (Minimize, Close, four tiles), named `Voice Calendar`, `Indoor Garden`, `Grocery Prices`, `Driver Safety` in the existing chrome e2e stop-name helper, and the whole-desktop count in `tests/Desktop.dock.test.tsx` stays 35.
+
+### G. Phone page
+
+- **AC24** The phone page projects section shows the Featured star (filled Phosphor `Star`, `role="img"`, accessible name `Featured`, not focusable, token colour meeting AC10) for Indoor Garden only, placed outside the project name link so the link's accessible name still equals its visible text. Non-featured projects show no star.
+- **AC25** The phone page has no detail view: no buttons, no `details`, `highlights` or `links` content, and nothing else changes (name link with `p.href`, `phone-desc`, tags, four sections, heading structure, list counts, link-only interactivity, no horizontal overflow at 320px). The only svg on the phone page is the Featured star.
+
+### H. Tests and quality
+
+- **AC26** Unit tests cover: AC1 to AC4 in `tests/data.test.ts` or a new T18 data test (optional fields, Indoor Garden featured and `Capstone`, only one featured, no `TODO` in values, no `links`, absent rather than empty fields); AC5, AC6, AC8, AC9, AC11 to AC16 and AC18 in `tests/windows/Projects.test.tsx` and a Desktop-level test for close/reopen and Restart reset; AC19 with mocked extra projects; AC10 and AC21 in `tests/contrast.test.ts`; AC24 and AC25 in `tests/PhonePage.test.tsx`.
+- **AC27** Playwright at 1280x720 covers: open a detail view by click and by keyboard (Enter and Space), back button focused, back by button and by Escape with focus returned to the same tile (AC13 to AC15); the detail tab order (AC16); window still 520x385 at y 259 in list and detail view (AC11, AC19); the list scrolls inside the window with extra injected tiles, scroll bar computed `scrollbar-color` matches the tokens in dark and light (AC19, AC21); star visible with name `Featured` on Indoor Garden in the tile and detail, and on the phone page (AC9, AC24); no console errors or warnings.
+- **AC28** Existing tests that pin the old link tiles are updated, never deleted, skipped or weakened. Each edit carries `// DELIBERATE REQUIREMENT CHANGE (T18 ACn): <reason>` and is listed in the QA report and the autobuild log. Known cases (the planner must confirm the full list by running the suites):
+  - `tests/windows/Projects.test.tsx`: T07 AC31 "a list with one link tile per PROJECTS entry" and "each tile shows name as a heading, description and every tag" (`getAllByRole('link')` becomes the tile buttons, and content is checked on the `li` if the heading is outside the button); T07 AC32 "each href comes from PROJECTS" and "target and rel come from linkAttrs" (tiles have no href; move the href/`linkAttrs` assertions to detail `links` and keep the pure `linkAttrs` tests); T07 AC32 "icons are hidden from assistive technology" (svg count `PROJECTS.length * 2` changes with the arrow removed and the star added; all non-star svgs stay `aria-hidden`); T07 AC32 "accessible name holds name and description" and "separates name, description and tags" (the name becomes exactly the project name, desc moves to the description; tag whitespace separation still checked).
+  - `tests/e2e/projects.spec.ts`: T07 AC31 locator `a.proj-tile` (becomes the tile buttons, still four in a 2x2 grid with a 10px gap); T07 AC47 grid-bottom gap probe if the scroll container changes which element is measured.
+  - `tests/e2e/windows.spec.ts`: T07 AC11 `tile = win('proj').locator('a').nth(i)` and `locator('a').count()` is 4 (becomes buttons; stop count stays 6); T07 AC10 `seen.get('proj').size` stays 6 and should pass unchanged.
+  - `tests/e2e/windows.motion.spec.ts`: T07 AC9 "a click at the bottom edge of a tile reaches the link (navigation is cancelled)" (becomes "reaches the tile button and opens the detail view"); hover/press/reduced-motion tile tests should pass unchanged if `.proj-tile`/`.proj-face` keep their roles.
+  - `tests/e2e/chrome.spec.ts` (23 stop names incl. the four project names) and `tests/Desktop.dock.test.tsx` T06 AC25 (35 stops): should pass unchanged (AC23); edit only if a selector, not a count, must move.
+  - `tests/PhonePage.test.tsx`: T13 AC24 "no svg or img" (becomes: the only svg is one Featured star, on Indoor Garden; still no img; link names still equal visible text).
+  - `tests/e2e/phone.spec.ts`: any "no svg" or icon probe, if present.
+- **AC29** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass.
 
 ## Out of scope
 
-- New stats, numbers or claims not already in `src/data.ts` (no invented figures, no `TODO(Tanzi)` placeholders rendered).
-- Changing the terminal `experience` output, `help`, `ls` or `open`.
-- Restyling the phone page `@ org` line as a pill, or any other phone layout change beyond replacing `desc` with stats.
-- Changing the `layout()` formula for exp or any other window, other windows' sizes, or `INITIAL_ORDER`.
-- Changing tabs, the rail width, tag styles, or adding new tag variants.
-- A styled scroll bar (T18 adds scroll bar styling for projects; exp uses the default).
-- Mobile window layout, persistence changes, editing `docs/design-decisions.md` or `design_handoff_tanzi_os/`.
+- Inventing details, highlights, metrics, links, screenshots or repo URLs. No real project links are added; `href` placeholders stay `'#'`.
+- Changing the terminal `projects`, `ls`, `open` or `help` output, or adding a terminal command for project details.
+- A detail view, buttons, highlights or links on the phone page; any phone layout change beyond the star.
+- Deep links or URL/hash routing for a project (no deep links in v1, decisions log 9).
+- Persisting the selected project (only theme, wallpaper and wobble persist).
+- Changing `WIN_META.proj` size, the `layout()` formula, z-order rules, other windows, or the titlebar text per view.
+- Animated transitions between list and detail (a reduced-motion-safe instant swap is enough).
+- New projects in `PROJECTS` (the list only has to support them).
+- Styled scroll bars in other windows (experience, terminal).
+- Editing `docs/design-decisions.md` or `design_handoff_tanzi_os/`.
 
 ## Assumptions
 
-1. **No résumés available.** The `experience/` folder does not exist in the repo, so the stats come only from the old `desc` strings in `src/data.ts`. The ticket's examples (33h to 3h, +80% coverage via PyTest, NL-to-SQL on a local model, multi-tenant onboarding, security review) are all in that text.
-2. **Drop `desc`.** The ticket says "replace", so `desc` is removed rather than kept as dead data. The terminal does not use it; the phone page switches to `stats` so both views show the same content (backlog rule: update the phone page where content changes).
-3. **Stat wording** stays as close to the old sentences as possible (split per clause, no trailing full stops). University of Calgary has no figures, so it gets a single stat from its text and nothing else; the role already says "B.Sc. Software Engineering", so "Software engineering degree" is not repeated.
-4. **Size 600x400.** About 15% wider and 38% taller than 520x290. With the unchanged formula, `yFit` lifts exp to y 244 at 1280x720, so it still ends at the dock clearance (644). 400 leaves 208px of the 608px usable height for other windows above it and is comfortably more than the content needs, so the scroll is a safety net.
-5. **Overlap is acceptable.** After Tidy up, hello (top of the stack) covers more of exp than before (exp now starts at y 244 instead of 354). This matches the existing overlapping layout; opening exp from any entry point raises it. Only hello is open on first load, so the first-load view is unaffected.
-6. **Fixed height.** The window renders at the nominal height on every tab (like the existing "keeps its height on every tab" test), and the panel scrolls when needed. The rail does not scroll.
-7. **Pill colours.** Two tokens (background and text) are needed for one pill. The default is the existing accent ramp light value `#d2cefd` with `#2b2741` text in both themes. In dark mode that is a light purple on a dark window; in light mode it is darker than the `#e7e5fe` tag fill so it does not read as a tag. The planner may pick other accent-family hex values if they meet AC8 and AC9.
-8. **Pill keeps the `exp-org` class and text** so the e2e helper that strips `@` from `.exp-org` and the `@ org` text checks keep working.
-9. **Stats list style** (bullets, icons, spacing) is the planner's choice within AC5 and the token-only rule.
-10. **Test edits are sanctioned requirement changes** under the backlog round 2 rule and the T15 and T16 precedent (AC22).
+1. **No résumés.** `experience/` does not exist, so detail content comes only from `desc`, `tags` and the capstone statement. Only Indoor Garden gets `details`; `highlights` and `links` are omitted for every project, each gap marked with a `// TODO(Tanzi)` comment. The detail view still shows the always-present name, icon, desc and tags, so it is never empty.
+2. **Tile becomes a button.** It no longer navigates, because every `href` is `'#'`. Real external links, when Tanzi adds them, go in `links` and render only in the detail view. `href` stays in the type and data because the phone page still uses it for the name link (phone page unchanged apart from the star).
+3. **Accessible name.** The tile's name is just the project name (short, matches the existing chrome e2e stop names); `desc` and "Featured" go in the accessible description, so keyboard users still hear them.
+4. **Arrow removed.** `ArrowUpRight` implies an external link, which tiles no longer are.
+5. **Escape scope.** Escape is handled only when focus is inside the projects window and the detail view is open; it never closes the window. This avoids conflicting with the menubar's own Escape handling.
+6. **Minimize keeps the view.** Consistent with terminal history and the experience tab surviving minimize; only close (unmount) and Restart reset it.
+7. **Star contrast.** The star is a meaningful non-text graphic, so 3:1 (WCAG 1.4.11) is the bar. Both `--color-bg` (tile face) and `--color-surface` (window/detail and phone backgrounds) are checked so the planner can place it on either.
+8. **Scroll bar.** Standard `scrollbar-color`/`scrollbar-width` (supported in the Chromium e2e target) with tokens; thumb vs track 3:1 because it is a UI component. The list fits today, so the scroll bar only appears when projects are added.
+9. **Capstone wording.** Exact `details` text for Indoor Garden is the planner's choice within AC2 (for example "Capstone project: IoT garden monitoring with a live dashboard for 10+ sensors, built with Docker and React.").
+10. **Test edits are sanctioned requirement changes** under the backlog round 2 rule and the T15 to T17 precedent (AC28).
 
 ## Open questions
 
