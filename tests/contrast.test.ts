@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import css from '../src/theme.css?raw';
-import { resolveTheme } from './helpers/cssTokens';
+import { parseBlock, resolveTheme } from './helpers/cssTokens';
 import { contrastRatio } from './helpers/contrast';
 
 const THEMES = ['dark', 'light'] as const;
@@ -11,6 +11,7 @@ const TAG_PAIRS: [string, string][] = [
   ['accent-2-100', 'accent-2-800'],
 ];
 const MIN = 4.5;
+const ORG_PILL = ['org-pill-text', 'org-pill-bg'] as const;
 
 describe('contrast (WCAG 2.x, at least 4.5:1)', () => {
   it('reads a non-empty theme.css', () => {
@@ -41,6 +42,31 @@ describe('contrast (WCAG 2.x, at least 4.5:1)', () => {
       });
     }
   }
+
+  for (const theme of THEMES) {
+    const t = resolveTheme(css, theme);
+    it(`T17 AC9: ${theme}: org pill text on bg`, () => {
+      const fg = t['--color-org-pill-text'];
+      const bg = t['--color-org-pill-bg'];
+      expect(fg, 'text token').toBeTruthy();
+      expect(bg, 'bg token').toBeTruthy();
+      const ratio = contrastRatio(fg, bg);
+      expect(ratio, `org pill = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(MIN);
+    });
+
+    it(`T17 AC8: ${theme}: org pill tokens are six digit hex`, () => {
+      for (const n of ORG_PILL) expect(t[`--color-${n}`], n).toMatch(/^#[0-9a-f]{6}$/i);
+    });
+  }
+
+  it('T17 AC8: light defines both pill tokens itself and its bg differs from the tag fill', () => {
+    const light = parseBlock(css, "[data-theme='light']");
+    for (const n of ORG_PILL) expect(light[`--color-${n}`], n).toBeTruthy();
+    const resolved = resolveTheme(css, 'light');
+    expect(light['--color-org-pill-bg'].toLowerCase()).not.toBe(
+      resolved['--color-accent-800'].toLowerCase(),
+    );
+  });
 
   it('AC4: guard, the old light accent #796cbf on bg is below the threshold', () => {
     expect(contrastRatio('#796cbf', '#e4e7f5')).toBeLessThan(MIN);

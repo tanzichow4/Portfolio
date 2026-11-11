@@ -13,7 +13,7 @@ export interface WinMeta {
 export const WIN_META: Readonly<Record<WinId, WinMeta>> = {
   hello: { width: 560, height: 473, dock: true },
   about: { width: 420, height: 396, dock: true },
-  exp: { width: 520, height: 290, dock: true },
+  exp: { width: 600, height: 400, dock: true },
   proj: { width: 520, height: 385, dock: true },
   term: { width: 440, height: 270, dock: true },
   viz: { width: 280, height: 160, dock: true },

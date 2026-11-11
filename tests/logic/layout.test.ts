@@ -193,7 +193,8 @@ describe('T16 viz layout', () => {
     '1280x720': {
       hello: { x: 77, y: 72 },
       about: { x: 640, y: 64 },
-      exp: { x: 64, y: 354 },
+      // DELIBERATE REQUIREMENT CHANGE (T17 AC12): exp is now 600x400 so its position moved
+      exp: { x: 64, y: 244 },
       proj: { x: 538, y: 259 },
       term: { x: 810, y: 340 },
       site: { x: 470, y: 180 },
@@ -201,7 +202,8 @@ describe('T16 viz layout', () => {
     '1366x768': {
       hello: { x: 82, y: 72 },
       about: { x: 683, y: 64 },
-      exp: { x: 68, y: 399 },
+      // DELIBERATE REQUIREMENT CHANGE (T17 AC12): exp is now 600x400 so its position moved
+      exp: { x: 68, y: 292 },
       proj: { x: 574, y: 300 },
       term: { x: 896, y: 388 },
       site: { x: 513, y: 204 },
@@ -209,7 +211,8 @@ describe('T16 viz layout', () => {
     '1440x900': {
       hello: { x: 86, y: 72 },
       about: { x: 720, y: 64 },
-      exp: { x: 72, y: 468 },
+      // DELIBERATE REQUIREMENT CHANGE (T17 AC12): exp is now 600x400 so its position moved
+      exp: { x: 72, y: 424 },
       proj: { x: 605, y: 342 },
       term: { x: 970, y: 520 },
       site: { x: 550, y: 270 },
@@ -217,7 +220,8 @@ describe('T16 viz layout', () => {
     '1536x864': {
       hello: { x: 92, y: 72 },
       about: { x: 768, y: 64 },
-      exp: { x: 77, y: 449 },
+      // DELIBERATE REQUIREMENT CHANGE (T17 AC12): exp is now 600x400 so its position moved
+      exp: { x: 77, y: 388 },
       proj: { x: 645, y: 328 },
       term: { x: 1066, y: 484 },
       site: { x: 598, y: 252 },
@@ -267,5 +271,63 @@ describe('T16 viz layout', () => {
     expect(wins.viz).toMatchObject({ open: true, min: false });
     const zs = DOCK_IDS.map((id) => zIndexFor(id, order));
     expect(new Set(zs).size).toBe(6);
+  });
+});
+
+describe('T17 exp layout', () => {
+  const EXP_AT: Record<string, { x: number; y: number }> = {
+    '1280x720': { x: 64, y: 244 },
+    '1366x768': { x: 68, y: 292 },
+    '1440x900': { x: 72, y: 424 },
+    '1536x864': { x: 77, y: 388 },
+    '1920x1080': { x: 96, y: 562 },
+  };
+
+  it('T17 AC12: exp sits at the literal positions at the five supported sizes', () => {
+    for (const [vw, vh] of SIZES) {
+      expect(layout(vw, vh).exp, `${vw}x${vh}`).toEqual(EXP_AT[`${vw}x${vh}`]);
+    }
+  });
+
+  it('T17 AC13: exp stays inside the desktop at every supported size', () => {
+    for (const [vw, vh] of SIZES) {
+      const p = layout(vw, vh).exp;
+      expect(p.x, `x @${vw}`).toBeGreaterThanOrEqual(16);
+      expect(p.x + WIN_META.exp.width, `right @${vw}`).toBeLessThanOrEqual(vw - 16);
+      expect(p.y, `y @${vw}`).toBeGreaterThanOrEqual(36);
+      expect(p.y + WIN_META.exp.height, `bottom @${vw}`).toBeLessThanOrEqual(vh - 76);
+    }
+  });
+
+  it('T17 AC13: at 1280x720 exp clears the terminal on the right and ends at y 644', () => {
+    const p = layout(1280, 720).exp;
+    expect(p.x + 600).toBeLessThanOrEqual(810);
+    expect(p.y + 400).toBe(644);
+  });
+
+  it('T17 AC12: the other windows keep their pre-T17 positions', () => {
+    const others: Record<string, Record<string, { x: number; y: number }>> = {
+      '1280x720': {
+        hello: { x: 77, y: 72 },
+        about: { x: 640, y: 64 },
+        proj: { x: 538, y: 259 },
+        term: { x: 810, y: 340 },
+        site: { x: 470, y: 180 },
+      },
+      '1920x1080': {
+        hello: { x: 115, y: 72 },
+        about: { x: 960, y: 64 },
+        proj: { x: 806, y: 410 },
+        term: { x: 1450, y: 700 },
+        site: { x: 790, y: 360 },
+      },
+    };
+    for (const [key, ws] of Object.entries(others)) {
+      const [vw, vh] = key.split('x').map(Number) as [number, number];
+      const l = layout(vw, vh);
+      for (const [id, pos] of Object.entries(ws))
+        expect(l[id as WinId], `${id} @${key}`).toEqual(pos);
+    }
+    expect(layout(1440, 900).viz).toEqual({ x: 1120, y: 198 });
   });
 });

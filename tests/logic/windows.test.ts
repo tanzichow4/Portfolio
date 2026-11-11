@@ -10,7 +10,8 @@ describe('window metadata', () => {
   it('AC2: widths match the spec', () => {
     expect(WIN_META.hello.width).toBe(560);
     expect(WIN_META.about.width).toBe(420);
-    expect(WIN_META.exp.width).toBe(520);
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC11): the experience window grows to 600 wide
+    expect(WIN_META.exp.width).toBe(600);
     expect(WIN_META.proj.width).toBe(520);
     expect(WIN_META.term.width).toBe(440);
     expect(WIN_META.site.width).toBe(340);
@@ -52,5 +53,11 @@ describe('T16 viz window metadata', () => {
     expect(WIN_IDS).toContain('viz');
     expect(DOCK_IDS).toContain('viz');
     expect(WIN_IDS[WIN_IDS.length - 1]).toBe('site');
+  });
+});
+
+describe('T17 exp window meta', () => {
+  it('T17 AC11: WIN_META.exp is 600x400 and stays in the dock', () => {
+    expect(WIN_META.exp).toEqual({ width: 600, height: 400, dock: true });
   });
 });

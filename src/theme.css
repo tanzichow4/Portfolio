@@ -36,6 +36,8 @@
   --color-accent-700: #5d5294;
   --color-accent-800: #423a6a;
   --color-accent-900: #2b2741;
+  --color-org-pill-bg: #d2cefd;
+  --color-org-pill-text: #2b2741;
 
   --color-accent-2-100: #f5f4ff;
   --color-accent-2-200: #e7e5fe;
@@ -588,6 +590,8 @@ textarea.input {
   --color-accent-700: #d2cefd;
   --color-accent-800: #e7e5fe;
   --color-accent-900: #f5f4ff;
+  --color-org-pill-bg: #d2cefd;
+  --color-org-pill-text: #2b2741;
   --color-section-glow: #e7e5fe;
   --color-accent-2-100: #2b293a;
   --color-accent-2-200: #423e5d;
