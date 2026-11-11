@@ -92,3 +92,11 @@ Direction from Tanzi during this run: finish T08, defer T09 until after the MVP,
 ## Run on branch autobuild/2026-11-10 (round 2: T15-T18)
 
 Baseline before T15: GitHub link removed and tests updated on main (commits 1443f89, 4f84801). lint, typecheck, 1367 unit and 242 e2e all green.
+
+### T15 done
+
+- Shipped: only hello.txt opens on first load and after Restart; Tidy up still opens all five (reducer `tidy` and `restart` split, `tidyDesktop`); hello gets "More about me" and "What I've been up to" buttons (secondary style, same `open` action, copy in `HELLO_COPY`); `WIN_META.hello.height` 420 -> 473 because four buttons wrap to two rows.
+- Results: lint, typecheck, 1423 unit, 267 e2e green. QA: PASS (docs/qa/T15-qa.md), no fix rounds.
+- **Existing tests changed (review these):** many setup-only edits across unit and e2e specs, each marked `DELIBERATE REQUIREMENT CHANGE (T15 AC25)`, via new helpers `tests/helpers/openAll.ts` and `tests/e2e/helpers/openAll.ts`. Count/offset edits: hello tab stops +2, dock Tab total 31 -> 33, hello height 473. `phone.spec.ts` also needed setup, which the plan missed. No test deleted, skipped or weakened.
+- Assumptions: Tidy up stays "all open" (design spec); new buttons use `open`, not the dock toggle; no icons on new buttons.
+- Gaps: a newly opened window can cover hello's buttons until hello is raised; restoring a minimized window via a hello button was not walked by hand (unit and e2e cover it); QA used scripted Chromium; build and format:check not run by QA (format:check run by me).
