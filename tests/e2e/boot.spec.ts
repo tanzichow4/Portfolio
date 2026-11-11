@@ -30,6 +30,8 @@ const win = (page: Page, id: string) => page.locator(`[data-win="${id}"]`);
 const expectOnlyHelloThenOpenAll = async (page: Page) => {
   await expect(page.locator('[data-win]')).toHaveCount(1);
   await expect(page.locator('[data-win="hello"]')).toBeVisible();
+  // DELIBERATE REQUIREMENT CHANGE (T16 AC16): dataviz is also closed after Restart.
+  await expect(page.locator('[data-win="viz"]')).toHaveCount(0);
   await openAllFromDock(page);
 };
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Restarting tanzi.os' });

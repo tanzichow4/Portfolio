@@ -15,6 +15,8 @@ const watchErrors = (page: Page): string[] => {
 test.use({ colorScheme: 'dark' });
 
 const IDS = ['hello', 'about', 'exp', 'proj', 'term'] as const;
+// DELIBERATE REQUIREMENT CHANGE (T16 AC18): the dock lists dataviz as a sixth button; IDS stays at the five windows the helper opens.
+const DOCK6_LABELS = ['hello.txt', 'about.md', 'experience.log', 'projects', 'terminal', 'dataviz'];
 type Id = (typeof IDS)[number];
 const TITLES: Record<Id, string> = {
   hello: 'hello.txt',
@@ -168,14 +170,15 @@ test.describe('T06 dock layout and styles', () => {
     expect(bg).toMatch(/^(color\(srgb|rgba\()/);
     expect(bg).not.toMatch(/ 1\)$/);
 
-    await expect(dock(page).getByRole('button')).toHaveCount(5);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): six window buttons now (dataviz added).
+    await expect(dock(page).getByRole('button')).toHaveCount(6);
     await expect(dock(page).getByRole('link')).toHaveCount(2);
     const kinds = await d
       .locator(':scope > *')
       .evaluateAll((els) =>
         els.map((e) => (e.classList.contains('dock-sep') ? 'sep' : e.getAttribute('aria-label'))),
       );
-    expect(kinds).toEqual([...IDS.map((i) => TITLES[i]), 'sep', ...LINK_LABELS]);
+    expect(kinds).toEqual([...DOCK6_LABELS, 'sep', ...LINK_LABELS]);
     await expect(d.getByRole('button', { name: 'About this site' })).toHaveCount(0);
     expect(errors).toEqual([]);
   });
@@ -665,11 +668,13 @@ test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
     // link and one fewer dock link), the dock starts at index 24 and distinct stops go 28 -> 27.
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the two new hello buttons add two stops, so 31 -> 33,
     // the dock starts at index 26 and the distinct stops after the menubar go 27 -> 29.
-    const labels = await tabLabels(page, 33);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC6, AC18): +1 stop for the about button and +1 for the dataviz
+    // dock button, so 33 -> 35 stops, the dock starts at index 27, distinct stops 29 -> 31.
+    const labels = await tabLabels(page, 35);
     expect(labels[0]).toBe('tanzi.os');
     expect(labels[4]).toBe('Minimize hello.txt');
-    expect(labels.slice(26)).toEqual([...IDS.map((i) => TITLES[i]), ...LINK_LABELS]);
-    expect(new Set(labels.slice(4)).size).toBe(29);
+    expect(labels.slice(27)).toEqual([...DOCK6_LABELS, ...LINK_LABELS]);
+    expect(new Set(labels.slice(4)).size).toBe(31);
     expect(errors).toEqual([]);
   });
 
@@ -691,7 +696,8 @@ test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
     // so 22 -> 24.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the projects body adds four window stops,
     // so 24 -> 28.
-    for (let i = 0; i < 28; i++) {
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): the dataviz dock button adds one stop (about is minimized, so its button is inert), 28 -> 29.
+    for (let i = 0; i < 29; i++) {
       await page.keyboard.press('Tab');
       const info = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement;
@@ -712,7 +718,7 @@ test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
     }
     expect(labels.some((l) => l.endsWith('terminal') && l !== 'terminal')).toBe(false);
     expect(labels.some((l) => l.endsWith('about.md') && l !== 'about.md')).toBe(false);
-    expect(ringed).toEqual([...IDS.map((i) => TITLES[i]), ...LINK_LABELS]);
+    expect(ringed).toEqual([...DOCK6_LABELS, ...LINK_LABELS]);
     expect(await computed(dock(page), 'overflow')).toBe('visible');
     expect(errors).toEqual([]);
   });

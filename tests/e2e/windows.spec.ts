@@ -17,10 +17,12 @@ test.use({ colorScheme: 'dark' });
 type Id = 'hello' | 'about' | 'exp' | 'proj' | 'term' | 'site';
 const DEFAULT5: Id[] = ['hello', 'about', 'exp', 'proj', 'term'];
 // Heights from the T07 plan (WIN_META after the coder's measurements).
+const ABOUT_H = 396;
 const HEIGHTS: Record<Id, number> = {
   // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello now wraps its four buttons onto two rows, so WIN_META.hello.height is 473 (AC17).
   hello: 473,
-  about: 331,
+  // DELIBERATE REQUIREMENT CHANGE (T16 AC9): the 'See some data viz' button makes about taller, so WIN_META.about.height is the new measured value.
+  about: ABOUT_H,
   exp: 290,
   proj: 385,
   term: 270,
@@ -337,7 +339,12 @@ test.describe('T07 window contents, cross-window', () => {
         win(page, 'hello').getByRole('button', { name: "What I've been up to" }),
         win(page, 'hello').getByRole('link', { name: 'Say hi' }),
       ],
-      about: [minBtn(page, 'about'), closeBtn(page, 'about')],
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC6): about's body adds the 'See some data viz' stop.
+      about: [
+        minBtn(page, 'about'),
+        closeBtn(page, 'about'),
+        win(page, 'about').getByRole('button', { name: 'See some data viz' }),
+      ],
       exp: [minBtn(page, 'exp'), closeBtn(page, 'exp'), tabs(page).first(), panel(page)],
       proj: [minBtn(page, 'proj'), closeBtn(page, 'proj'), tile(0), tile(1), tile(2), tile(3)],
       term: [minBtn(page, 'term'), closeBtn(page, 'term'), input(page)],

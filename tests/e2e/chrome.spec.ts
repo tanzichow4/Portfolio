@@ -188,17 +188,20 @@ test.describe('window chrome', () => {
     // DELIBERATE REQUIREMENT CHANGE (T05 AC40): the menubar adds one button (the theme toggle).
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds two role buttons (the verb and
     // "See what I've built"), so 10 -> 12.
-    await expect(page.locator('[data-win]').getByRole('button')).toHaveCount(14);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC5): about gains the 'See some data viz' button, so 14 -> 15.
+    await expect(page.locator('[data-win]').getByRole('button')).toHaveCount(15);
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello gains 'More about me' and 'What I've been up to', so 12 -> 14 and 18 -> 20.
     await expect(page.getByRole('banner').getByRole('button')).toHaveCount(1);
     // DELIBERATE REQUIREMENT CHANGE (T06 AC30): the dock adds five buttons (16 in total).
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): plus the two hello body buttons (18 in total).
     const dock = page.getByRole('navigation', { name: 'Dock' });
-    await expect(dock.getByRole('button')).toHaveCount(5);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): the dock gains the dataviz button, so 5 -> 6.
+    await expect(dock.getByRole('button')).toHaveCount(6);
     for (const id of DOCK5) {
       await expect(dock.getByRole('button', { name: TITLES[id], exact: true })).toHaveCount(1);
     }
-    await expect(page.getByRole('button')).toHaveCount(20);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC5, AC18): +1 about button, +1 dataviz dock button, so 20 -> 22.
+    await expect(page.getByRole('button')).toHaveCount(22);
   });
 
   test('AC11/AC16: dragging tilts right then left, scales up, and springs flat on release', async ({
@@ -406,6 +409,7 @@ test.describe('window chrome', () => {
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the terminal body adds its input ('Terminal
     // command') after Minimize and Close, so 19 -> 20 stops.
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the two new hello buttons add two tab stops, so 20 -> 22.
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC6): about's body adds the 'See some data viz' stop, so 22 -> 23.
     const want = [
       'Minimize hello.txt',
       'Close hello.txt',
@@ -417,6 +421,7 @@ test.describe('window chrome', () => {
       ...DOCK5.filter((id) => id !== 'hello').flatMap((id) => [
         `Minimize ${TITLES[id]}`,
         `Close ${TITLES[id]}`,
+        ...(id === 'about' ? ['See some data viz'] : []),
         ...(id === 'exp' ? ['Tartigrade Ltd.', 'tabpanel'] : []),
         ...(id === 'proj'
           ? ['Voice Calendar', 'Indoor Garden', 'Grocery Prices', 'Driver Safety']
@@ -424,7 +429,7 @@ test.describe('window chrome', () => {
         ...(id === 'term' ? ['Terminal command'] : []),
       ]),
     ];
-    expect(await stopNames(page, 22)).toEqual(want);
+    expect(await stopNames(page, 23)).toEqual(want);
   });
 
   test('AC23: Enter activates Minimize', async ({ page }) => {
@@ -471,7 +476,8 @@ test.describe('window chrome', () => {
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): three hello body stops, so 7 -> 10; the
     // experience body adds two more before projects, so 10 -> 12.
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the two new hello buttons add two tab stops, so 12 -> 14.
-    await tabLabels(page, 14); // reaches "Minimize projects"
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC6): the about button adds one stop before projects, so 14 -> 15.
+    await tabLabels(page, 15); // reaches "Minimize projects"
     expect(await focusedLabel(page)).toBe('Minimize projects');
     for (const id of DOCK5.filter((i) => i !== 'proj')) {
       expect(await zOf(page, 'proj')).toBeGreaterThan(await zOf(page, id));

@@ -77,7 +77,8 @@ test.describe('T15 first load: only hello.txt is open', () => {
     await expect(page.locator('[data-win]')).toHaveCount(1);
     await expect(win(page, 'hello')).toBeVisible();
     await expect(win(page, 'hello')).toHaveAttribute('data-min', 'false');
-    for (const id of [...OTHERS, 'site']) await expect(win(page, id)).toHaveCount(0);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC16): dataviz is also closed on first load.
+    for (const id of [...OTHERS, 'viz', 'site']) await expect(win(page, id)).toHaveCount(0);
     await settled(page);
     expect(await pos(page, 'hello')).toEqual(REFERENCE.hello);
     expect(errors).toEqual([]);
@@ -88,7 +89,13 @@ test.describe('T15 first load: only hello.txt is open', () => {
     await page.goto('/');
     await expect(
       page.getByRole('navigation', { name: 'Dock' }).locator('button.dock-win'),
-    ).toHaveCount(5);
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC18): the dock now has six window buttons (dataviz added).
+    ).toHaveCount(6);
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Dock' })
+        .locator('button.dock-win[aria-label="dataviz"]'),
+    ).toHaveAttribute('aria-pressed', 'false');
     for (const id of IDS) {
       const open = id === 'hello';
       await expect(dockBtn(page, id)).toHaveAttribute('aria-pressed', String(open));
@@ -115,6 +122,10 @@ test.describe('T15 first load: only hello.txt is open', () => {
         page.getByRole('menuitemcheckbox', { name: TITLES[id], exact: true }),
       ).toHaveAttribute('aria-checked', String(id === 'hello'));
     }
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC19): the Windows menu gains a dataviz item, unchecked on load.
+    await expect(
+      page.getByRole('menuitemcheckbox', { name: 'dataviz', exact: true }),
+    ).toHaveAttribute('aria-checked', 'false');
     expect(errors).toEqual([]);
   });
 
@@ -313,7 +324,8 @@ test.describe('T15 Restart and Tidy up (AC8, AC10)', () => {
     const errors = watchErrors(page);
     await page.goto('/');
     await chooseItem(page, 'Windows', 'Tidy up');
-    await expect(page.locator('[data-win]')).toHaveCount(5);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC17): Tidy up now also opens dataviz, so 5 -> 6.
+    await expect(page.locator('[data-win]')).toHaveCount(6);
     await expect(win(page, 'site')).toHaveCount(0);
     await settled(page);
     for (const id of IDS) {
@@ -330,7 +342,8 @@ test.describe('T15 Restart and Tidy up (AC8, AC10)', () => {
     const input = page.getByRole('textbox', { name: 'Terminal command' });
     await input.fill('tidy');
     await input.press('Enter');
-    await expect(page.locator('[data-win]')).toHaveCount(5);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC17): Tidy up now also opens dataviz, so 5 -> 6.
+    await expect(page.locator('[data-win]')).toHaveCount(6);
     expect(errors).toEqual([]);
   });
 });
