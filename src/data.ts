@@ -3,6 +3,7 @@ import type { WinId } from './types';
 import {
   Briefcase,
   ChartLineUp,
+  ChartPieSlice,
   Code,
   EnvelopeSimple,
   Folder,
@@ -158,6 +159,8 @@ export const ABOUT_COPY: AboutSegment[][] = [
   ],
 ];
 
+export const VIZ_COPY = { body: 'Coming soon' } as const;
+
 export const SITE_COPY = {
   mark: 'TC',
   title: 'tanzi.os',
@@ -190,6 +193,7 @@ export const WIN_TITLES: Readonly<Record<WinId, string>> = {
   exp: 'experience.log',
   proj: 'projects',
   term: 'terminal',
+  viz: 'dataviz',
   site: 'About this site',
 };
 
@@ -199,6 +203,7 @@ export const WIN_ICONS: Readonly<Record<WinId, Icon>> = {
   exp: Briefcase,
   proj: Folder,
   term: TerminalWindow,
+  viz: ChartPieSlice,
   site: Info,
 };
 

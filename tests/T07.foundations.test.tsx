@@ -66,7 +66,8 @@ describe('T07 WindowLayer renderBody', () => {
         }}
       />,
     );
-    expect([...seen].sort()).toEqual(['about', 'exp', 'hello', 'proj', 'term']);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC17): the Tidy harness opens viz, so renderBody is also called for viz.
+    expect([...seen].sort()).toEqual(['about', 'exp', 'hello', 'proj', 'term', 'viz']);
     expect(document.querySelector('[data-testid="body-site"]')).toBeNull();
   });
 

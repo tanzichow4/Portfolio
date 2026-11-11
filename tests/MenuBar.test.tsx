@@ -603,7 +603,8 @@ describe('item roles and ARIA (AC11)', () => {
     const { user } = setup();
     await user.click(trigger('Windows'));
     const m = within(screen.getByRole('menu'));
-    expect(m.getAllByRole('menuitemcheckbox')).toHaveLength(5);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC19): the Windows menu gains dataviz.
+    expect(m.getAllByRole('menuitemcheckbox')).toHaveLength(6);
     expect(m.getAllByRole('menuitem')).toHaveLength(3);
     expect(m.getAllByRole('separator')).toHaveLength(1);
   });
@@ -694,6 +695,8 @@ describe('Windows menu (AC19)', () => {
       'experience.log',
       'projects',
       'terminal',
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC19): the Windows menu lists dataviz as its sixth window.
+      'dataviz',
       'Minimize all',
       'Show all',
       'Tidy up',
@@ -703,7 +706,8 @@ describe('Windows menu (AC19)', () => {
   it('AC19: all five are checked when all windows are open', async () => {
     const { user } = setup();
     await user.click(trigger('Windows'));
-    expect(screen.getAllByRole('menuitemcheckbox', { checked: true })).toHaveLength(5);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC19): the Tidy harness opens six windows now, so six items are checked.
+    expect(screen.getAllByRole('menuitemcheckbox', { checked: true })).toHaveLength(6);
   });
 
   it('AC38/AC19: minimizing hello unchecks "hello.txt"', async () => {
@@ -806,7 +810,8 @@ describe('Windows menu (AC19)', () => {
     await user.click(trigger('Windows'));
     await user.click(screen.getByRole('menuitem', { name: 'Minimize all' }));
     const buttons = Array.from(document.querySelectorAll<HTMLElement>('[data-win] button'));
-    expect(buttons.length).toBe(10);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC17): viz is open in the Tidy harness and adds its two chrome buttons (no bodies rendered), 10 -> 12.
+    expect(buttons.length).toBe(12);
     for (const b of buttons) expect(b.closest('[inert]')).not.toBeNull();
     for (const id of ['hello', 'about', 'exp', 'proj', 'term'])
       expect(within(winEl(id)!).queryAllByRole('button')).toHaveLength(0);

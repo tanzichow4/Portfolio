@@ -89,10 +89,25 @@ function freshLayoutAllOpen() {
   return l;
 }
 
+/**
+ * The layout after a fresh load and then choosing Tidy up from the Windows menu.
+ * DELIBERATE REQUIREMENT CHANGE (T16 AC17): Tidy up now also opens viz, so the five-window dock-open layout no longer equals the Tidy state.
+ */
+async function freshTidyLayout() {
+  const user = userEvent.setup();
+  const { unmount } = render(<Desktop />);
+  await choose(user, 'Windows', 'Tidy up');
+  const l = layout();
+  unmount();
+  return l;
+}
+
 /** Restart returns to the start state: only hello is present. */
 function expectOnlyHello() {
   expect(winEl('hello')).not.toBeNull();
-  for (const id of ['about', 'exp', 'proj', 'term', 'site']) expect(winEl(id), id).toBeNull();
+  // DELIBERATE REQUIREMENT CHANGE (T16 AC16): Restart leaves viz closed too.
+  for (const id of ['about', 'exp', 'proj', 'term', 'viz', 'site'])
+    expect(winEl(id), id).toBeNull();
 }
 
 const restartFromMenu = (user: User) => choose(user, 'tanzi.os', 'Restart…');
@@ -417,7 +432,8 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
   it('T08 AC20: Tidy up keeps a dirtied verb and resets the layout', async () => {
     const user = userEvent.setup();
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): Tidy up lays out all five windows, which is no longer the start state; compare with start + open-all.
-    const expected = freshLayoutAllOpen();
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC17): compare with the real Tidy up layout, which now includes viz.
+    const expected = await freshTidyLayout();
     render(<Desktop />);
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
     openAllFromDock();

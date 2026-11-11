@@ -2,6 +2,7 @@ import { EMAIL, MENU_ITEMS, WIN_TITLES } from '../data';
 import type { MenuId, State } from '../types';
 import type { Settings } from './settings';
 import type { AppAction } from './system';
+import { DOCK_IDS } from './windows';
 
 export type TopMenu = Exclude<MenuId, null>;
 export const MENU_ORDER: readonly TopMenu[] = ['os', 'win', 'view', 'help'];
@@ -50,8 +51,6 @@ function act(
   };
 }
 
-const MENU_WINS = ['hello', 'about', 'exp', 'proj', 'term'] as const;
-
 export function menuModel(
   id: TopMenu,
   ctx: { wins: State['wins']; settings: Settings },
@@ -66,7 +65,7 @@ export function menuModel(
       ];
     case 'win':
       return [
-        ...MENU_WINS.map((w) =>
+        ...DOCK_IDS.map((w) =>
           act(
             w,
             WIN_TITLES[w],

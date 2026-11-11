@@ -352,6 +352,8 @@ describe('minimized windows stay unreachable (AC36)', () => {
       'experience.log',
       'projects',
       'terminal',
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC18): the dock gains a dataviz button after terminal.
+      'dataviz',
     ]);
   });
 

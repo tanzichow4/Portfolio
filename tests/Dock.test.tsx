@@ -50,6 +50,8 @@ describe('T06 Dock component', () => {
       'experience.log',
       'projects',
       'terminal',
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC18): the dock gains a sixth window button, dataviz.
+      'dataviz',
     ]);
     const links = within(nav).getAllByRole('link');
     expect(links.map((l) => l.getAttribute('aria-label'))).toEqual(LINKS.map((l) => l.label));
@@ -60,9 +62,11 @@ describe('T06 Dock component', () => {
     const { nav } = setup();
     const kids = Array.from(nav.children);
     const kinds = kids.map((k) => (k.tagName === 'BUTTON' ? 'b' : k.tagName === 'A' ? 'a' : 'd'));
-    expect(kinds.join('')).toBe('bbbbbdaa');
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): six window buttons now.
+    expect(kinds.join('')).toBe('bbbbbbdaa');
     expect(within(nav).queryByRole('button', { name: /about this site/i })).toBeNull();
-    expect(within(nav).getAllByRole('button')).toHaveLength(5);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): six window buttons now.
+    expect(within(nav).getAllByRole('button')).toHaveLength(6);
   });
 
   it('T06 AC6: divider is aria-hidden and not focusable', () => {
@@ -126,14 +130,16 @@ describe('T06 Dock component', () => {
   it('T06 AC23: every icon is aria-hidden', () => {
     const { nav } = setup();
     const svgs = nav.querySelectorAll('svg');
-    expect(svgs).toHaveLength(7);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): one more dock icon (dataviz).
+    expect(svgs).toHaveLength(8);
     for (const s of svgs) expect(s.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('T06 AC7: dots are aria-hidden, one per window button, none on links', () => {
     const { nav } = setup();
     const dots = nav.querySelectorAll('.dock-dot');
-    expect(dots).toHaveLength(5);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): one dot per window button, now six.
+    expect(dots).toHaveLength(6);
     for (const d of dots) {
       expect(d.getAttribute('aria-hidden')).toBe('true');
       expect(d.closest('button')).not.toBeNull();

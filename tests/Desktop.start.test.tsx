@@ -52,7 +52,8 @@ const typeCommand = (cmd: string) => {
   fireEvent.keyDown(input(), { key: 'Enter' });
 };
 const pos = () => layout(window.innerWidth, window.innerHeight);
-const NON_HELLO: WinId[] = ['about', 'exp', 'proj', 'term'];
+// DELIBERATE REQUIREMENT CHANGE (T16 AC16): viz is a further window that is closed at start.
+const NON_HELLO: WinId[] = ['about', 'exp', 'proj', 'term', 'viz'];
 
 async function menuItem(user: ReturnType<typeof userEvent.setup>, menu: string, label: string) {
   await user.click(trigger(menu));
@@ -95,7 +96,8 @@ describe('T15 first load', () => {
 
   it('T15 AC5: the dock shows five buttons, hello Open and the other four Closed with no dot', () => {
     render(<Desktop />);
-    expect(DOCK_IDS).toHaveLength(5);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC18): the dock has six window buttons now.
+    expect(DOCK_IDS).toHaveLength(6);
     for (const id of DOCK_IDS) {
       const b = dockBtn(id);
       const open = id === 'hello';

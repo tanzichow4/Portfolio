@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { WinId } from '../../src/types';
 import { INITIAL_ORDER, initialWindows, layout, tidyWindows } from '../../src/logic/layout';
 import { DOCK_IDS, WIN_IDS, WIN_META } from '../../src/logic/windows';
+import { zIndexFor } from '../../src/logic/zorder';
 
 const SIZES: [number, number][] = [
   [1280, 720],
@@ -65,6 +66,8 @@ describe('layout', () => {
         exp: 0.05 * vw,
         proj: 0.42 * vw,
         term: vw - 470,
+        // DELIBERATE REQUIREMENT CHANGE (T16 AC14): viz is a new dock window with its own formula.
+        viz: vw - 320,
         site: 0,
       })[id];
     const formulaY = (id: WinId, vh: number) =>
@@ -74,6 +77,8 @@ describe('layout', () => {
         exp: Math.max(380, 0.52 * vh),
         proj: Math.max(300, 0.38 * vh),
         term: Math.max(330, vh - 380),
+        // DELIBERATE REQUIREMENT CHANGE (T16 AC14): viz is a new dock window with its own formula.
+        viz: Math.max(140, 0.22 * vh),
         site: 0,
       })[id];
     for (const [vw, vh] of [
@@ -105,7 +110,8 @@ describe('layout', () => {
   });
 
   it('AC6: INITIAL_ORDER is back to front without site', () => {
-    expect([...INITIAL_ORDER]).toEqual(['proj', 'exp', 'term', 'about', 'hello']);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC15): viz goes at the back of the stack.
+    expect([...INITIAL_ORDER]).toEqual(['viz', 'proj', 'exp', 'term', 'about', 'hello']);
     expect(INITIAL_ORDER).not.toContain('site');
   });
 
@@ -177,5 +183,89 @@ describe('T15 start and tidy window sets', () => {
         expect(wins[id]).toMatchObject({ x: l[id].x, y: l[id].y });
       }
     }
+  });
+});
+
+describe('T16 viz layout', () => {
+  const OLD: WinId[] = ['hello', 'about', 'exp', 'proj', 'term', 'site'];
+  // Literal positions taken before viz was added.
+  const BEFORE: Record<string, Record<string, { x: number; y: number }>> = {
+    '1280x720': {
+      hello: { x: 77, y: 72 },
+      about: { x: 640, y: 64 },
+      exp: { x: 64, y: 354 },
+      proj: { x: 538, y: 259 },
+      term: { x: 810, y: 340 },
+      site: { x: 470, y: 180 },
+    },
+    '1366x768': {
+      hello: { x: 82, y: 72 },
+      about: { x: 683, y: 64 },
+      exp: { x: 68, y: 399 },
+      proj: { x: 574, y: 300 },
+      term: { x: 896, y: 388 },
+      site: { x: 513, y: 204 },
+    },
+    '1440x900': {
+      hello: { x: 86, y: 72 },
+      about: { x: 720, y: 64 },
+      exp: { x: 72, y: 468 },
+      proj: { x: 605, y: 342 },
+      term: { x: 970, y: 520 },
+      site: { x: 550, y: 270 },
+    },
+    '1536x864': {
+      hello: { x: 92, y: 72 },
+      about: { x: 768, y: 64 },
+      exp: { x: 77, y: 449 },
+      proj: { x: 645, y: 328 },
+      term: { x: 1066, y: 484 },
+      site: { x: 598, y: 252 },
+    },
+    '1920x1080': {
+      hello: { x: 115, y: 72 },
+      about: { x: 960, y: 64 },
+      exp: { x: 96, y: 562 },
+      proj: { x: 806, y: 410 },
+      term: { x: 1450, y: 700 },
+      site: { x: 790, y: 360 },
+    },
+  };
+
+  it('T16 AC14: viz is fully on screen at every supported size', () => {
+    for (const [vw, vh] of SIZES) {
+      const p = layout(vw, vh).viz;
+      const { width, height } = WIN_META.viz;
+      expect(p.x, `x @${vw}`).toBeGreaterThanOrEqual(16);
+      expect(p.x + width, `right @${vw}`).toBeLessThanOrEqual(vw - 16);
+      expect(p.y, `y @${vw}`).toBeGreaterThanOrEqual(36);
+      expect(p.y + height, `bottom @${vw}`).toBeLessThanOrEqual(vh - 76);
+    }
+  });
+
+  it('T16 AC14: viz sits at the top right at the two formula sizes', () => {
+    expect(layout(1440, 900).viz).toEqual({ x: 1120, y: 198 });
+    expect(layout(1920, 1080).viz).toEqual({ x: 1600, y: 238 });
+  });
+
+  it('T16 AC14: the other windows keep their positions at every supported size', () => {
+    for (const [vw, vh] of SIZES) {
+      const l = layout(vw, vh);
+      for (const id of OLD) expect(l[id], `${id} @${vw}x${vh}`).toEqual(BEFORE[`${vw}x${vh}`]![id]);
+    }
+  });
+
+  it('T16 AC15: INITIAL_ORDER has viz at the back and no site, six unique ids', () => {
+    expect(INITIAL_ORDER[0]).toBe('viz');
+    expect(INITIAL_ORDER).not.toContain('site');
+    expect(new Set(INITIAL_ORDER).size).toBe(6);
+  });
+
+  it('T16 AC17: tidyWindows opens all six dock windows with distinct z-indexes', () => {
+    const { wins, order } = tidyWindows(1280, 720);
+    for (const id of DOCK_IDS) expect(wins[id].open, id).toBe(true);
+    expect(wins.viz).toMatchObject({ open: true, min: false });
+    const zs = DOCK_IDS.map((id) => zIndexFor(id, order));
+    expect(new Set(zs).size).toBe(6);
   });
 });

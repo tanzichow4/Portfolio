@@ -168,7 +168,8 @@ describe('desktop reducer: focus', () => {
   it('AC8: raises an open visible window, others keep relative order', () => {
     const s = fresh();
     const r = run(s, { type: 'focus', id: 'proj' });
-    expect(r.order).toEqual(['exp', 'term', 'about', 'hello', 'proj']);
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC15): INITIAL_ORDER now starts with viz.
+    expect(r.order).toEqual(['viz', 'exp', 'term', 'about', 'hello', 'proj']);
     expect(r.wins).toEqual(s.wins);
   });
 
@@ -292,6 +293,8 @@ describe('desktop reducer: minimizeAll / showAll', () => {
   it('AC11: with every window closed both are no-ops', () => {
     let s = fresh();
     for (const id of DOCK5) s = run(s, { type: 'close', id });
+    // DELIBERATE REQUIREMENT CHANGE (T16 AC17): fresh() is the Tidy state, which now also opens viz, so close it too.
+    s = run(s, { type: 'close', id: 'viz' });
     expect(run(s, { type: 'minimizeAll' })).toBe(s);
     expect(run(s, { type: 'showAll' })).toBe(s);
   });
@@ -487,5 +490,68 @@ describe('desktop reducer: invariants', () => {
         expect(Number.isFinite(s.wins[id].y)).toBe(true);
       }
     }
+  });
+});
+
+describe('T16 viz in the desktop reducer', () => {
+  it('T16 AC16: initial state has viz closed and not minimized', () => {
+    const s = initialDesktop(1280, 720);
+    expect(s.wins.viz.open).toBe(false);
+    expect(s.wins.viz.min).toBe(false);
+    expect(s.wins.hello.open).toBe(true);
+  });
+
+  it('T16 AC16: restart from an all-six-open state leaves viz closed and not minimized', () => {
+    const s = run(fresh(), { type: 'restart' });
+    expect(s.wins.viz).toMatchObject({ open: false, min: false });
+    expect(s.wins.hello.open).toBe(true);
+    for (const id of ['about', 'exp', 'proj', 'term'] as const)
+      expect(s.wins[id].open, id).toBe(false);
+  });
+
+  it('T16 AC17: tidy opens viz even when it was closed or minimized', () => {
+    expect(run(initialDesktop(1280, 720), { type: 'tidy' }).wins.viz).toMatchObject({
+      open: true,
+      min: false,
+    });
+    let s = run(fresh(), { type: 'minimize', id: 'viz' });
+    s = run(s, { type: 'tidy' });
+    expect(s.wins.viz).toMatchObject({ open: true, min: false });
+  });
+
+  it('T16 AC17: minimizeAll and showAll include viz', () => {
+    const m = run(fresh(), { type: 'minimizeAll' });
+    expect(m.wins.viz.min).toBe(true);
+    expect(run(m, { type: 'showAll' }).wins.viz.min).toBe(false);
+  });
+
+  it('T16 AC16: open viz from closed opens and raises it', () => {
+    const s = run(initialDesktop(1280, 720), { type: 'open', id: 'viz' });
+    expect(s.wins.viz).toMatchObject({ open: true, min: false });
+    expect(s.order[s.order.length - 1]).toBe('viz');
+  });
+
+  it('T16 AC16: open viz from minimized restores and raises it, never minimizes', () => {
+    let s = run(fresh(), { type: 'minimize', id: 'viz' });
+    s = run(s, { type: 'open', id: 'viz' });
+    expect(s.wins.viz.min).toBe(false);
+    expect(s.order[s.order.length - 1]).toBe('viz');
+  });
+
+  it('T16 AC16: open viz when behind raises it and never minimizes, even on repeat', () => {
+    let s = run(fresh(), { type: 'open', id: 'viz' });
+    expect(s.order[s.order.length - 1]).toBe('viz');
+    expect(s.wins.viz.min).toBe(false);
+    s = run(s, { type: 'open', id: 'viz' });
+    expect(s.wins.viz).toMatchObject({ open: true, min: false });
+  });
+
+  it('T16 AC13: viz can be moved, minimized and closed like any window', () => {
+    let s = run(fresh(), { type: 'move', id: 'viz', x: 100, y: 120 });
+    expect(s.wins.viz).toMatchObject({ x: 100, y: 120 });
+    s = run(s, { type: 'minimize', id: 'viz' });
+    expect(s.wins.viz.min).toBe(true);
+    s = run(s, { type: 'close', id: 'viz' });
+    expect(s.wins.viz.open).toBe(false);
   });
 });

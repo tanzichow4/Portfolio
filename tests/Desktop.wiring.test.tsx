@@ -64,6 +64,8 @@ describe('Desktop wiring', () => {
       exp: 'experience.log',
       proj: 'projects',
       term: 'terminal',
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC11): WIN_TITLES gains viz: dataviz.
+      viz: 'dataviz',
       site: 'About this site',
     };
     expect(WIN_TITLES).toEqual(expected);
@@ -100,6 +102,8 @@ describe('Desktop wiring', () => {
       'experience.log',
       'projects',
       'terminal',
+      // DELIBERATE REQUIREMENT CHANGE (T16 AC18): the dock gains a dataviz button after terminal.
+      'dataviz',
     ]);
     for (const id of DOCK5) {
       const title = WIN_TITLES[id];

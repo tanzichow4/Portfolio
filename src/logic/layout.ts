@@ -19,7 +19,7 @@ export function resolveView(desktopMatches: boolean | null, width: number): View
   return desktopMatches ? 'desktop' : 'phone';
 }
 
-export const INITIAL_ORDER: readonly WinId[] = ['proj', 'exp', 'term', 'about', 'hello'];
+export const INITIAL_ORDER: readonly WinId[] = ['viz', 'proj', 'exp', 'term', 'about', 'hello'];
 
 export function layout(vw: number, vh: number): Record<WinId, { x: number; y: number }> {
   const xClamp = (x: number, w: number) =>
@@ -35,6 +35,7 @@ export function layout(vw: number, vh: number): Record<WinId, { x: number; y: nu
     exp: { x: xClamp(vw * 0.05, w('exp')), y: yFit(Math.max(380, vh * 0.52), h('exp')) },
     proj: { x: xClamp(vw * 0.42, w('proj')), y: yFit(Math.max(300, vh * 0.38), h('proj')) },
     term: { x: xClamp(vw - 470, w('term')), y: yFit(Math.max(330, vh - 380), h('term')) },
+    viz: { x: xClamp(vw - 320, w('viz')), y: yFit(Math.max(140, vh * 0.22), h('viz')) },
     site: {
       x: Math.round(vw / 2 - 170) + 0,
       y: Math.max(MENUBAR_H, Math.round(vh / 2 - 180)) + 0,

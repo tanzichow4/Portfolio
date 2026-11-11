@@ -2,7 +2,11 @@ import { fireEvent } from '@testing-library/react';
 import { WIN_TITLES } from '../../src/data';
 import type { WinId } from '../../src/types';
 
-/** Order that leaves every window open with the default stacking (matches the Tidy up state). */
+/**
+ * Order that opens the five original windows with the default stacking. Tidy up also opens viz, which this
+ * helper leaves closed.
+ * DELIBERATE REQUIREMENT CHANGE (T16 AC26): comment only, viz is not opened by this helper.
+ */
 const OPEN_SEQUENCE: readonly WinId[] = ['proj', 'exp', 'term', 'about', 'hello'];
 
 /**
