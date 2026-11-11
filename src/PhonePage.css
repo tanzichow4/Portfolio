@@ -102,6 +102,12 @@ html.phone-view body {
   margin-top: 8px;
 }
 
+.phone-star {
+  color: var(--color-accent);
+  vertical-align: -2px;
+  margin-left: 4px;
+}
+
 .phone-link {
   display: inline-flex;
   align-items: center;

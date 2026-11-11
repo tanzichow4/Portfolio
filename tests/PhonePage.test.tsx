@@ -12,6 +12,7 @@ import {
   LINKS,
   NAME,
   PHONE_HEADINGS,
+  PROJECT_LABELS,
   PROJECTS,
   ROLE,
 } from '../src/data';
@@ -281,9 +282,14 @@ describe('T13 PhonePage AC22: link attributes', () => {
 });
 
 describe('T13 PhonePage AC24: links', () => {
-  it('T13 AC24: no svg or img, and every link name equals its visible text', () => {
+  it('T13 AC24: no svg or img except the Featured star, and every link name equals its visible text', () => {
     const { container } = render(<PhonePage />);
-    expect(container.querySelector('svg')).toBeNull();
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC25): the only svg on the phone page is now the Featured star on Indoor Garden.
+    const svgs = container.querySelectorAll('svg');
+    expect(svgs.length).toBe(1);
+    expect(svgs[0].getAttribute('role')).toBe('img');
+    expect(svgs[0]).toHaveAccessibleName(PROJECT_LABELS.featured);
+    expect(svgs[0].closest('li')?.textContent).toContain('Indoor Garden');
     expect(container.querySelector('img')).toBeNull();
     const links = screen.getAllByRole('link');
     expect(links.length).toBe(PROJECTS.length + LINKS.length);
@@ -291,6 +297,51 @@ describe('T13 PhonePage AC24: links', () => {
       const text = (a.textContent ?? '').trim();
       expect(text.length).toBeGreaterThan(0);
       expect(screen.getAllByRole('link', { name: text }).includes(a)).toBe(true);
+    }
+  });
+});
+
+describe('T18 PhonePage Featured star (AC24, AC25)', () => {
+  const indoor = () => {
+    const { container } = render(<PhonePage />);
+    const li = screen.getByRole('link', { name: 'Indoor Garden' }).closest('li') as HTMLElement;
+    return { container, li };
+  };
+
+  it('T18 AC24: exactly one svg[role=img] named Featured, in the Indoor Garden h3 but outside its link', () => {
+    const { container, li } = indoor();
+    const stars = container.querySelectorAll('svg[role="img"]');
+    expect(stars.length).toBe(1);
+    expect(stars[0]).toHaveAccessibleName('Featured');
+    expect(li.contains(stars[0])).toBe(true);
+    expect(stars[0].closest('h3')).not.toBeNull();
+    expect(stars[0].closest('a')).toBeNull();
+  });
+
+  it('T18 AC24: the star is not focusable and has no tabindex', () => {
+    const { container } = indoor();
+    const star = container.querySelector('svg[role="img"]') as Element;
+    expect(star.hasAttribute('tabindex')).toBe(false);
+    expect(star.getAttribute('focusable')).not.toBe('true');
+  });
+
+  it('T18 AC24: non-featured projects show no star and the link name equals its visible text', () => {
+    const { container } = render(<PhonePage />);
+    for (const p of PROJECTS.filter((x) => !x.featured)) {
+      const li = screen.getByRole('link', { name: p.name }).closest('li') as HTMLElement;
+      expect(li.querySelector('svg')).toBeNull();
+    }
+    const link = screen.getByRole('link', { name: 'Indoor Garden' });
+    expect(link.textContent?.trim()).toBe('Indoor Garden');
+    expect(container.querySelectorAll('svg').length).toBe(1);
+  });
+
+  it('T18 AC25: no buttons and no details text on the phone page', () => {
+    const { container } = render(<PhonePage />);
+    expect(container.querySelector('button')).toBeNull();
+    for (const p of PROJECTS) {
+      if (p.details) expect(container.textContent).not.toContain(p.details);
+      for (const h of p.highlights ?? []) expect(container.textContent).not.toContain(h);
     }
   });
 });

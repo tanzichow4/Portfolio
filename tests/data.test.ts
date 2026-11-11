@@ -1,5 +1,100 @@
 import { describe, expect, it } from 'vitest';
-import { BOOT_COPY, EXP, FACTS, LINKS, PROJECTS, VERBS } from '../src/data';
+import { BOOT_COPY, EXP, FACTS, LINKS, PROJECT_LABELS, PROJECTS, VERBS } from '../src/data';
+
+describe('T18 project data', () => {
+  it('T18 AC1: required fields and order of PROJECTS are unchanged', () => {
+    expect(PROJECTS.map(({ name, href, desc, tags }) => ({ name, href, desc, tags }))).toEqual([
+      {
+        name: 'Voice Calendar',
+        href: '#',
+        desc: 'Speak an event, get it on your calendar. iOS and Gemini.',
+        tags: ['Swift', 'Gemini API'],
+      },
+      {
+        name: 'Indoor Garden',
+        href: '#',
+        desc: 'IoT garden monitoring, live dashboard for 10+ sensors.',
+        tags: ['Docker', 'React'],
+      },
+      {
+        name: 'Grocery Prices',
+        href: '#',
+        desc: 'Forecasts grocery prices 7 days out at 80% accuracy.',
+        tags: ['Airflow', 'Spark'],
+      },
+      {
+        name: 'Driver Safety',
+        href: '#',
+        desc: 'Emotion detection from faces, 80% accuracy on RAF-DB.',
+        tags: ['TensorFlow', 'CNN'],
+      },
+    ]);
+    for (const p of PROJECTS) expect(p.icon).toBeTruthy();
+  });
+
+  it('T18 AC1: optional fields have the right shapes when present', () => {
+    for (const p of PROJECTS) {
+      if ('featured' in p) expect(typeof p.featured).toBe('boolean');
+      if ('details' in p) expect(typeof p.details).toBe('string');
+      if ('highlights' in p) {
+        expect(Array.isArray(p.highlights)).toBe(true);
+        for (const h of p.highlights ?? []) expect(typeof h).toBe('string');
+      }
+      if ('links' in p) {
+        expect(Array.isArray(p.links)).toBe(true);
+        for (const l of p.links ?? []) {
+          expect(typeof l.label).toBe('string');
+          expect(typeof l.href).toBe('string');
+        }
+      }
+    }
+  });
+
+  it('T18 AC2: only Indoor Garden is featured, and its details mention Capstone', () => {
+    const featured = PROJECTS.filter((p) => p.featured);
+    expect(featured.map((p) => p.name)).toEqual(['Indoor Garden']);
+    expect(featured[0].featured).toBe(true);
+    expect(featured[0].details).toContain('Capstone');
+  });
+
+  it('T18 AC2/AC3: Indoor Garden details only restates known facts', () => {
+    const d = PROJECTS.find((p) => p.name === 'Indoor Garden')?.details ?? '';
+    for (const w of ['IoT', 'dashboard', '10+', 'Docker', 'React']) expect(d).toContain(w);
+  });
+
+  it('T18 AC3: absent fields are omitted, not empty, and no project has links', () => {
+    for (const p of PROJECTS) {
+      expect('links' in p).toBe(false);
+      expect('highlights' in p).toBe(false);
+      if (p.name !== 'Indoor Garden') expect('details' in p).toBe(false);
+      if ('details' in p) expect(p.details?.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it('T18 AC3: every number in details appears in that project desc', () => {
+    for (const p of PROJECTS) {
+      for (const m of (p.details ?? '').match(/\d+\+?/g) ?? []) expect(p.desc, m).toContain(m);
+    }
+  });
+
+  it('T18 AC3: no string value in PROJECTS contains TODO', () => {
+    const walk = (v: unknown) => {
+      if (typeof v === 'string') expect(v).not.toMatch(/TODO/);
+      else if (Array.isArray(v)) v.forEach(walk);
+      else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+    };
+    for (const p of PROJECTS) walk({ ...p, icon: undefined });
+  });
+
+  it('T18 AC4: PROJECT_LABELS holds the new copy', () => {
+    expect(PROJECT_LABELS).toEqual({
+      back: 'Back to projects',
+      featured: 'Featured',
+      highlights: 'Highlights',
+      links: 'Links',
+    });
+  });
+});
 
 describe('data', () => {
   it('has content for every section', () => {

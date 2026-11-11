@@ -68,6 +68,20 @@ describe('contrast (WCAG 2.x, at least 4.5:1)', () => {
     );
   });
 
+  for (const theme of THEMES) {
+    const t = resolveTheme(css, theme);
+    for (const bgName of ['bg', 'surface']) {
+      it(`T18 AC10: ${theme}: star (accent) on ${bgName} >= 3`, () => {
+        const ratio = contrastRatio(t['--color-accent'], t[`--color-${bgName}`]);
+        expect(ratio, `accent on ${bgName} = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(3);
+      });
+    }
+    it(`T18 AC21: ${theme}: scroll thumb (neutral-500) on track (surface) >= 3`, () => {
+      const ratio = contrastRatio(t['--color-neutral-500'], t['--color-surface']);
+      expect(ratio, `thumb on track = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(3);
+    });
+  }
+
   it('AC4: guard, the old light accent #796cbf on bg is below the threshold', () => {
     expect(contrastRatio('#796cbf', '#e4e7f5')).toBeLessThan(MIN);
   });

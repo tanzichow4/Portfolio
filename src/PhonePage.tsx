@@ -8,9 +8,11 @@ import {
   LINKS,
   NAME,
   PHONE_HEADINGS,
+  PROJECT_LABELS,
   PROJECTS,
   ROLE,
 } from './data';
+import { Star } from '@phosphor-icons/react';
 import { linkAttrs } from './logic/menu';
 
 function Tags({ tags }: { tags: string[] }) {
@@ -98,6 +100,17 @@ export default function PhonePage() {
                 <a className="phone-link" href={p.href} {...linkAttrs(p.href)}>
                   {p.name}
                 </a>
+                {p.featured && (
+                  <>
+                    {' '}
+                    <Star
+                      weight="fill"
+                      role="img"
+                      aria-label={PROJECT_LABELS.featured}
+                      className="phone-star"
+                    />
+                  </>
+                )}
               </h3>
               <p className="phone-desc">{p.desc}</p>
               <Tags tags={p.tags} />

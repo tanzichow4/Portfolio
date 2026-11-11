@@ -35,6 +35,10 @@ export interface Project {
   href: string;
   desc: string;
   tags: string[];
+  featured?: boolean;
+  details?: string;
+  highlights?: string[];
+  links?: { label: string; href: string }[];
 }
 export interface LinkItem {
   label: string;
@@ -88,9 +92,12 @@ export const EXP: Exp[] = [
   },
 ];
 
+// TODO(Tanzi): add `links` (real project URLs) per project; none exist in the repo yet.
+// TODO(Tanzi): add `highlights` per project once there is a source (resume or notes).
 // `icon` is a Phosphor component
 export const PROJECTS: Project[] = [
   {
+    // TODO(Tanzi): add `details` for Voice Calendar.
     name: 'Voice Calendar',
     icon: Microphone,
     href: '#',
@@ -103,8 +110,12 @@ export const PROJECTS: Project[] = [
     href: '#',
     desc: 'IoT garden monitoring, live dashboard for 10+ sensors.',
     tags: ['Docker', 'React'],
+    featured: true,
+    details:
+      'Capstone project: IoT garden monitoring with a live dashboard for 10+ sensors, built with Docker and React.',
   },
   {
+    // TODO(Tanzi): add `details` for Grocery Prices.
     name: 'Grocery Prices',
     icon: ChartLineUp,
     href: '#',
@@ -112,6 +123,7 @@ export const PROJECTS: Project[] = [
     tags: ['Airflow', 'Spark'],
   },
   {
+    // TODO(Tanzi): add `details` for Driver Safety.
     name: 'Driver Safety',
     icon: Smiley,
     href: '#',
@@ -186,6 +198,12 @@ export const BOOT_COPY = {
 export const ABOUT_LABELS = { viz: 'See some data viz' } as const;
 
 export const EXPERIENCE_LABELS = { tablist: 'Experience', at: '@' } as const;
+export const PROJECT_LABELS = {
+  back: 'Back to projects',
+  featured: 'Featured',
+  highlights: 'Highlights',
+  links: 'Links',
+} as const;
 
 export const PHONE_HEADINGS = { about: 'About', projects: 'Projects', links: 'Links' } as const;
 
