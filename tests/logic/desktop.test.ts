@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { desktopReducer, initialDesktop, type DesktopAction } from '../../src/logic/desktop';
+import {
+  desktopReducer,
+  initialDesktop,
+  tidyDesktop,
+  type DesktopAction,
+} from '../../src/logic/desktop';
 import { INITIAL_ORDER, initialWindows, layout } from '../../src/logic/layout';
 import { clampPosition } from '../../src/logic/drag';
 import { dockClickAction } from '../../src/logic/dock';
@@ -60,7 +65,11 @@ describe('desktop reducer: initial state', () => {
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, this test pins the start state, so it builds from
     // initialDesktop directly. Assertions are unchanged.
     const s = deepFreeze(initialDesktop(1280, 720));
-    for (const id of DOCK5) expect(s.wins[id]).toMatchObject({ open: true, min: false });
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the start state opens only hello (T15 AC1); the other four dock windows start closed.
+    expect(s.wins.hello).toMatchObject({ open: true, min: false });
+    for (const id of DOCK5.filter((w) => w !== 'hello')) {
+      expect(s.wins[id]).toMatchObject({ open: false, min: false });
+    }
     expect(s.wins.site).toMatchObject({ open: false, min: false });
     expect(s.order).toEqual(INITIAL_ORDER);
   });
@@ -300,11 +309,37 @@ describe('desktop reducer: tidy and restart', () => {
 
   it('AC12: tidy restores layout, flags and order, closing site', () => {
     const r = run(messy(), { type: 'tidy' });
-    expect(r).toEqual(initialDesktop(1600, 900));
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): Tidy up keeps all five open and is no longer the start state (T15 AC10).
+    expect(r).toEqual(tidyDesktop(1600, 900));
     const pos = layout(1600, 900);
     for (const id of WIN_IDS) expect(r.wins[id]).toMatchObject(pos[id]);
     expect(r.wins.site.open).toBe(false);
     expect(r.order).toEqual(INITIAL_ORDER);
+  });
+
+  it('T15 AC8: restart from an all-open, all-minimized state gives hello only', () => {
+    let s = run(fresh(1600, 900), { type: 'open', id: 'site' });
+    s = run(s, { type: 'minimizeAll' });
+    const r = run(s, { type: 'restart' });
+    expect(r.wins.hello).toMatchObject({ open: true, min: false });
+    for (const id of WIN_IDS.filter((w) => w !== 'hello')) {
+      expect(r.wins[id], id).toMatchObject({ open: false, min: false });
+    }
+    expect(r.order).toEqual(INITIAL_ORDER);
+  });
+
+  it('T15 AC10: tidy from the same state opens all five and differs from restart', () => {
+    let s = run(fresh(1600, 900), { type: 'open', id: 'site' });
+    s = run(s, { type: 'minimizeAll' });
+    const t = run(s, { type: 'tidy' });
+    for (const id of DOCK5) expect(t.wins[id]).toMatchObject({ open: true, min: false });
+    expect(t.wins.site.open).toBe(false);
+    expect(t).not.toEqual(run(s, { type: 'restart' }));
+  });
+
+  it('T15 AC10: tidyDesktop keeps vw and vh', () => {
+    const t = tidyDesktop(1111, 777);
+    expect([t.vw, t.vh]).toEqual([1111, 777]);
   });
 
   it('AC13: restart equals the initial state for the stored viewport', () => {

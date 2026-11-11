@@ -219,6 +219,8 @@ describe('Desktop resize listener', () => {
 
   it('AC18: the listener dispatches the new inner size (mount-time size change is caught)', () => {
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, the terminal is closed at start, so open it from the dock.
+    openAllFromDock();
     setSize(900, 600);
     act(() => {
       window.dispatchEvent(new Event('resize'));

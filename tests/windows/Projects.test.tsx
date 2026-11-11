@@ -9,6 +9,7 @@ import { topRule, reducedRule } from '../helpers/cssScope';
 import { PROJECTS, WIN_BAR_TITLES } from '../../src/data';
 import { WIN_META } from '../../src/logic/windows';
 import { linkAttrs } from '../../src/logic/menu';
+import { openAllFromDock } from '../helpers/openAll';
 
 const clean = stripComments(css);
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
@@ -142,6 +143,8 @@ describe('T07 Projects window: titlebar and names', () => {
   it('T07 AC34: the titlebar reads ~/projects while every other name stays projects', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, projects is closed at start, so open it from the dock.
+    openAllFromDock();
     const region = screen.getByRole('region', { name: 'projects' });
     expect(region.querySelector('.win-title')?.textContent).toBe('~/projects');
     expect(screen.queryByRole('region', { name: '~/projects' })).toBeNull();
@@ -159,6 +162,8 @@ describe('T07 Projects window: titlebar and names', () => {
 
   it('T07 AC34: the other windows keep their plain title in the titlebar', () => {
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the others from the dock.
+    openAllFromDock();
     for (const t of ['hello.txt', 'about.md', 'experience.log', 'terminal']) {
       const r = screen.getByRole('region', { name: t });
       expect(r.querySelector('.win-title')?.textContent).toBe(t);

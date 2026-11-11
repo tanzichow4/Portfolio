@@ -80,6 +80,21 @@ function freshLayout() {
   return l;
 }
 
+/** The layout after a fresh load and then opening every window from the dock (the Tidy up layout). */
+function freshLayoutAllOpen() {
+  const { unmount } = render(<Desktop />);
+  openAllFromDock();
+  const l = layout();
+  unmount();
+  return l;
+}
+
+/** Restart returns to the start state: only hello is present. */
+function expectOnlyHello() {
+  expect(winEl('hello')).not.toBeNull();
+  for (const id of ['about', 'exp', 'proj', 'term', 'site']) expect(winEl(id), id).toBeNull();
+}
+
 const restartFromMenu = (user: User) => choose(user, 'tanzi.os', 'Restart…');
 const restartFromTerminal = () => typeCommand('restart');
 
@@ -131,6 +146,7 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
       it(`T08 AC15 AC16: Restart from the ${via} with windows ${variant} gives a fresh layout and initial window state`, async () => {
         const user = userEvent.setup();
         const expected = freshLayout();
+        const expectedAll = freshLayoutAllOpen();
         render(<Desktop />);
         // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
         openAllFromDock();
@@ -146,7 +162,12 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
           expect(winEl('term')).toHaveAttribute('data-min', 'false');
         }
         await restart(via, user);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): Restart returns to the start state (only hello open, T15 AC8), so check that first,
+        // then open the other windows from the dock and run the original default-layout assertions.
         expect(layout()).toEqual(expected);
+        expectOnlyHello();
+        openAllFromDock();
+        expect(layout()).toEqual(expectedAll);
         expect(winEl('site')).toBeNull();
         for (const id of IDS) {
           expect(winEl(id), id).not.toBeNull();
@@ -167,6 +188,9 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
     expect(winEl('term')).toHaveAttribute('data-min', 'true');
     typeCommand('restart');
     await act(async () => {});
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): Restart closes the terminal (T15 AC8); reopen it from the dock, then check it is fresh.
+    expect(winEl('term')).toBeNull();
+    openAllFromDock();
     expect(winEl('term')).toHaveAttribute('data-min', 'false');
     expect(logLines()).toHaveLength(1);
     expect(input()).toHaveValue('');
@@ -188,7 +212,7 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
 
     it(`T08 AC15: windows dragged and raised return to default after Restart from the ${via}`, async () => {
       const user = userEvent.setup();
-      const expected = freshLayout();
+      const expected = freshLayoutAllOpen();
       render(<Desktop />);
       // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
       openAllFromDock();
@@ -199,6 +223,9 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
       await user.click(winEl('proj')!);
       expect(layout()).not.toEqual(expected);
       await restart(via, user);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after Restart only hello is open; open the rest from the dock, then compare to default.
+      expectOnlyHello();
+      openAllFromDock();
       expect(layout()).toEqual(expected);
     });
   }
@@ -209,10 +236,10 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
     try {
       window.innerWidth = 1600;
       window.innerHeight = 900;
-      const expected = freshLayout();
+      const expected = freshLayoutAllOpen();
       window.innerWidth = w0;
       window.innerHeight = h0;
-      const atOriginal = freshLayout();
+      const atOriginal = freshLayoutAllOpen();
       expect(expected).not.toEqual(atOriginal);
       render(<Desktop />);
       // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
@@ -223,6 +250,9 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
         window.dispatchEvent(new Event('resize'));
       });
       await restartFromMenu(user);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after Restart only hello is open; open the rest from the dock, then compare to default.
+      expectOnlyHello();
+      openAllFromDock();
       expect(layout()).toEqual(expected);
     } finally {
       window.innerWidth = w0;
@@ -232,7 +262,7 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
 
   it('T08 AC15: repeated Restart returns the same default layout every time', async () => {
     const user = userEvent.setup();
-    const expected = freshLayout();
+    const expected = freshLayoutAllOpen();
     render(<Desktop />);
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
     openAllFromDock();
@@ -241,6 +271,9 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
       await user.click(verbBtn());
       await user.click(screen.getByRole('button', { name: 'Close projects' }));
       await (i % 2 === 0 ? restartFromMenu(user) : act(async () => restartFromTerminal()));
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after Restart only hello is open; open the rest from the dock, then compare to default.
+      expectOnlyHello();
+      openAllFromDock();
       expect(layout()).toEqual(expected);
       expect(verbBtn().textContent).toBe(VERBS[0]);
       expect(logLines()).toHaveLength(1);
@@ -359,6 +392,7 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
   it('T08 AC19: a drag released after Restart leaves the default layout', async () => {
     const user = userEvent.setup();
     const expected = freshLayout();
+    const expectedAll = freshLayoutAllOpen();
     render(<Desktop />);
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
     openAllFromDock();
@@ -367,20 +401,23 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
     fireEvent.pointerMove(oldBar, { pointerId: 1, clientX: 380, clientY: 230 });
     const mid = winEl('about')!.getAttribute('style');
     await restartFromMenu(user);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after Restart only hello is open (T15 AC8); about.md is reopened from the dock before the new drag.
     expect(layout()).toEqual(expected);
     fireEvent.pointerUp(oldBar, { pointerId: 1, clientX: 380, clientY: 230 });
     fireEvent.pointerCancel(oldBar, { pointerId: 1 });
+    openAllFromDock();
     const newBar = winEl('about')!.querySelector<HTMLElement>('.win-titlebar')!;
     fireEvent.pointerMove(newBar, { pointerId: 1, clientX: 400, clientY: 260 });
     fireEvent.pointerUp(newBar, { pointerId: 1, clientX: 400, clientY: 260 });
     fireEvent.pointerUp(document.body, { pointerId: 1 });
-    expect(layout()).toEqual(expected);
+    expect(layout()).toEqual(expectedAll);
     expect(winEl('about')!.getAttribute('style')).not.toBe(mid);
   });
 
   it('T08 AC20: Tidy up keeps a dirtied verb and resets the layout', async () => {
     const user = userEvent.setup();
-    const expected = freshLayout();
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): Tidy up lays out all five windows, which is no longer the start state; compare with start + open-all.
+    const expected = freshLayoutAllOpen();
     render(<Desktop />);
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
     openAllFromDock();
@@ -423,6 +460,9 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
       // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
       openAllFromDock();
       await restart(via, user);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): Restart closes the terminal (T15 AC8); reopen it from the dock before typing.
+      expectOnlyHello();
+      openAllFromDock();
       typeCommand('whoami');
       expect(logLines()).toHaveLength(3);
       fireEvent.keyDown(input(), { key: 'ArrowUp' });
@@ -441,6 +481,9 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
       // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
       openAllFromDock();
       await restart(via, user);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): Restart closes the terminal (T15 AC8); reopen it from the dock before reading its log.
+      expectOnlyHello();
+      openAllFromDock();
       expect(logLines()).toHaveLength(1);
       await choose(user, 'Help', 'Terminal commands');
       expect(logLines()).toHaveLength(4);
@@ -590,6 +633,8 @@ describe('T08 boot path (T4)', () => {
 
     it('T08 AC1: reloading during a boot (fresh mount) gives a normal first load without a boot screen', async () => {
       const first = render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, the terminal is closed at start, so open it from the dock to type restart.
+      openAllFromDock();
       await request('terminal');
       expect(dialog()).not.toBeNull();
       first.unmount();
@@ -641,6 +686,8 @@ describe('T08 boot path (T4)', () => {
       openAllFromDock();
       await request('terminal');
       expect(dialog()).toBeNull();
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the first Restart closed the terminal (T15 AC8), so reopen it from the dock before the next request.
+      openAllFromDock();
       // Preference turned off: the next Restart boots.
       stubMotion(false);
       await request('terminal');
@@ -836,6 +883,8 @@ describe('T08 boot path (T4)', () => {
       await request('terminal');
       tick(15);
       expect(dialog()).toBeNull();
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the first Restart closed the terminal (T15 AC8), so reopen it from the dock before the next request.
+      openAllFromDock();
       await request('terminal');
       expect(dialog()).not.toBeNull();
       tick(15);
@@ -876,6 +925,7 @@ describe('T08 boot path (T4)', () => {
     for (const via of ['menu', 'terminal'] as const) {
       it(`T08 AC15 AC16: Restart from the ${via} gives a fresh layout and initial window state once the boot ends`, async () => {
         const expected = freshLayout();
+        const expectedAll = freshLayoutAllOpen();
         render(<Desktop />);
         // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
         openAllFromDock();
@@ -887,7 +937,11 @@ describe('T08 boot path (T4)', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Minimize hello.txt' }));
         await request(via);
         tick(15);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after Restart only hello is open (T15 AC8); open the rest from the dock, then run the original default-layout assertions.
         expect(layout()).toEqual(expected);
+        expectOnlyHello();
+        openAllFromDock();
+        expect(layout()).toEqual(expectedAll);
         expect(winEl('site')).toBeNull();
         expectInitialWindowState();
       });
@@ -1056,6 +1110,9 @@ describe('T08 boot path (T4)', () => {
       tick(15);
       expectInPlace();
       frame();
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): after Restart only hello is open (T15 AC8); open about.md from the dock in a later frame, after the in-place check on the reset commit.
+      openAllFromDock();
+      tick(3);
       fireEvent.click(screen.getByRole('button', { name: 'Close about.md' }));
       tick(3);
       fireEvent.click(screen.getByRole('button', { name: 'about.md' }));
@@ -1075,10 +1132,15 @@ describe('T08 boot path (T4)', () => {
       await request('menu');
       tick(15);
       frame();
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the first Restart closed the terminal (T15 AC8), so reopen it from the dock before the terminal Restart.
+      openAllFromDock();
+      tick(3);
       await request('terminal');
       tick(15);
       expectInPlace();
       frame();
+      openAllFromDock();
+      tick(3);
       fireEvent.click(screen.getByRole('button', { name: 'Close experience.log' }));
       tick(3);
       fireEvent.click(screen.getByRole('button', { name: 'experience.log' }));
@@ -1304,6 +1366,8 @@ describe('T08 live region (T7)', () => {
     tick(15);
     ms(100);
     expect(region().textContent).toBe(BOOT_COPY.done);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): the first Restart closed the terminal (T15 AC8), so reopen it from the dock before the next request.
+    openAllFromDock();
     await request('terminal');
     // Mid-boot the old message may still be there until the reset commit; once reset it is empty.
     tick(15);

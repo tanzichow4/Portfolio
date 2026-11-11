@@ -42,14 +42,23 @@ export function layout(vw: number, vh: number): Record<WinId, { x: number; y: nu
   };
 }
 
-export function initialWindows(
-  vw: number,
-  vh: number,
-): { wins: Record<WinId, Win>; order: WinId[] } {
+export const START_OPEN: readonly WinId[] = ['hello'];
+
+type Built = { wins: Record<WinId, Win>; order: WinId[] };
+
+function buildWindows(vw: number, vh: number, isOpen: (id: WinId) => boolean): Built {
   const pos = layout(vw, vh);
   const wins = {} as Record<WinId, Win>;
   for (const id of WIN_IDS) {
-    wins[id] = { x: pos[id].x, y: pos[id].y, open: WIN_META[id].dock, min: false };
+    wins[id] = { x: pos[id].x, y: pos[id].y, open: isOpen(id), min: false };
   }
   return { wins, order: [...INITIAL_ORDER] };
+}
+
+export function initialWindows(vw: number, vh: number): Built {
+  return buildWindows(vw, vh, (id) => START_OPEN.includes(id));
+}
+
+export function tidyWindows(vw: number, vh: number): Built {
+  return buildWindows(vw, vh, (id) => WIN_META[id].dock);
 }

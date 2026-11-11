@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WinId } from '../../src/types';
-import { INITIAL_ORDER, initialWindows, layout } from '../../src/logic/layout';
+import { INITIAL_ORDER, initialWindows, layout, tidyWindows } from '../../src/logic/layout';
 import { DOCK_IDS, WIN_IDS, WIN_META } from '../../src/logic/windows';
 
 const SIZES: [number, number][] = [
@@ -116,7 +116,8 @@ describe('layout', () => {
       expect(wins[id].x).toBe(l[id].x);
       expect(wins[id].y).toBe(l[id].y);
       expect(wins[id].min).toBe(false);
-      expect(wins[id].open).toBe(id !== 'site');
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): only hello starts open (T15 AC1); was every window except site.
+      expect(wins[id].open).toBe(id === 'hello');
     }
     expect(order).toEqual([...INITIAL_ORDER]);
   });
@@ -134,5 +135,47 @@ describe('layout', () => {
   it('AC8: equal inputs give deep-equal outputs', () => {
     expect(layout(1366, 768)).toEqual(layout(1366, 768));
     expect(initialWindows(1366, 768)).toEqual(initialWindows(1366, 768));
+  });
+});
+
+describe('T15 start and tidy window sets', () => {
+  const sizes: [number, number][] = [...SIZES, [800, 500]];
+
+  it('T15 AC1: only hello starts open, nothing starts minimized, at every size', () => {
+    for (const [vw, vh] of sizes) {
+      const { wins } = initialWindows(vw, vh);
+      for (const id of WIN_IDS) {
+        expect(wins[id].open, `${id} ${vw}x${vh}`).toBe(id === 'hello');
+        expect(wins[id].min, `${id} ${vw}x${vh}`).toBe(false);
+      }
+    }
+  });
+
+  it('T15 AC2: closed windows still sit at their layout positions', () => {
+    for (const [vw, vh] of sizes) {
+      const { wins } = initialWindows(vw, vh);
+      const l = layout(vw, vh);
+      for (const id of WIN_IDS) expect(wins[id]).toMatchObject({ x: l[id].x, y: l[id].y });
+    }
+  });
+
+  it('T15 AC3: order equals INITIAL_ORDER as a fresh copy for start and tidy', () => {
+    for (const build of [initialWindows, tidyWindows]) {
+      const { order } = build(1280, 720);
+      expect(order).toEqual([...INITIAL_ORDER]);
+      expect(order).not.toBe(INITIAL_ORDER);
+    }
+  });
+
+  it('T15 AC10: tidyWindows opens exactly the dock windows, none minimized, at layout positions', () => {
+    for (const [vw, vh] of sizes) {
+      const { wins } = tidyWindows(vw, vh);
+      const l = layout(vw, vh);
+      for (const id of WIN_IDS) {
+        expect(wins[id].open, id).toBe(DOCK_IDS.includes(id));
+        expect(wins[id].min, id).toBe(false);
+        expect(wins[id]).toMatchObject({ x: l[id].x, y: l[id].y });
+      }
+    }
   });
 });

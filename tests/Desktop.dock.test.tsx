@@ -47,6 +47,13 @@ const ALL_OPEN: Record<string, DockState> = {
 const states = (patch: Partial<Record<WinId, DockState>> = {}) =>
   ({ ...ALL_OPEN, ...patch }) as Record<WinId, DockState>;
 
+const START_CLOSED: Partial<Record<WinId, DockState>> = {
+  about: 'Closed',
+  exp: 'Closed',
+  proj: 'Closed',
+  term: 'Closed',
+};
+
 async function choose(user: ReturnType<typeof userEvent.setup>, menu: string, item: string) {
   await user.click(trigger(menu));
   const m = screen.getByRole('menu');
@@ -115,7 +122,8 @@ describe('T06 dock on the desktop', () => {
 
   it('T06 AC15: initially all five windows read Open with full dots', () => {
     render(<Desktop />);
-    expectAll(states());
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): first load opens only hello (T15 AC1, AC5); the other four read Closed.
+    expectAll(states(START_CLOSED));
   });
 });
 
@@ -167,6 +175,8 @@ describe('T06 AC9 click outcomes through the full desktop', () => {
   it('T06 AC9: open and front-most -> it minimizes', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(dockBtn('hello'));
     expect(winEl('hello')).toHaveAttribute('data-min', 'true');
     expectAll(states({ hello: 'Minimized' }));
@@ -300,7 +310,13 @@ describe('T06 AC15 dock stays in sync with every other route', () => {
       expectAll(states({ term: 'Closed', about: 'Minimized' }));
       await choose(user, label === 'Restart…' ? 'tanzi.os' : 'Windows', label);
       // DELIBERATE REQUIREMENT CHANGE (T08 AC32): Restart now applies when the boot ends.
-      if (label === 'Restart…') await waitFor(() => expectAll(states()), { timeout: 3000 });
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): Restart returns to the start state (only hello open, T15 AC8); Tidy up still opens all five.
+      // After Restart the windows are opened from the dock again so the next loop pass starts from all open.
+      if (label === 'Restart…') {
+        await waitFor(() => expectAll(states(START_CLOSED)), { timeout: 3000 });
+        expectAll(states(START_CLOSED));
+        openAllFromDock();
+      }
       expectAll(states());
     }
   });
