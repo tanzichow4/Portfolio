@@ -338,7 +338,8 @@ describe('minimized windows stay unreachable (AC36)', () => {
     // the experience body adds three native tab buttons, 12 -> 15.
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello gains two buttons, 15 -> 17.
     // DELIBERATE REQUIREMENT CHANGE (T16 AC5): about gains the "See some data viz" button, 17 -> 18.
-    expect(buttons).toHaveLength(18);
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC5): the four projects tiles are native buttons, 18 -> 22.
+    expect(buttons).toHaveLength(22);
     for (const b of buttons) expect(b.closest('[inert]')).not.toBeNull();
     for (const w of document.querySelectorAll<HTMLElement>('[data-win]')) {
       expect(w).toHaveAttribute('aria-hidden', 'true');

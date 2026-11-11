@@ -1,3 +1,16 @@
+.win-body:has(> .proj-body) {
+  position: relative;
+}
+
+.proj-body {
+  position: absolute;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-neutral-500) var(--color-surface);
+}
+
 .proj-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -24,6 +37,7 @@
   color: inherit;
   font: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .proj-face {
@@ -44,6 +58,10 @@
 .proj-tile:hover .proj-face {
   transform: translateY(-5px) rotate(-1.5deg);
   box-shadow: var(--shadow-md);
+}
+
+.proj-tile:has(.proj-open:focus-visible) .proj-face {
+  box-shadow: 0 0 0 2px var(--color-accent);
 }
 
 .proj-tile:active .proj-face {
@@ -97,4 +115,68 @@
 .proj-tag {
   font-size: 10px;
   padding: 2px 7px;
+}
+
+.proj-open {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.proj-star {
+  color: var(--color-accent);
+}
+
+.proj-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+}
+
+.proj-back {
+  align-self: flex-start;
+}
+
+.proj-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.proj-detail-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: normal;
+  line-height: inherit;
+  color: var(--color-text);
+}
+
+.proj-detail-desc,
+.proj-details {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-neutral-400);
+}
+
+.proj-section {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.proj-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-neutral-400);
 }

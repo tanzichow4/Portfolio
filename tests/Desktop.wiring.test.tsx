@@ -92,7 +92,8 @@ describe('Desktop wiring', () => {
     // and "See what I've built"), so the window-button count goes from 10 to 12.
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): hello gains "More about me" and "What I've been up to", 12 -> 14.
     // DELIBERATE REQUIREMENT CHANGE (T16 AC5): about gains the "See some data viz" button, 14 -> 15.
-    expect(winButtons).toHaveLength(15);
+    // DELIBERATE REQUIREMENT CHANGE (T18 AC5): projects tiles are now four native buttons, 15 -> 19.
+    expect(winButtons).toHaveLength(19);
     const outside = screen.getAllByRole('button').filter((b) => !b.closest('[data-win]'));
     // DELIBERATE REQUIREMENT CHANGE (T06 AC30): the dock adds five native buttons after the
     // theme toggle, so the page-wide list pins the toggle and then the five dock buttons.
@@ -134,7 +135,17 @@ describe('Desktop wiring', () => {
           : id === 'about'
             ? // DELIBERATE REQUIREMENT CHANGE (T16 AC5): about adds its viz button after the chrome buttons.
               [`Minimize ${title}`, `Close ${title}`, 'See some data viz']
-            : [`Minimize ${title}`, `Close ${title}`],
+            : id === 'proj'
+              ? // DELIBERATE REQUIREMENT CHANGE (T18 AC5): the four project tiles are buttons named by project, after the chrome buttons.
+                [
+                  `Minimize ${title}`,
+                  `Close ${title}`,
+                  'Voice Calendar',
+                  'Indoor Garden',
+                  'Grocery Prices',
+                  'Driver Safety',
+                ]
+              : [`Minimize ${title}`, `Close ${title}`],
       );
       for (const b of buttons) expect(b).toHaveAttribute('type', 'button');
       expect(within(el).getByRole('button', { name: `Minimize ${title}` })).toBeInTheDocument();
