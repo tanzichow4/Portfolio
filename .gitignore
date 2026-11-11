@@ -9,6 +9,7 @@ dist/
 !.vscode/extensions.json
 .idea/
 .DS_Store
+experience/*
 
 # Playwright
 test-results/

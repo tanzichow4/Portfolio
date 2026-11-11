@@ -123,18 +123,18 @@ describe('T08 boot copy', () => {
 describe('T17 experience stats', () => {
   // Frozen list of the figures that appear in the résumés (experience/), per entry. Used only to
   // prove no figure was invented.
-  const RESUME_FIGURES = [['70%', '90%'], ['33', '3', '80%', '5', '20'], []];
+  const RESUME_FIGURES = [[], ['33', '3', '80%', '5', '20'], []];
 
   it('T17 AC2: stats are exactly the specified strings in order', () => {
     // DELIBERATE REQUIREMENT CHANGE (resume content): real résumé text now fills the stats and project details.
     expect(EXP.map((e) => e.stats)).toEqual([
       [
         'Led development of the onboarding system for a multi-tenant web platform: React flows, an Express backend, Keycloak sign-in and Google APIs for automation',
-        'Built a natural-language-to-SQL engine on a fine-tuned local model, about 70% correct on the first pass',
-        'Added a validation and retry framework that lifted reliability to about 90% within three attempts in internal testing',
+        'Prototyped internal forms as an interactive mockup before any backend work, turning stakeholder requirements into a working UI',
         'Wrote a formal security review report for a production platform',
-        'Prototyped internal forms as an interactive mockup before any backend work',
-        'Reviewed capstone project proposals across software, IoT and GIS, and revised IP agreements into a template adopted for future submissions',
+        'Evaluated and prioritized incoming project proposals across software, IoT and GIS, including a smart beehive portal, a smart camera system and a biodiesel production digital twin, on feasibility, resourcing and IP risk',
+        'Revised four university capstone proposals from reviewer feedback, including a rural wastewater tank monitoring system',
+        'Reviewed capstone IP agreements and produced a revised template adopted for future submissions',
       ],
       [
         'Led the architecture redesign of a legacy system, cutting runtime from 33 hours to 3',
@@ -145,6 +145,12 @@ describe('T17 experience stats', () => {
       [
         'IoT, data and ML projects',
         'Capstone: Indoor Garden, an IoT monitoring system with a live dashboard',
+        // DELIBERATE REQUIREMENT CHANGE (schooling details, TTG bullets): four courses added; LLM bullets
+        // removed from Tartigrade (no LLM tag either) in favour of full stack and data/IoT/GIS work.
+        'Data Structures and Algorithms: picking the right structure and weighing time and space trade-offs',
+        'Big Data: distributed processing and data pipelines at scale',
+        'Software Architecture: designing systems for scalability and maintainability, and weighing trade-offs',
+        'Software Testing: unit, integration and automated testing to catch defects early',
       ],
     ]);
   });
@@ -180,7 +186,7 @@ describe('T17 experience stats', () => {
         when: '2026 — Now',
         role: 'Software Developer',
         org: 'Tartigrade Ltd.',
-        tags: ['React', 'Express', 'Keycloak', 'LLMs'],
+        tags: ['React', 'Express', 'Keycloak', 'Google APIs'],
       },
       {
         when: '2024 — 2026',

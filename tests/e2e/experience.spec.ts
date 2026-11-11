@@ -16,11 +16,11 @@ test.use({ colorScheme: 'dark', viewport: { width: 1280, height: 720 } });
 const STATS: Record<string, string[]> = {
   'Tartigrade Ltd.': [
     'Led development of the onboarding system for a multi-tenant web platform: React flows, an Express backend, Keycloak sign-in and Google APIs for automation',
-    'Built a natural-language-to-SQL engine on a fine-tuned local model, about 70% correct on the first pass',
-    'Added a validation and retry framework that lifted reliability to about 90% within three attempts in internal testing',
+    'Prototyped internal forms as an interactive mockup before any backend work, turning stakeholder requirements into a working UI',
     'Wrote a formal security review report for a production platform',
-    'Prototyped internal forms as an interactive mockup before any backend work',
-    'Reviewed capstone project proposals across software, IoT and GIS, and revised IP agreements into a template adopted for future submissions',
+    'Evaluated and prioritized incoming project proposals across software, IoT and GIS, including a smart beehive portal, a smart camera system and a biodiesel production digital twin, on feasibility, resourcing and IP risk',
+    'Revised four university capstone proposals from reviewer feedback, including a rural wastewater tank monitoring system',
+    'Reviewed capstone IP agreements and produced a revised template adopted for future submissions',
   ],
   'General Dynamics Mission Systems': [
     'Led the architecture redesign of a legacy system, cutting runtime from 33 hours to 3',
@@ -31,6 +31,11 @@ const STATS: Record<string, string[]> = {
   'University of Calgary': [
     'IoT, data and ML projects',
     'Capstone: Indoor Garden, an IoT monitoring system with a live dashboard',
+    // DELIBERATE REQUIREMENT CHANGE (schooling details): four courses added.
+    'Data Structures and Algorithms: picking the right structure and weighing time and space trade-offs',
+    'Big Data: distributed processing and data pipelines at scale',
+    'Software Architecture: designing systems for scalability and maintainability, and weighing trade-offs',
+    'Software Testing: unit, integration and automated testing to catch defects early',
   ],
 };
 const ORGS = Object.keys(STATS);
