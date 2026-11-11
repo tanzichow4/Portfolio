@@ -88,3 +88,7 @@ Direction from Tanzi during this run: finish T08, defer T09 until after the MVP,
 - Assumptions: the switch is by width only, so 759 is phone and 760 is desktop; 760 to 1279px stays as it was; the résumé link opens a new tab, matching the menu rather than `linkAttrs`; the page has no theme toggle and no icons; tags use `.tag-outline` because filled tags nearly match the page in light mode.
 - Decision for you: a phone in landscape at 760px or wider (for example 844x390) gets the desktop at 390px high, with windows overlapping and the dock covering them, and nothing scrolls.
 - Gaps: real touch scrolling was exercised only in QA's iPhone emulation, not in the e2e suite; spacing is slightly uneven on the page; `tests/e2e/boot.spec.ts` boot timing failed once in a full run and then passed in 7 later runs, so it may be occasionally load-sensitive; most new tests had no mutation check. QA used scripted bundled Chromium.
+
+## Run on branch autobuild/2026-11-10 (round 2: T15-T18)
+
+Baseline before T15: GitHub link removed and tests updated on main (commits 1443f89, 4f84801). lint, typecheck, 1367 unit and 242 e2e all green.

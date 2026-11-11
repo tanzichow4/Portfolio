@@ -18,7 +18,10 @@ import type { Settings } from '../../src/logic/settings';
 import { EMAIL, WIN_TITLES } from '../../src/data';
 
 const dflt: Settings = { theme: 'dark', wall: 'nebula', wobble: true };
-const desk = () => initialApp(1280, 720, dflt).desk;
+// DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the explicit all-open (Tidy up) state.
+const allOpen = (): ReturnType<typeof initialApp> =>
+  appReducer(initialApp(1280, 720, dflt), { type: 'tidy' });
+const desk = () => allOpen().desk;
 const ctx = (settings: Settings = dflt, wins = desk().wins) => ({ wins, settings });
 
 type Item = Extract<MenuEntry, { kind: 'item' }>;
@@ -88,7 +91,8 @@ describe('menuModel: Windows', () => {
     });
   });
   it('AC19: checked means open and not minimized (open, minimized and closed)', () => {
-    let app = initialApp(1280, 720, dflt);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the all-open state.
+    let app = allOpen();
     app = appReducer(app, { type: 'minimize', id: 'about' });
     app = appReducer(app, { type: 'close', id: 'exp' });
     const m = menuModel('win', ctx(dflt, app.desk.wins));
@@ -99,7 +103,8 @@ describe('menuModel: Windows', () => {
     expect(find(m, 'terminal').checked).toBe(true);
   });
   it('AC19: with everything closed no window is checked', () => {
-    let app = initialApp(1280, 720, dflt);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the all-open state.
+    let app = allOpen();
     for (const id of ['hello', 'about', 'exp', 'proj', 'term'] as const)
       app = appReducer(app, { type: 'close', id });
     const m = items(menuModel('win', ctx(dflt, app.desk.wins))).slice(0, 5);

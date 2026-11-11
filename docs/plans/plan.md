@@ -1,322 +1,262 @@
-# T13 plan: phone fallback page (<760px)
+# T15 plan: start with only hello.txt open, plus hello.txt buttons
 
-Source: `docs/plans/00-requirements.md` (Current state, Assumptions 1-9, AC1-AC34), `CLAUDE.md`, `docs/design-decisions.md` (decisions 3-5, 7, 11, 13), the responsive note in `design_handoff_tanzi_os/README.md`. Existing code read: `src/{main,Desktop}.tsx`, `src/theme.css`, `src/data.ts`, `src/storage.ts`, `src/logic/{layout,menu}.ts`, `src/hooks/reducedMotion.ts`, `src/windows/{About,Experience,Projects}.tsx`, `index.html`, `vite.config.ts`, `playwright.config.ts`, and every test that scans `src/`, reads `main.tsx` or sets a viewport.
+Source: `docs/plans/T15-requirements.md` (identical to `00-requirements.md`: Current state, Assumptions 1-10, AC1-AC26), `CLAUDE.md`, `docs/design-decisions.md` (decisions 4, 5, 7) and `design_handoff_tanzi_os/README.md` ("Tidy up: reset to default layout, all open"). Code read: `src/logic/{layout,desktop,system,windows}.ts`, `src/windows/Hello.{tsx,css}`, `src/data.ts` (`HELLO_COPY`), `src/Window.tsx` (`minHeight: meta.height`). Tests read or grepped: every file under `tests/` that builds state from `initialDesktop`/`initialApp`, renders `<Desktop />`, looks up `[data-win]`, counts tab stops or buttons, or pins `tidy`/`restart`.
 
-T1-T4 below are tasks inside ticket T13, not backlog tickets.
+T1-T5 below are tasks inside ticket T15, not backlog tickets.
 
 ## 1. Goal and scope
 
-**Goal.** A viewport narrower than 760 CSS px gets a plain, scrolling, single-column page with name, about, experience, projects, links and résumé from `src/data.ts`, and the desktop is not mounted (decision 13). A viewport 760px or wider gets the existing desktop, unchanged.
+**Goal.** On first load and after Restart the desktop shows only the hello.txt window, so a visitor sees one clear starting point instead of five overlapping windows. hello.txt gains "More about me" and "What I've been up to" buttons, which open about.md and experience.log next to "See what I've built" and "Say hi". Every other window stays reachable from the dock, the Windows menu and the terminal.
 
 **Out of scope** (carried over):
 
-- The OS-style mobile design: window stack, tab-bar dock, TC menu (T11, and the README's responsive note).
-- A theme toggle, terminal, windows or any interactive feature on the phone page.
-- Any change to the 760 to 1279px range, including an "unsupported size" message.
-- A separate rule for phones in landscape wider than 760px, for short viewports, or for touch devices.
-- Code-splitting the desktop out of the phone bundle.
-- Preserving window state, scroll position or focus across a crossing.
-- Live following of a changed OS colour scheme on the phone page.
-- Real content and the résumé PDF (T10). The `<noscript>` summary and OG tags (decision 10, T12). The app-wide accessibility pass (T09).
+- Changing Tidy up, the `layout()` formulas (except the hello height in AC17), `INITIAL_ORDER`, terminal commands or output, or the dock click logic.
+- Moving focus into a window opened from a hello button.
+- Persisting which windows are open (decision 4).
+- A hello button for the terminal or About this site.
+- Any change to the phone page or mobile behaviour.
+- New colours, tokens or button variants.
+- Content changes to about.md, experience.log or projects (T16-T18).
 - Editing `docs/design-decisions.md` or `design_handoff_tanzi_os/`.
 
 ## 2. Acceptance criteria
 
-Copied from `00-requirements.md` with the same numbers. No AC is added.
+Copied from `T15-requirements.md` with the same numbers. No AC is added. The one gap I found (Tab and focus must be left alone by the test setup that opens the other windows) is a test-method rule in section 7a, not a product criterion.
 
-### A. Choosing the view
+### A. Initial window state
 
-- **AC1** The view depends only on viewport width in CSS px. Width below 760 shows the phone page. Width 760 or more shows the desktop. Height, orientation, user agent and touch support are not consulted. Exact boundaries: 759 is phone, 760 is desktop, and a fractional width such as 759.5 is phone.
-- **AC2** The 760 breakpoint is defined in exactly one place in source. The width-to-view rule is a pure, unit-tested function, and any viewport read stays outside `src/logic`.
-- **AC3** On a load below 760px the desktop never mounts. From document start to settled, the DOM never contains the system menu bar, the dock, a window or the boot status region, including under StrictMode. No frame shows the desktop or an empty intermediate view once React has rendered.
-- **AC4** On a load at 760px or wider the phone page never mounts or paints, and the rendered desktop is the same as before this ticket.
-- **AC5** Resizing or rotating across 760 swaps the view with no reload, and the outgoing view is fully unmounted in the same commit that mounts the incoming one. No frame shows both views or neither. After the swap no console error or warning appears.
-- **AC6** Repeated or rapid crossings, including a return within one frame, end on the view matching the final width, with exactly one view mounted. Listeners registered by the switch are removed on unmount.
-- **AC7** Resizing or rotating without crossing 760 does not remount the current view. The phone page keeps its scroll position as the browser allows, and the desktop keeps its window state.
-- **AC8** Crossing into the phone page shows it from the top of the page. Crossing back shows a fresh desktop at the current viewport, with no page scrollbars and no leftover scroll offset visible. Window positions and window-local state are not preserved across a crossing, the same as a reload (decisions 4, 5). A Restart boot running at a crossing is discarded, with no further progress and no warning.
+- **AC1** `initialWindows(vw, vh)` (and so `initialDesktop`) returns hello `open: true, min: false` and every other window (about, exp, proj, term, site) `open: false, min: false`, at every viewport size.
+- **AC2** Window positions from `initialWindows` still equal `layout(vw, vh)` for every window, open or closed, so a window opened later appears at its default layout position. `layout()` formulas are unchanged.
+- **AC3** `initialWindows(...).order` still equals `INITIAL_ORDER`, as a fresh copy. `INITIAL_ORDER` is unchanged.
+- **AC4** On first load at 1280x720 the DOM contains exactly one window (`[data-win="hello"]`), not minimized, at its layout position. No about, exp, proj, term or site window element exists.
+- **AC5** On first load the dock shows all five window buttons. hello reads as Open, and about, experience, projects and terminal read as Closed (same labels, `aria-pressed` and dot states the dock already uses for closed windows).
+- **AC6** On first load the Windows menu lists the same five items, with only hello.txt checked.
+- **AC7** Each closed window can be opened from the dock, from its Windows menu item, and (for hello, about, experience, projects) from the terminal `open` command. Once opened it behaves exactly as before (drag, minimize, close, z-order, fly-in).
 
-### B. Between 760px and 1280px
+### B. Restart and Tidy up
 
-- **AC9** The range 760 to 1279px keeps today's behaviour: the desktop renders, with no message, redirect, scaling or layout change. It remains an unsupported size (decision 7). At 1280x720 and up, all existing unit and e2e tests pass unchanged.
+- **AC8** After Restart, on both the boot path and the reduced-motion path, and from both the menu and the terminal `restart`, the window state equals a fresh load at the current viewport: only hello open, the rest closed, default positions, `INITIAL_ORDER`. This includes windows that were open or minimized before Restart, and the terminal window itself when `restart` was typed there.
+- **AC9** All T08 Restart behaviour still holds: internal state resets, theme, wallpaper and wobble are kept, no fly-in after Restart, focus lands on the "tanzi.os" menu trigger, and completion is announced.
+- **AC10** Tidy up (Windows menu and terminal `tidy`) is unchanged from today: it resets to the default layout with all five dock windows open and not minimized, `site` closed, order `INITIAL_ORDER` (spec: "reset to default layout, all open"). Windows that stay open across Tidy up keep their internal state, as before.
 
-### C. Content
+### C. hello.txt buttons
 
-- **AC10** The page shows, top to bottom, in this order:
-  1. `NAME` and `ROLE`.
-  2. About: every `ABOUT_COPY` paragraph, with `em` segments emphasized, then every `FACTS` label.
-  3. Experience: every `EXP` entry in array order, all visible at once with no tabs, showing role, `EXPERIENCE_LABELS.at` plus org, `when`, `desc` and all tags.
-  4. Projects: every `PROJECTS` entry in array order, showing name, `desc` and all tags, with the name as the link to `href`.
-  5. Links: every `LINKS` item by its visible text `label`, followed by the résumé link to `RESUME_URL`, labelled with `MENU_ITEMS.resume`.
-- **AC11** All copy comes from `src/data.ts`. Existing constants are reused wherever they fit. Only copy with no existing constant is added, which is expected to be just the section headings. The file-style `WIN_TITLES` values are not used as headings. No email, URL or label is hard-coded elsewhere, and the rendered text changes when the data does.
-- **AC12** The page has no theme toggle, terminal, windows, dock, menubar, boot screen, verb game, wallpaper or wobble.
+- **AC11** `.hello-actions` contains, in this DOM and Tab order: "See what I've built" (button), "More about me" (button), "What I've been up to" (button), "Say hi" (mailto link).
+- **AC12** The new labels come from new `HELLO_COPY` keys in `src/data.ts`. No new label text is hard-coded in components. Existing `primary` and `secondary` keys and values are unchanged.
+- **AC13** "More about me" is a native `type="button"` whose accessible name is its label. Activating it by click, Enter or Space dispatches exactly one `{ type: 'open', id: 'about' }`.
+- **AC14** "What I've been up to" is a native `type="button"` whose accessible name is its label. Activating it by click, Enter or Space dispatches exactly one `{ type: 'open', id: 'exp' }`.
+- **AC15** In the running app, each hello button (the existing one and the two new ones) opens its window when closed, restores it when minimized, and raises it to the top when it is open behind other windows. Activating a button whose window is already open and on top leaves it open and on top, and never minimizes it.
+- **AC16** The new buttons use the existing `hello-cta` host and `btn btn-secondary hello-cta-face` styling, so they share the hover offset, shadow, pressed state and reduced-motion rules already pinned for the hello buttons. "See what I've built" stays the only primary button. Any icon added is `aria-hidden` and not focusable.
+- **AC17** The buttons may wrap onto more than one row. At 1280x720 the whole hello window, including every button, is fully visible below the menubar and above the dock clearance (`y + rendered height <= 720 - DOCK_CLEARANCE`), with no clipped or overlapping buttons and no scroll inside hello. If the rendered height exceeds the nominal 420, `WIN_META.hello.height` is updated to the rendered height so `layout()` keeps hello clear of the dock.
+- **AC18** The button row meets the existing contrast tests in dark and light (no new colours or tokens are introduced).
+- **AC19** Changing the verb still dispatches nothing, and hello's verb state still resets on close and Restart.
 
-### D. Layout and scrolling
+### D. Unaffected areas
 
-- **AC13** The page is a single column on a `--color-bg` background and uses existing tokens only, with no new colours and no change to any token value. Spacing, size and component choices are the planner's, within these criteria.
-- **AC14** The page scrolls vertically by touch, wheel and keyboard, and all content down to the résumé link can be reached.
-- **AC15** At widths 320, 375, 414 and 759, and at short landscape sizes such as 667x375, there is no horizontal scrolling. `document.documentElement.scrollWidth` is at most the viewport width, and long text and tag rows wrap.
-- **AC16** At 760 and up, `body` still does not scroll and all overflow behaviour of the desktop is unchanged. Below 760, text on the page is selectable. The desktop's `user-select: none` does not apply.
+- **AC20** The phone page (`<760px`) renders and behaves exactly as before. All phone unit and e2e tests pass unchanged.
+- **AC21** Terminal output, dock click logic (`dockClickAction`), z-order rules, drag clamp, resize re-clamp, `site` handling and localStorage behaviour are unchanged.
 
-### E. Theme
+### E. Tests and quality
 
-- **AC17** The page renders in whichever theme the existing no-flash init set: the stored preference, else `prefers-color-scheme`, else dark when storage throws. Dark and light both render correctly, with no flash of the other theme on load.
-- **AC18** The page never changes `<html data-theme>` and writes nothing to `localStorage`. Stored theme, wallpaper and wobble are the same after a phone session as before it.
-- **AC19** Crossing 760 in either direction leaves `<html data-theme>` unchanged, including a theme changed on the desktop in the current session while storage is throwing.
-
-### F. Semantics and links
-
-- **AC20** The page has exactly one `h1`, whose text is `NAME`, and one `main` landmark. About, Experience, Projects and Links are each a `section` named by an `h2`. Each experience entry and project is headed by an `h3`. No heading level is skipped.
-- **AC21** Facts, experience entries, projects and links are real lists, and `html lang` stays `en`.
-- **AC22** Every `LINKS` and `PROJECTS` link uses `linkAttrs(href)`, so `http(s)` links open in a new tab with `rel="noopener noreferrer"` and `mailto:` and `#` links get neither attribute. The résumé link matches the existing menu item, with `target="_blank"` and `rel="noopener noreferrer"` (see Assumption 3).
-
-### G. Accessibility and motion
-
-- **AC23** Every link is reachable by Tab in reading order, with the global `:focus-visible` ring visible and not clipped. The page has no positive `tabindex` and no focus trap.
-- **AC24** Icons, if used, are decorative (`aria-hidden`, not focusable), and every link has visible text as its accessible name.
-- **AC25** Each standalone link in the Projects and Links sections has a tap target at least 44 CSS px high.
-- **AC26** All text meets WCAG AA in both themes on the background it sits on, checked by unit tests using `tests/helpers/contrast.ts` for each text and background token pair the page uses, including any `color-mix` or `opacity` applied. Existing muted styles are not assumed to pass (see Assumption 7).
-- **AC27** Essentially no motion, with or without reduced motion: no CSS animation, no transition, no smooth scrolling and no scripted movement. A hover or focus style change is immediate. In e2e, `document.getAnimations()` is empty on the page, with both motion settings.
-- **AC28** The page does not disable pinch zoom, and the existing viewport meta tag stays as it is. Crossing 760 moves no focus programmatically and announces nothing.
-
-### H. Constraints and quality
-
-- **AC29** No new dependency in `package.json`.
-- **AC30** Unit and component tests cover AC1, AC2, AC10-AC12, AC17-AC18, AC20-AC22, AC24 and AC26, plus the view choice in an environment without `matchMedia` (jsdom), which must not throw and must render the desktop at jsdom's default width.
-- **AC31** Playwright, using explicit viewport sizes on top of the 1280x720 config, covers:
-  - no desktop in the DOM at any point on a phone load, using a mutation record from document start (AC3)
-  - the exact 759 and 760 boundary (AC1)
-  - crossing in both directions and a rotation-style swap of width and height, with no frame of both views (AC5, AC8)
-  - rapid crossings (AC6) and non-crossing resize keeping the view (AC7)
-  - vertical scroll and no horizontal overflow (AC14, AC15)
-  - theme from stored value and from emulated colour scheme, with no storage writes (AC17, AC18), and theme kept across a crossing (AC19)
-  - keyboard Tab order and link attributes in a real browser (AC22, AC23)
-  - no animations (AC27)
-  - no console errors or warnings
-- **AC32** QA screenshots the page at 375x667 in dark and light, and records the result in the QA report.
-- **AC33** No existing test is deleted, skipped or weakened. If a new `src/logic` module is added, adding it to the purity `EXPECTED` list is the one expected test edit. It must be commented and listed in the QA report as a deliberate requirement change.
-- **AC34** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass.
+- **AC22** Unit tests cover AC1-AC3, AC8 and AC10 at the reducer and layout level (including that `tidy` and `restart` now give different results), and AC11-AC14, AC16 and AC19 in `tests/windows/Hello.test.tsx`.
+- **AC23** A component test of `<Desktop />` (or an e2e test) covers AC4-AC6 and AC15 for all three hello buttons: closed, minimized, and open-but-behind cases.
+- **AC24** Playwright at 1280x720 covers: only hello visible on first load (AC4); the dock and Windows menu states (AC5, AC6); opening about, exp and proj from the hello buttons (AC15); hello fully visible above the dock (AC17); only hello after Restart from the menu and from the terminal, with and without reduced motion (AC8); Tidy up still opening all five (AC10); no console errors or warnings.
+- **AC25** Existing tests that assumed five windows open at load or after Restart are updated without weakening coverage. Each edit carries `// DELIBERATE REQUIREMENT CHANGE: <reason>` and is listed in the QA report and the autobuild log. No test is deleted or skipped. A test that exercises a non-hello window keeps every assertion and reaches that window through a user path (dock, Windows menu, terminal, hello button, or Tidy up) or through an explicit reducer setup. (Known cases: see section 7a.)
+- **AC26** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run format:check` and `npm run test:e2e` all pass.
 
 ## 3. Architecture
 
-**Approach.** `main.tsx` renders a new `App`, which picks `<PhonePage />` or `<Desktop />` from a `useView()` hook. `Desktop`, its CSS and `theme.css` are not edited.
+**Approach.** Split today's shared `tidy`/`restart` reducer case into two pure state builders. "Start" (first load and Restart) opens only hello. "Tidy" keeps today's result. Both share one positional builder, so positions and order cannot drift apart (AC2, AC3, AC10).
 
-**View rule (AC1, AC2), added to `src/logic/layout.ts`.** It goes in the existing module, beside the other viewport-driven constants, so no new logic module exists and the purity `EXPECTED` list needs no edit.
+**`src/logic/layout.ts`**
 
-- `export const PHONE_BREAKPOINT = 760;`: the only occurrence of `760` anywhere in `src/`, comments included.
-- ``export const DESKTOP_QUERY = `(min-width: ${PHONE_BREAKPOINT}px)`;``
-- `export type View = 'phone' | 'desktop';`
-- `viewForWidth(width: number): View`: `width < PHONE_BREAKPOINT ? 'phone' : 'desktop'`.
-- `resolveView(desktopMatches: boolean | null, width: number): View`: `null` means no media query is available, so it returns `viewForWidth(width)`. Otherwise `desktopMatches ? 'desktop' : 'phone'`.
-- Purity: this file must not contain the words `window` or `document` outside comments. No DOM read happens here.
+- Add `export const START_OPEN: readonly WinId[] = ['hello'];`
+- Private `buildWindows(vw, vh, isOpen: (id: WinId) => boolean)`: today's loop body with `open: isOpen(id)`, `min: false`, `order: [...INITIAL_ORDER]`.
+- `initialWindows(vw, vh)` = `buildWindows(vw, vh, (id) => START_OPEN.includes(id))` (AC1).
+- New `tidyWindows(vw, vh)` = `buildWindows(vw, vh, (id) => WIN_META[id].dock)`. This is exactly today's `initialWindows` output (AC10).
+- `layout()`, `INITIAL_ORDER`, `DOCK_CLEARANCE` unchanged.
 
-**Viewport read, `src/hooks/useView.ts` (new).**
+**`src/logic/desktop.ts`**
 
-- `readDesktopQuery(): MediaQueryList | null` guards a missing or throwing `matchMedia` with the same `typeof` and `try/catch` as `reducedMotion.ts`.
-- `getSnapshot()` returns `resolveView(readDesktopQuery()?.matches ?? null, window.innerWidth)`. It returns a string, so React compares it by value.
-- `subscribe(cb)` adds `cb` as a `resize` listener on `window` and as a `change` listener on the query, and removes both in its cleanup (AC6). Write the query side as `mql?.addEventListener?.('change', cb)`, because older Safari has no `addEventListener` on `MediaQueryList` and a throw here would blank the page. The `resize` listener is what keeps those browsers and jsdom working.
-- `useView()` is `useSyncExternalStore(subscribe, getSnapshot)`, with `subscribe` and `getSnapshot` at module level so they are stable.
+- `initialDesktop` unchanged in shape (still wraps `initialWindows`).
+- New `export function tidyDesktop(vw, vh): State` wrapping `tidyWindows`.
+- Reducer: `case 'tidy': return tidyDesktop(state.vw, state.vh);` and `case 'restart': return initialDesktop(state.vw, state.vh);`. No action type changes. `initialApp` in `system.ts` needs no edit.
 
-Why these reads:
+**Naming rules.** The purity test bans the whole word `window` (lowercase) in `src/logic` code outside comments. `initialWindows`, `tidyWindows` and `buildWindows` are fine. `MenuBar.test` bans the string `Restart` anywhere in `src/` except `data.ts`, including comments. No new module, so the purity `EXPECTED` list is unchanged.
 
-- `matchMedia` is the only exact read of a fractional width. `innerWidth` is rounded by the browser, so it could report 759.5 as 760 (AC1). `innerWidth` is only the fallback when `matchMedia` is absent.
-- `clientWidth` is forbidden because it excludes the scrollbar, and the phone page's own scrollbar could then flip the view. `visualViewport` is forbidden because pinch zoom would change it (AC1, AC28).
-- `useSyncExternalStore` reads during render, so the first commit is already the right view (AC3, AC4, Assumption 9). Store updates render synchronously and re-read the latest value, which covers AC5 and AC6. `useState` plus an effect would paint the wrong view first.
+**`src/data.ts`.** Add two keys to `HELLO_COPY`, after `primary`: `about: 'More about me'` and `experience: "What I've been up to"` (straight apostrophe, Assumption 6). `primary` and `secondary` unchanged (AC12).
 
-**`src/App.tsx` (new).** `const view = useView(); return view === 'phone' ? <PhonePage /> : <Desktop />;`. React replaces the two different element types in one commit, so the old view is fully unmounted with the new one mounted (AC5). A non-crossing resize returns the same snapshot and remounts nothing (AC7). `Desktop` unmount already clears its listeners, the boot interval and the timers (T08 AC12), which gives the discarded boot of AC8.
+**`src/windows/Hello.tsx`.** Inside `.hello-actions`, between the primary button and the "Say hi" link, add two copies of the existing button pattern:
 
-**`src/main.tsx`.** Replace `import Desktop from './Desktop'` with `import App from './App'` and render `<App />` inside `StrictMode`. The three font imports stay exactly as they are.
+```
+<button type="button" className="hello-cta" onClick={() => dispatch({ type: 'open', id: 'about' })}>
+  <span className="btn btn-secondary hello-cta-face">{HELLO_COPY.about}</span>
+</button>
+```
 
-**Theme (AC17-AC19).** No code. The inline script sets `data-theme` before React, and `PhonePage` never reads or writes it, or storage. On a crossing to the desktop, `readSettings()` reads the attribute and `persistDiff` sees no difference, so nothing is written, and a session theme survives a throwing `setItem`.
+and the same for `exp` with `HELLO_COPY.experience`. No icons. That keeps the primary visually dominant and needs no new `aria-hidden` checks (AC16). No CSS change: the existing `.hello-cta`, `.hello-cta-face` and `.hello-cta:hover .btn-secondary` rules and the reduced-motion block already apply by class (AC16, AC18). They use the reducer's `open` action, which opens, restores or raises and never minimizes (AC15, Assumption 2).
 
-**Scroll scoping (AC14, AC16).** `theme.css` is untouched: `body { overflow: hidden }` and `html, body, #root { height: 100% }` stay as the default, so the desktop gets exactly the rules it has today. `PhonePage` opts out only while mounted:
+**`src/logic/windows.ts`, AC17 only.** Four buttons do not fit on one row in hello's 484px content box (about 190 + 136 + 176 + 81 px plus gaps), so they wrap to two rows, adding about 54px. Hello's `minHeight` is `WIN_META.hello.height`, so the window grows and nothing scrolls or clips. The coder measures the rendered `[data-win="hello"]` height at 1280x720 with fonts loaded (Playwright `boundingBox`, dark and light), rounds it up to an integer and, if it is above 420, sets `WIN_META.hello.height` to it. Expected about 470-480. At 1280x720, `yFit(72, h)` keeps y at 72 while `h <= 572`, so 72 + about 476 = about 548 <= 644. Positions in every reference test stay the same.
 
-- `PhonePage` has `useLayoutEffect(() => { document.documentElement.classList.add('phone-view'); return () => document.documentElement.classList.remove('phone-view'); }, [])`. A layout effect runs in the commit, so the class and the page appear before the same paint, and the cleanup runs in the commit that mounts the desktop. StrictMode's add, remove, add is harmless.
-- `PhonePage.css` overrides, all prefixed so they cannot match without the class:
-  - `html.phone-view, html.phone-view body, html.phone-view #root { height: auto; }`. Specificity beats the `#root` rule in `theme.css`.
-  - `html.phone-view body { overflow: visible; }`, so the document itself scrolls.
-- Rejected alternatives:
-  - A CSS media query would be a second definition of the breakpoint (AC2).
-  - `body:has(.phone)` needs no JS, but on a browser without `:has` the phone content would be cut off with no way to scroll, and this page is the one served to arbitrary phones.
-  - An inner scroll container (`.phone { height: 100%; overflow: auto }`) would lose keyboard scrolling until focused and the browser's collapsing address bar.
-- No `overflow-x: hidden` anywhere: AC15 is met by wrapping, not clipping, and clipping would also threaten the focus ring (AC23).
-- AC8 holds without code. The document only overflows while the phone page is mounted, so the offset clamps to 0 when it unmounts, and a page mounted after the desktop starts at 0. Do not call `window.scrollTo` (jsdom logs an error for it, and it is unnecessary).
+**Data and API changes.** `START_OPEN`, `tidyWindows`, `tidyDesktop` (new exports), two `HELLO_COPY` keys, and possibly `WIN_META.hello.height`. No change to `State`, action types, storage, `Desktop`, `MenuBar`, `Dock`, `WindowLayer`, `Window` or `PhonePage`.
 
-**`src/PhonePage.tsx` (new), default export, no props, no state.** No icons, so AC24 holds trivially. Markup, top to bottom:
-
-- `main.phone` containing `div.phone-intro` with `h1.phone-name` (`NAME`) and `p.phone-role` (`ROLE`). Do not use a `<header>` element, so `header` selectors can only ever mean the desktop's menu bar.
-- Four `section.phone-section`, each with `aria-labelledby` pointing at its `h2.phone-h2`, using the fixed ids `phone-about`, `phone-experience`, `phone-projects`, `phone-links`.
-- About: heading `PHONE_HEADINGS.about`. Each `ABOUT_COPY` paragraph is `p.phone-para`, where `em` segments render as `<em className="phone-em">` and others as text. Then `ul.phone-facts` with one plain text `li` per `FACTS` label.
-- Experience: heading `EXPERIENCE_LABELS.tablist`. `ul.phone-list`, one `li` per entry: `h3.phone-h3` (role), `p.phone-meta` (`{EXPERIENCE_LABELS.at} {org}`), `p.phone-meta` (`when`), `p.phone-desc`, tags.
-- Projects: heading `PHONE_HEADINGS.projects`. `ul.phone-list`, one `li` per entry: `h3.phone-h3` holding `<a className="phone-link" href={p.href} {...linkAttrs(p.href)}>{p.name}</a>`, then `p.phone-desc`, tags.
-- Links: heading `PHONE_HEADINGS.links`. `ul.phone-links`, one `li` per `LINKS` item with `a.phone-link` and `{...linkAttrs(l.href)}` and `l.label`, then a final `li` with `<a className="phone-link" href={RESUME_URL} target="_blank" rel="noopener noreferrer">{MENU_ITEMS.resume}</a>` (Assumption 3).
-- Tags: a local, non-exported `Tags({ tags })` renders `div.phone-tags` with `<span className="tag tag-outline">` per tag, and a `{' '}` text node between them so assistive technology and `textContent` keep them apart, as `Projects.tsx` does.
-- Every `ul` has `role="list"`, because Safari drops list semantics under `list-style: none` (AC21).
-- Keys are array indexes. The lists are static, and T10's real data may repeat an org or a tag, which would otherwise produce a duplicate-key console error.
-
-**`src/PhonePage.css` (new), tokens only, every selector prefixed `.phone` or `html.phone-view`.**
-
-- `.phone`: `max-width: 640px; margin: 0 auto; padding: var(--space-8) var(--space-6); overflow-wrap: anywhere`. Background comes from the global `body` rule (`--color-bg`).
-- `.phone-name`: 32px, margin 0. `.phone-role`: neutral-400, margin 4px 0 0.
-- `.phone-section`: `margin-top: 40px`. `.phone-h2`: 20px, margin 0 0 12px. `.phone-h3`: 17px, margin 0.
-- `.phone-para`, `.phone-desc`: neutral-400. `.phone-para`: margin 0 0 12px. `.phone-desc`: margin 8px 0 0.
-- `.phone-em`: `font-style: normal; font-weight: 500; color: var(--color-text)`. Inter italic is not shipped, so a real italic is not an option.
-- `.phone-meta`: 13px, neutral-400, margin 2px 0 0.
-- `.phone-list`, `.phone-facts`, `.phone-links`: `list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column`. Gap is `var(--space-8)` on `.phone-list`, `var(--space-2)` on `.phone-facts`, 0 on `.phone-links`. `.phone-facts li`: neutral-400.
-- `.phone-tags`: `display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px`.
-- `.phone-link`: `display: inline-flex; align-items: center; min-height: 44px; max-width: 100%` (AC25). Global `a` gives the accent colour and underline.
-- No `transition`, `animation`, `scroll-behavior`, `opacity`, `color-mix`, `@media`, `user-select` or `touch-action`.
-
-**Colours (AC13, AC26).** Only three text tokens on one background, with no surface, no opacity and no mix: `--color-text`, `--color-neutral-400` and `--color-accent` on `--color-bg`. By hand in light mode, neutral-400 is about 5.0:1 and accent about 4.8:1; in dark, accent is about 5.5:1. `.text-muted`, `.card-meta` and `.card-body` are not used. Tags use `.tag-outline` (accent on the page background) because `--color-neutral-800` and `--color-accent-800` are almost the same as `--color-bg` in light mode, so the filled tag styles would lose their shape.
-
-**Copy (AC11), in `src/data.ts`.** `export const PHONE_HEADINGS = { about: 'About', projects: 'Projects', links: 'Links' } as const;`. Experience reuses `EXPERIENCE_LABELS.tablist` (Assumption 6).
-
-**Hard naming rule.** `tests/MenuBar.test.tsx` ("AC5: no email, link URL or menu copy is hard-coded outside data.ts") scans every `.ts` and `.tsx` file in `src/` except `data.ts`, **including comments and identifiers**, case-sensitively, for: `Restart`, `Tidy up`, `Minimize all`, `Show all`, `Terminal commands`, `Say hi`, `Dark mode`, `Light mode`, `System menu bar`, `Switch to light mode`, `Switch to dark mode`, `Wobbly windows`, `https://github.com`, `https://linkedin.com`, and the `EMAIL` and `RESUME_URL` values. `tests/logic/terminal.test.ts` also fixes the email literal to one occurrence, in `data.ts`. So import the constants, and do not write those strings in comments. `main.tsx` must also not contain `700`, `italic` or `variable` (`tests/fonts.test.ts`).
-
-**Files and public surface.**
-
-- New: `src/App.tsx`, `src/PhonePage.tsx`, `src/PhonePage.css`, `src/hooks/useView.ts`.
-- Edited: `src/main.tsx` (entry), `src/logic/layout.ts` (additions only), `src/data.ts` (one constant), `vite.config.ts` (add `/PhonePage\.css/` to `test.css.include`, as every component stylesheet has).
-
-**Data and API changes.** The additions above, plus the `phone-view` class on `<html>` while the page is mounted. No change to `Desktop`, `State`, reducers, storage or network.
-
-**Dependencies.** None added (AC29).
+**Dependencies.** None.
 
 ## 4. Design
 
-**User flow.** A visitor on a phone opens the site and sees the name and role, then scrolls through About, Experience, Projects and Links, ending at the résumé link. Links open as specified in AC22. Narrowing or widening past the breakpoint swaps views at once with no reload.
+**User flow.** A visitor lands on the desktop and sees hello.txt alone over the wallpaper, with the menubar on top and the dock below. The dock shows hello as Open and the other four as Closed (no dot). From hello they can pick "See what I've built", "More about me" or "What I've been up to", and each opens its window, which flies in as usual. They can also pick "Say hi", or use the dock, the Windows menu or the terminal. Restart returns to this single-window view. Tidy up still lays out all five.
 
 **States.**
 
-- Loading: none of its own. `#root` is empty until the script runs, as today (Assumption 9), and the body already has the right theme background.
-- Empty: not designed. `tests/data.test.ts` requires the content lists to be non-empty, and the page has no fetch.
-- Error: no failure path in the page. A missing or throwing `matchMedia` falls back to `innerWidth`. Storage is never touched. The missing `/resume.pdf` and the `#` project links are T10 placeholders (Assumption 5).
-- Success: the page, in the current theme, with text selectable.
+- Loading: none new. First load has no boot screen (decision 2).
+- Empty: hello alone. This is the intended starting state, not an error.
+- Error: none. Everything is local and synchronous, and there is no network or storage on this path.
+- Success: a hello button opens, restores or raises its target window. Clicking it again when the window is already on top changes nothing visible.
 
-**1280x720 and larger, and 760-1279px.** The desktop, unchanged. The `.phone` rules are inert because no matching element exists, and `html.phone-view` never applies.
+**1280x720 and larger.** hello sits at `(0.06vw, 72)`. The button row wraps to two rows, with "See what I've built" and "More about me" on the first and "What I've been up to" and "Say hi" on the second (the exact break depends on font metrics, and either way is acceptable under AC17). The window bottom stays above `vh - 76`. Larger viewports only move x. Mobile is not built (the phone page is untouched, AC20).
 
-**Below 760px (this ticket is the one that asks for it).** One column, capped at 640px and centered, at any height including 667x375.
+**Accessibility.** Native buttons named by their text. Tab order is verb, "See what I've built", "More about me", "What I've been up to", "Say hi" (AC11). The global focus ring is inherited (no `outline` change, which `Hello.test` pins). Focus stays on the button after activation (out of scope to move it). Closed windows are not in the DOM, so they add no tab stops. That shortens the first-load Tab sequence, which is intended.
 
-**Accessibility.** One `h1`, one `main`, four labelled sections, `h3` per entry, real lists, native links in DOM order with the global focus ring, and 44px link height. Side padding (`--space-6`, 16.8px) leaves room for the 4px ring, and no ancestor clips. No focus moves or announcements at a crossing (Assumption 8, AC28). The viewport meta tag is not edited.
-
-**Reduced motion.** Nothing moves in either setting, so no special case is needed (AC27).
+**Reduced motion.** No new motion. The existing reduced-motion rule for `.hello-cta:hover/.hello-cta:active .hello-cta-face` covers the new buttons. Windows opened from the buttons follow the existing no-fly-in rule.
 
 ## 5. Risk and security
 
-Auth, secrets and server data do not apply. There is no new input surface: all text is static `data.ts` content rendered as React text. `PROJECTS` and `LINKS` hrefs are developer-owned constants.
+Auth, secrets and server data do not apply. No new input surface: the buttons dispatch fixed actions with literal ids.
 
-- **R1. A wrong view painted first (AC3, AC4).** Safeguard: `useSyncExternalStore` read during render (T3). Unit test with a `Desktop` render counter at phone width under StrictMode; e2e mutation record from document start (T4).
-- **R2. The desktop's overflow or height changing (AC4, AC16).** Safeguard: `theme.css` not edited, every override prefixed `html.phone-view` (T2). A raw CSS test pins the prefix and pins the `theme.css` rules; e2e checks `body` overflow at 760 and after a crossing back (T4).
-- **R3. The class left behind after unmount, leaving the desktop scrollable (AC8, AC16).** Safeguard: the layout-effect cleanup (T2), tested on unmount, under StrictMode, and e2e after a crossing back.
-- **R4. Breakpoint disagreements or a scrollbar feedback loop (AC1, AC2).** Safeguard: one constant, no CSS media query, no `clientWidth` or `visualViewport` (T1, T3). A test scans `src/` for the number.
-- **R5. A fractional width misread (AC1).** Safeguard: `matchMedia` preferred over `innerWidth` (T3). Test: query says no match while `innerWidth` reports 760, the page is the phone page.
-- **R6. The switch throwing on an old browser, a blank page (AC30).** Safeguard: guarded read and optional `addEventListener` (T3). Tests with no `matchMedia`, a throwing one and one without `addEventListener`.
-- **R7. Text failing AA (AC26).** Safeguard: three token pairs only (T2). Contrast test, plus a raw CSS test that no other `color` value, `opacity` or `color-mix` appears, and a source test that the muted classes are not used.
-- **R8. Horizontal overflow from long text or tags (AC15).** Safeguard: `overflow-wrap: anywhere`, wrapping tag row, `max-width: 100%` on links (T2). The e2e injects a long unbroken string into a tag and paragraph at 320px as well as checking normal content.
-- **R9. Listener leaks (AC6).** Safeguard: `subscribe` cleanup (T3). Spies compare adds and removes under StrictMode after unmount.
-- **R10. Copy-ban and purity tests failing on new code.** Safeguard: the naming rule in section 3 and no DOM words in `layout.ts` (T1-T3).
-- **R11. An existing test tripping on the switch.** Checked in 7a: none does.
+- **R1. Tidy up silently becoming "hello only" (AC10).** Safeguard: separate `tidyDesktop`, plus a unit test asserting `tidy` and `restart` give different results from the same messy state (T2).
+- **R2. Restart leaving windows open (AC8).** Safeguard: `restart` returns `initialDesktop`. Unit tests use a state with every window open or minimized. `Desktop.boot` tests cover menu and terminal, and boot and reduced motion (T2).
+- **R3. Test churn weakening coverage (AC25).** This is the main risk. Safeguard: section 7a's two-step method. In T1, only _setup_ edits are made while the old behaviour is still in place, so the edited suite is proven green against the old code. In T2, only _expected values_ change. Every non-hello assertion is kept and reached through the dock.
+- **R4. The test setup disturbing focus or roving tabindex.** Opening windows through the menubar would move the menubar's roving stop to "Windows" and break Tab-sequence tests for reasons unrelated to T15. Safeguard: the helper dispatches synthetic clicks on dock buttons (`fireEvent.click` / Playwright `dispatchEvent('click')`), which move no focus and no sequential-navigation start point. The helper is itself tested (T1).
+- **R5. Fly-in skewing e2e measurements.** Windows opened after load fly in. Safeguard: the e2e helper waits until every `[data-win]` has no running animations before returning (T5). In unit tests the helper runs synchronously right after `render`, before the ready frame, so nothing flies in.
+- **R6. Hello overlapping the dock after wrapping (AC17).** Safeguard: measure, then set `WIN_META.hello.height`. The existing layout AC3 and dock AC2 tests and the e2e AC48 test then guard it automatically (T4).
+- **R7. Copy-ban and purity tests.** Safeguard: the naming rules in section 3.
+- **R8. Unverified edit list.** This plan was written without running the suites. Safeguard: T1 and T5 start by running the suites, and the test-writer reconciles section 7a against the real failures. Any failure outside 7a is a regression to fix in `src/`, not a test edit.
 
 ## 6. Gaps check
 
-- **Auth:** none in this app, not applicable.
-- **Validation:** no input. `viewForWidth` takes a number from the browser.
-- **Error handling:** guarded `matchMedia` read with an `innerWidth` fallback. Nothing else can fail.
-- **Mobile:** this ticket is the requested mobile work, limited to the fallback page. T11 stays out of scope.
-- **Accessibility:** AC20-AC28, covered in sections 3 and 4.
-- **Config and env vars:** one `vite.config.ts` test-only line. No env vars.
-- **Tests:** logic, component, raw CSS, contrast and e2e, all in new files. See 7a for existing tests.
+- **Auth:** none in this app.
+- **Validation:** no new input. The reducer already rejects invalid ids.
+- **Error handling:** no failure path.
+- **Mobile:** out of scope. The phone page is untouched (AC20).
+- **Accessibility:** native buttons, Tab order (AC11), no new focus traps. Closed windows are absent from the DOM.
+- **Config and env vars:** none.
+- **Tests:** logic, Hello component, Desktop integration, e2e (new spec), the shared open-all helper with its own test, and the sanctioned edits in 7a.
 
 ## 7. Tasks
 
-Coder edits `src/` plus the one `vite.config.ts` line in T2. Test-writer runs after coder on each task and owns `tests/`. Each task must leave lint, typecheck and unit tests green once test-writer has finished. New tests are named with a `T13 ACn:` prefix. Tests go in new files only, so the `git diff` of existing test files stays empty.
+Coder edits `src/` only. Test-writer owns `tests/`. Each task leaves `npm run lint`, `npm run typecheck` and `npm test` green. New tests use a `T15 ACn:` prefix. Every edit to an existing test carries `// DELIBERATE REQUIREMENT CHANGE (T15 AC25): <reason>`.
 
-**Test-writer guidance for the view switch.**
+- **T1. Test setup that opens the other four windows (no `src` change).** ACs: AC25 (setup half), AC7.
+  - Test-writer: add `tests/helpers/openAll.ts` with `openAllFromDock()`. It calls `fireEvent.click` on the dock buttons for proj, exp, term, about, then hello. A closed window opens and an open window behind is raised, so the result is all five open with order `INITIAL_ORDER`, which equals the Tidy up state, both before and after T2. Add a case to `tests/helpers.test.ts` asserting that after `render(<Desktop />)` and the helper: five `[data-win]`, z-indexes match `zIndexFor(id, INITIAL_ORDER)`, positions match `layout()`, `document.activeElement` is `body`, and the "tanzi.os" trigger still has `tabIndex` 0.
+  - Apply every **setup** edit in 7a (unit files only). The suite must be green on unchanged `src/`, which proves that the setup reproduces the old precondition.
+- **T2. Only hello at start and Restart; Tidy up unchanged.** ACs: AC1-AC3, AC7-AC10, AC21, AC22 (logic part), AC23 (AC4-AC6).
+  - Coder: section 3 changes to `layout.ts` and `desktop.ts`.
+  - Test-writer: apply every **expected-value** edit in 7a for unit files. New cases:
+    - `tests/logic/layout.test.ts`: AC1 at all `SIZES` plus 800x500; AC2 closed windows at layout positions; AC3 fresh copy; `tidyWindows` all dock open.
+    - `tests/logic/desktop.test.ts`: `restart` from an all-open-and-minimized state gives hello only; `tidy` from the same state gives five open; `tidy` and `restart` results are not equal; `tidyDesktop` keeps `vw`/`vh`.
+    - New `tests/Desktop.start.test.tsx`:
+      - AC4: one `[data-win]` at layout position.
+      - AC5: dock states via `aria-pressed`, description and dot.
+      - AC6: Windows menu checks.
+      - AC7: dock, menu and `open about` each open a closed window, which can then be dragged, minimized and closed.
+      - AC8 at component level: menu and terminal, stubbed reduced motion and the real boot with `Math.random` at 0. The terminal is closed after a terminal `restart`. Focus is on the trigger.
+- **T3. hello buttons.** ACs: AC11-AC16, AC18, AC19, AC22 (Hello part), AC23 (AC15).
+  - Coder: `HELLO_COPY.about` and `HELLO_COPY.experience`, plus the two buttons in `Hello.tsx`.
+  - Test-writer, in `tests/windows/Hello.test.tsx`:
+    - AC11: DOM order and Tab order.
+    - AC12: labels from `HELLO_COPY`, and no new literal in `Hello.tsx`.
+    - AC13 and AC14: each is a native `type=button`; click, Enter and Space each dispatch exactly one `open` with the right id.
+    - AC16: each new button is a `.hello-cta` host with a `.btn.btn-secondary.hello-cta-face` child; exactly one `.btn-primary` in hello; no svg in the new buttons.
+    - AC19: changing the verb still dispatches nothing.
+  - In `tests/Desktop.start.test.tsx`, AC15 for all three buttons: closed opens; minimized (via the window's Minimize button) restores and raises; open-but-behind (raise hello with a pointerdown first) raises to max z; already on top stays open and on top, with `data-min="false"`. Apply the 7a "hello buttons" expected-count edits (+2 hello stops and buttons).
+- **T4. Hello height (AC17).** ACs: AC17.
+  - Coder: measure as in section 3. If the height is above 420, set `WIN_META.hello.height`. If it is at most 420, change nothing and skip the 7a edits for this task.
+  - Test-writer: update the height pins listed in 7a under T4. Add a `T15 AC17` unit case: `layout(1280, 720).hello.y + WIN_META.hello.height <= 720 - DOCK_CLEARANCE`.
+- **T5. End to end.** ACs: AC4-AC6, AC8, AC10, AC15, AC17, AC20, AC24, AC25 (e2e), AC26.
+  - Test-writer: add `tests/e2e/helpers/openAll.ts` with `openAllFromDock(page)`. It calls `dispatchEvent('click')` on dock buttons proj, exp, term, about, hello, then `expect.poll` until there are five `[data-win]`, each with `el.getAnimations().length === 0`. The file has no `.spec` suffix, so it is not collected.
+  - Apply the e2e edits in 7a.
+  - New `tests/e2e/start.spec.ts`, with `watchErrors` in every test:
+    - AC4: only hello, at reference (x, y).
+    - AC5 and AC6: dock and menu states.
+    - AC15: each hello button opens its window. Repeat for minimized and behind on one button.
+    - AC17: `boundingBox` bottom <= 644 in dark and light; every `.hello-cta` box is inside the hello box and none overlap; hello `scrollHeight <= clientHeight`.
+    - AC8: Restart from the menu and from the terminal, with and without `emulateMedia({ reducedMotion: 'reduce' })`, leaves exactly one window.
+    - AC10: Tidy up from the menu gives five.
+    - AC20: `phone.spec.ts` unchanged and passing.
+  - Run the full AC26 set.
 
-- jsdom has `innerWidth` 1024 and no `matchMedia`. Set a width with `Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: w })`, and restore it after each test.
-- For a browser-like run, use `vi.stubGlobal('matchMedia', ...)` with a fake that answers `DESKTOP_QUERY` from a test-controlled width, returns `matches: false` for any other query (so the reduced-motion read in `Desktop` is unaffected), and records `change` listeners. Fire them inside `act`, and `vi.unstubAllGlobals()` afterwards.
-- Render `App` for anything about the choice of view. Existing tests render `<Desktop />` directly and are not affected.
+**After T5 (QA).** Confirm `git diff` on existing tests shows only 7a edits plus additive cases. Each edit carries the marker. List every edit in the QA report and the autobuild log.
 
-Tasks:
+### 7a. Existing tests this ticket changes (sanctioned under AC25)
 
-- **T1. View rule and heading copy.** ACs: AC1 (rule), AC2, AC11 (constant), AC29.
-  - Coder: the `layout.ts` additions and `PHONE_HEADINGS` in `data.ts`, as in section 3.
-  - Test-writer: new `tests/logic/view.test.ts`: `viewForWidth` at 0, 320, 759, 759.5, 759.999 (phone) and 760, 760.5, 1024, 1280 (desktop); `resolveView(true, 0)` is desktop, `resolveView(false, 5000)` is phone, `resolveView(null, 759)` is phone and `resolveView(null, 760)` is desktop; `DESKTOP_QUERY` equals `(min-width: 760px)`; `PHONE_HEADINGS` literals. AC2: `import.meta.glob('/src/**/*.{ts,tsx,css}', { query: '?raw', import: 'default', eager: true })`, then `/\b760\b/` matches once in `/src/logic/layout.ts` and nowhere else. No 7a edits.
-- **T2. `PhonePage`, not yet wired.** ACs: AC10-AC13, AC14 and AC16 (CSS), AC15 (CSS), AC18, AC20-AC22, AC24-AC27.
-  - Coder: `PhonePage.tsx`, `PhonePage.css`, the `vite.config.ts` line.
-  - Test-writer: new `tests/PhonePage.test.tsx`:
-    - AC10: every item from `data.ts` present and in the listed order, using `compareDocumentPosition`; `em` count equals the `em` segments; `FACTS` inside About; every tag checked individually; no tabs.
-    - AC12: no `button`, `input`, `nav`, `header`, `[role="menubar"]`, `[data-win]`, `[role="status"]`.
-    - AC18: `Storage.prototype.setItem` spy has no calls, `data-theme` unchanged after mount and unmount, in both themes.
-    - AC20: heading structure with no skipped level, one `main`, each section's accessible name from its `h2`.
-    - AC21: `ul`/`li` for facts, experience, projects, links.
-    - AC22: attributes for each `http(s)`, `mailto:` and `#` link, and the résumé link attributes.
-    - AC24: no `svg`; each link's accessible name equals its text.
-    - `phone-view` on `<html>` after mount, under StrictMode too, and absent after unmount.
-    - Source checks on the raw `PhonePage.tsx`: no `text-muted`, `card-meta`, `card-body`, `dangerouslySetInnerHTML`, `tabIndex`, `WIN_TITLES`.
-  - Test-writer: new `tests/PhonePage.data.test.tsx`, `vi.mock('../src/data', ...)` over the original to change `NAME`, one `LINKS` item, one heading and `MENU_ITEMS.resume`, and assert the render follows (AC11).
-  - Test-writer: new `tests/PhonePage.css.test.ts`, raw CSS and `theme.css`:
-    - every `html`, `body` or `#root` selector in `PhonePage.css` starts with `html.phone-view`, and every other selector starts with `.phone`
-    - `theme.css` still has `body { overflow: hidden }` and the `height: 100%` rule (AC16)
-    - every `color` value is one of the three tokens, and no hex, `rgb(`, `opacity` or `color-mix`
-    - none of `transition`, `animation`, `scroll-behavior`, `@media`, `overflow-x`, `user-select`, `touch-action` (AC27, AC16)
-    - `.phone-link` has `min-height: 44px` (AC25) and `.phone` has `overflow-wrap: anywhere` (AC15)
-  - Test-writer: new `tests/phone.contrast.test.ts`, modelled on `tests/windows.contrast.test.ts`: `text`, `neutral-400` and `accent` on `bg`, dark and light, at least 4.5:1 (AC26). No 7a edits.
-- **T3. Switch and wiring.** ACs: AC1, AC3-AC9, AC16, AC19, AC28, AC30.
-  - Coder: `useView.ts`, `App.tsx`, the `main.tsx` change.
-  - Test-writer: new `tests/App.test.tsx`, real `Desktop` unless noted, and new `tests/App.renders.test.tsx` for the `vi.mock` counters:
-    - jsdom default: `typeof window.matchMedia` is undefined (so the case is not vacuous), no throw, desktop rendered (AC30).
-    - `innerWidth` 500 with no `matchMedia`: phone page, and the desktop's menu bar, dock, `[data-win]` and `.boot-status` absent (AC3).
-    - Stubbed query: 759 phone and 760 desktop; a throwing `matchMedia` and a query without `addEventListener` both fall back without throwing (R6); query no-match with `innerWidth` 760 is phone (R5).
-    - `App.renders`: `vi.mock` `Desktop` and `PhonePage` with mount counters. Under StrictMode a phone-width load never mounts `Desktop` and a desktop-width load never mounts `PhonePage` (AC3, AC4). A non-crossing change fires a listener and neither remounts (AC7).
-    - Crossing: firing the fake's listeners swaps views with exactly one present after `act`, `phone-view` follows the view, no `console.error` (AC5, AC8).
-    - Repeated crossings end on the final width with one view (AC6).
-    - AC6: `window` and fake query listener adds equal removes after unmount, under StrictMode.
-    - AC19: set `data-theme` to the non-default value, make `setItem` throw, cross both ways, the attribute is unchanged. No 7a edits.
-- **T4. End to end.** ACs: AC1, AC3, AC5-AC9, AC14-AC19, AC22, AC23, AC25, AC27, AC28, AC31.
-  - Coder: nothing unless a real bug appears.
-  - Test-writer: new `tests/e2e/phone.spec.ts` with `watchErrors` in every test (copy the helper from `boot.spec.ts`), and `colorScheme` pinned as other specs do. Use `test.use({ viewport })` or `page.setViewportSize` before `goto`, since the config default of 1280x720 is the desktop. Desktop presence means any of `[aria-label="System menu bar"]`, `nav[aria-label="Dock"]`, `[data-win]`, `.boot-status`. Phone presence means `main.phone`. Cover:
-    - AC3: `addInitScript` with a `MutationObserver` on `document` (`childList`, `subtree`) that records any node matching the desktop selectors; at 500x800 the record is empty once the page is visible.
-    - AC1: 759 phone, 760 desktop, on load and by resize. AC4 and AC9: at 760 and 1000, no `main.phone`, no `html.phone-view`, desktop present.
-    - AC5: an observer on `#root` plus a `requestAnimationFrame` sampler that, on every sample once the first view exists, counts views; never 2 and never 0, while crossing both ways and swapping 800x400 to 400x800.
-    - AC6: a burst of `setViewportSize` calls across 760, ending on each side, exactly one view.
-    - AC7: phone, scroll, mark `main` with `dataset`, resize 375 to 414: the mark stays and `scrollY` is greater than 0. Desktop: typed terminal text survives 1280 to 1000.
-    - AC8: scrolled phone page to desktop, `scrollY` 0, `scrollHeight` at most `innerHeight`, window positions at defaults; desktop to phone at top; a boot running at a crossing is gone with no boot screen after returning, with `Math.random` fixed as in `boot.spec.ts`.
-    - AC14: `page.mouse.wheel`, and `End` and `PageDown` keys, change `scrollY`; the résumé link can be scrolled into the viewport. Touch relies on native document scrolling: assert no `touch-action` on `html`, `body` or `main.phone`.
-    - AC15: for 320x568, 375x667, 414x896, 759x900, 667x375: `scrollWidth` at most `innerWidth`; at 320 also after injecting a 300-character unbroken string into a tag and a paragraph.
-    - AC16: `body` computed overflow `hidden` at 760 and after crossing back; `scrollHeight` not exceeding `innerHeight`; `user-select` on a paragraph is not `none` on the page.
-    - AC17: stored `dark` and `light`, and emulated scheme with nothing stored; body background matches; `html[data-theme]` already correct at the first mutation record; a storage-throwing init falls back to dark.
-    - AC18: spy on `Storage.prototype.setItem` in `addInitScript`; no calls in a phone session; `localStorage` contents unchanged.
-    - AC19: change theme on the desktop with `setItem` throwing, cross both ways, attribute unchanged.
-    - AC22, AC23: Tab through all links, order equals DOM order, each has a visible `outline-style` of `solid`; the outline box is inside the viewport; `target` and `rel` read in the browser. AC25: every `.phone-link` box is at least 44 high.
-    - AC27: `document.getAnimations()` is empty with both reduced-motion settings.
-    - AC28: viewport meta unchanged; `activeElement` is `body` after a crossing and no `aria-live` element exists on the page.
+Located by content. Assertions are never removed or relaxed. A post-Restart or first-load assertion about a non-hello window is kept by first asserting the new expected state (closed), then opening the window from the dock and running the original assertion. **Setup** edits land in T1 (or T5 for e2e). **Expected** edits land in the task named. The test-writer must run each suite first and reconcile this list with the real failures (R8).
 
-**After T4 (QA stage, no coder or test-writer work).** Run the full AC34 set. Complete AC32 at 375x667 in both themes. Confirm `git diff` on existing test files is empty, and record that no deliberate requirement change was needed (AC33).
+**Unit, setup edits (T1)**
 
-### 7a. Existing tests this ticket changes
+| File                                                                                                                                                                                                      | Edit                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/logic/desktop.test.ts`                                                                                                                                                                             | `fresh()` returns `desktopReducer(initialDesktop(vw, vh), { type: 'tidy' })`, frozen. The AC2 "five dock windows" test builds from `initialDesktop` directly (it pins the start state).                                                                                                                                                                     |
+| `tests/logic/menu.test.ts`                                                                                                                                                                                | `desk()` and the two `let app = initialApp(...)` setups in the AC19 checked tests get `appReducer(..., { type: 'tidy' })`.                                                                                                                                                                                                                                  |
+| `tests/logic/system.test.ts`                                                                                                                                                                              | `busy()` starts from `appReducer(initialApp(...), { type: 'tidy' })`, so "close term" still changes something.                                                                                                                                                                                                                                              |
+| `tests/WindowLayer.test.tsx`, `tests/T07.foundations.test.tsx`                                                                                                                                            | Harness `useReducer` initialiser: `desktopReducer(initialDesktop(1280, 720), { type: 'tidy' })`. The T07 AC4 `Object.keys(initialDesktop(...))` comparison is unchanged.                                                                                                                                                                                    |
+| `tests/MenuBar.test.tsx`                                                                                                                                                                                  | Harness initialiser and `latest` seed: `appReducer(initialApp(...), { type: 'tidy' })`. The `bare()` focusSignal harness at "T08 AC25" is unchanged.                                                                                                                                                                                                        |
+| `tests/Dock.test.tsx`                                                                                                                                                                                     | `winsWith` base and `setup` default use the tidy state, which the "default state is open" comment relies on.                                                                                                                                                                                                                                                |
+| `tests/Desktop.wiring.test.tsx`, `tests/Desktop.dock.test.tsx`, `tests/Desktop.menubar.test.tsx`, `tests/Desktop.terminal.test.tsx`, `tests/Desktop.boot.test.tsx`, `tests/Desktop.boot.renders.test.tsx` | `openAllFromDock()` directly after each `render(<Desktop />)` in every test that touches about, exp, proj or term, or counts windows, buttons or tab stops. Exceptions: tests that only use hello, the menubar, the dock or the root are left alone. In `Desktop.boot.test.tsx` and `Desktop.boot.renders.test.tsx` call it before the first timer advance. |
 
-**None.** Checked:
+**Unit, expected edits (T2)**
 
-- `tests/logic/purity.test.ts`: no module is added, so `EXPECTED` is unchanged. The additions to `layout.ts` import nothing and contain no forbidden word.
-- `tests/MenuBar.test.tsx` AC5 and `tests/logic/terminal.test.ts` AC32: both scan new source, and the naming rule keeps them green.
-- `tests/fonts.test.ts`: font imports unchanged, and `App` adds no forbidden word to `main.tsx`.
-- Every unit test of the desktop renders `<Desktop />` directly, not `App` or `main.tsx`, so setting `innerWidth` or stubbing `matchMedia` in them cannot reach the switch.
-- Every existing e2e spec loads at the 1280x720 config default or larger. The only smaller resize is 1000x600 in `tests/e2e/boot.spec.ts`, above the breakpoint. They all stay on the desktop.
-- `tests/e2e/build.preview.spec.ts`: theme, same-origin and font checks are unaffected.
+| File                                                                                                        | Edit                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tests/logic/layout.test.ts` "AC7: initialWindows uses layout positions and open flags"                     | `open` expected `id === 'hello'` (was `id !== 'site'`).                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `tests/logic/desktop.test.ts` "AC2: five dock windows open…"                                                | hello `{ open: true }`, other four `{ open: false, min: false }`. The site and order assertions are kept.                                                                                                                                                                                                                                                                                                                                                          |
+| `tests/logic/desktop.test.ts` "AC12: tidy restores…"                                                        | `toEqual(tidyDesktop(1600, 900))` (was `initialDesktop`). "AC13: restart…" is unchanged and passes.                                                                                                                                                                                                                                                                                                                                                                |
+| `tests/logic/system.test.ts` "AC29: … Restart and Tidy keep the settings"                                   | `term.open` expected `type === 'tidy'`.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `tests/logic/system.test.ts` "initialApp builds the desktop…"                                               | term `open: false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `tests/Desktop.dock.test.tsx` "T06 AC15: initially all five windows read Open"                              | Expected `states({ about: 'Closed', exp: 'Closed', proj: 'Closed', term: 'Closed' })`. This test pins first load, so it gets no open-all setup.                                                                                                                                                                                                                                                                                                                    |
+| `tests/Desktop.dock.test.tsx` "T06 AC15: Tidy up and Restart reset the dock to all open"                    | For Restart, the expected (in `waitFor` and after it) is the four Closed. Then `openAllFromDock()` and `expectAll(states())`. Tidy is unchanged.                                                                                                                                                                                                                                                                                                                   |
+| `tests/Desktop.menubar.test.tsx` "AC29: ${item} keeps light, grid…"                                         | For Restart only, assert the four non-hello windows absent, then `openAllFromDock()` before any non-hello assertion. Tidy is unchanged.                                                                                                                                                                                                                                                                                                                            |
+| `tests/Desktop.boot.test.tsx` (T08 AC15, AC16, AC20 "terminal runs commands after Restart", AC18 no fly-in) | After each Restart, assert only hello is present. Then `openAllFromDock()` and keep the original per-window assertions (default positions and z-order, verb `VERBS[0]`, first experience tab, banner only, empty input and history). For AC18, do the open-all step in a later frame so the original "every open window has no transform" check runs on hello in the reset commit. The T08 AC25 Tab-sequence-equals-fresh-load test is expected to pass unchanged. |
+
+**Unit, hello buttons (T3)**
+
+| File                                                                                                      | Edit                                                                                                             |
+| --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `tests/T07.foundations.test.tsx` "T07 AC2: HELLO_COPY literal values"                                     | Add `about` and `experience` to the expected literal.                                                            |
+| `tests/windows/Hello.test.tsx` "T07 AC10: tab order is verb, primary button, then Say hi"                 | Two more `user.tab()` with assertions on "More about me" and "What I've been up to" before the Say hi assertion. |
+| `tests/Desktop.wiring.test.tsx` "AC22 -> T04 AC5-AC7…"                                                    | Window buttons 12 -> 14. Hello list appends `'More about me', "What I've been up to"`.                           |
+| `tests/Desktop.menubar.test.tsx` (window-button count near the T07 AC52 comment, about line 332)          | +2.                                                                                                              |
+| `tests/Desktop.dock.test.tsx` "T06 AC25: Tab runs menubar, window controls, then the seven dock controls" | 31 -> 33 stops, `slice(24)` -> `slice(26)`, Set size 33.                                                         |
+| `tests/MenuBar.test.tsx` "AC36: after Minimize all no window control is reachable"                        | `buttons.length` 10 is unaffected: that harness renders no bodies. Confirm by running.                           |
+
+**Unit, height (T4, only if the height changes)**
+
+| File                                                                              | Edit                                                      |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `tests/windows/Hello.test.tsx` "T07 AC47: hello keeps its WIN_META height of 420" | Expected the measured value. The width assertion is kept. |
+
+**E2e (T5).** In each file, add `await openAllFromDock(page)` in the shared `load`/`setup` helper, or after `goto` in tests without one. Skip tests that pin first load. Then:
+
+| File                                                                                              | Edit                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/e2e/desktop.spec.ts`                                                                       | The `toHaveCount(5)` reference-position test (AC24 of T03) gets the setup. Add no other change. The region-name test likewise.                                                                                                                                                                            |
+| `tests/e2e/chrome.spec.ts`                                                                        | Setup. Button counts near the T05 and T07 comments (lines 179-185) +2. Total-stops test near line 336 +2. Every "skip N stops" offset that counts past hello's body (near lines 366-438) +2.                                                                                                              |
+| `tests/e2e/dock.spec.ts`                                                                          | Setup, except any initial-Open-states test, whose expected becomes the four Closed. Tab-stop totals near lines 613-645 +2 where hello is counted.                                                                                                                                                         |
+| `tests/e2e/menubar.spec.ts`                                                                       | Setup. First-tab-stops tests +2 only where they count past hello's body. Windows-menu "all checked" expects only hello.txt checked if it pins first load, otherwise setup. In the AC29 Restart `REFERENCE` poll, assert the four absent after Restart, then `openAllFromDock` and keep the position poll. |
+| `tests/e2e/windows.spec.ts`                                                                       | `load()` gets the setup. `HEIGHTS.hello` becomes the T4 value.                                                                                                                                                                                                                                            |
+| `tests/e2e/windows.motion.spec.ts`, `tests/e2e/dock.motion.spec.ts`, `tests/e2e/projects.spec.ts` | Setup after `goto`, where non-hello windows are used.                                                                                                                                                                                                                                                     |
+| `tests/e2e/boot.spec.ts`                                                                          | Setup before dirtying state. Post-Restart: assert only hello, then `openAllFromDock` and keep the per-window checks. The fresh-load Tab sequence recorded in the same test needs no edit.                                                                                                                 |
+
+**Checked and needing no edit:** `tests/logic/{zorder,dock,drag,windows,terminal,purity,motion}.test.ts`, `tests/Window.test.tsx`, `tests/App*.test.tsx`, `tests/Desktop.test.tsx` (root and children shape only), all contrast and CSS tests, `tests/PhonePage*.test.tsx`, and `tests/e2e/{phone,fonts,theme-init,smoke,build.preview}.spec.ts`.
 
 ## 8. Open questions
 
-None need a human. Decided unattended from the spec, decisions log and requirements:
+None need a human. Decided unattended:
 
-1. **The view rule goes in `logic/layout.ts`,** so no new logic module is added and the purity list needs no edit (AC33 allows either).
-2. **`matchMedia` is the primary read, `innerWidth` the fallback,** because only the media query is exact for fractional widths (AC1) and jsdom has none (AC30).
-3. **`useSyncExternalStore` drives the switch,** giving a correct first commit and an atomic swap with no extra state.
-4. **Scrolling is scoped by a `phone-view` class set in a layout effect,** not a media query (a second breakpoint definition, AC2), not `:has()` (unscrollable on older phones), and not an inner scroller (keyboard and address bar problems).
-5. **`theme.css` is not edited,** so the desktop's CSS is the same as before by construction.
-6. **New heading copy is `PHONE_HEADINGS`** with About, Projects and Links. Experience reuses `EXPERIENCE_LABELS.tablist` (Assumption 6).
-7. **No icons,** the simplest way to meet AC24.
-8. **Tags use `.tag-outline`,** since the filled tag styles nearly match the page background in light mode.
-9. **All text sits directly on `--color-bg` in three tokens,** so no muted class, `opacity` or `color-mix` needs a contrast check (AC26).
-10. **`<em>` is shown with weight and colour, not italics,** matching `About` and the fonts that ship.
-11. **`role="list"` on each `ul`,** because `list-style: none` removes list semantics in Safari (AC21).
-12. **Touch scrolling is not exercised directly in e2e.** The page uses the browser's native document scroll, and the config's Desktop Chrome project has no touch. T4 asserts nothing blocks it, and the QA screenshot step covers the visual result.
+1. **Tidy up stays all open** (spec and Assumption 1) through a separate `tidyDesktop`, not a flag on `initialDesktop`, so the two reducer cases are explicit.
+2. **The start set is a constant** (`START_OPEN = ['hello']`) rather than a new `WIN_META` field, to keep `WIN_META` tests untouched.
+3. **No icons** on the new buttons. This keeps the primary dominant and avoids extra a11y pins (Assumption 5 allows either).
+4. **Keys** `HELLO_COPY.about` and `HELLO_COPY.experience`.
+5. **Tests reach non-hello windows through dock clicks**, dispatched synthetically so focus and roving tabindex are untouched (R4). Tidy up through the menu would move the menubar's roving stop. In reducer-level tests, `{ type: 'tidy' }` serves as explicit reducer setup.
+6. **Setup edits first (T1), expected edits second (T2).** The rewritten setups are proven green against the old behaviour before any behaviour changes.
+7. **Hello height** is set from measurement, not guessed. The edit is skipped if the height stays at or below 420.
+8. **Test titles that state the superseded requirement** (for example "initially all five windows read Open") keep their title. The DELIBERATE comment explains the new expectation. This follows T08's "titles do not change" precedent, so the QA diff stays easy to audit.

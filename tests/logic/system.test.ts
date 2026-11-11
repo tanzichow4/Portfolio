@@ -17,7 +17,8 @@ const custom: Settings = { theme: 'light', wall: 'grid', wobble: false };
 
 /** An app where hello is minimized, term is closed and about has been dragged. */
 function busy(settings: Settings): App {
-  let a = initialApp(1280, 720, settings);
+  // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the all-open (Tidy up) state so closing term still changes something.
+  let a = appReducer(initialApp(1280, 720, settings), { type: 'tidy' });
   a = appReducer(a, { type: 'minimize', id: 'hello' });
   a = appReducer(a, { type: 'close', id: 'term' });
   a = appReducer(a, { type: 'move', id: 'about', x: 300, y: 200 });

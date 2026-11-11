@@ -10,7 +10,10 @@ import { EMAIL, LINKS, RESUME_URL } from '../src/data';
 import css from '../src/MenuBar.css?raw';
 
 const dflt: Settings = { theme: 'dark', wall: 'nebula', wobble: true };
-const latest: { app: App } = { app: initialApp(1280, 720, dflt) };
+// // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, harness and seed start from the explicit all-open (Tidy up) state.
+const allOpen = (settings: Settings) =>
+  appReducer(initialApp(1280, 720, settings), { type: 'tidy' });
+const latest: { app: App } = { app: allOpen(dflt) };
 
 function Harness({
   settings = dflt,
@@ -21,7 +24,7 @@ function Harness({
   extra?: ReactNode;
   onTerminalHelp?: () => void;
 }) {
-  const [app, dispatch] = useReducer(appReducer, undefined, () => initialApp(1280, 720, settings));
+  const [app, dispatch] = useReducer(appReducer, undefined, () => allOpen(settings));
   useLayoutEffect(() => {
     latest.app = app;
   });

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Desktop from '../src/Desktop';
 import { BOOT_COPY, VERBS } from '../src/data';
+import { openAllFromDock } from './helpers/openAll';
 
 // Every Restart here runs under stubbed reduced motion, so these tests stay valid once the
 // boot screen is wired in (T4). Fly-in and the boot path are covered elsewhere.
@@ -131,6 +132,8 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
         const user = userEvent.setup();
         const expected = freshLayout();
         render(<Desktop />);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         // Move things off default: raise a window by clicking it.
         await user.click(winEl('about')!);
         await dirty(user, variant, via);
@@ -157,6 +160,8 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
   it('T08 AC16: Restart from a minimized terminal discards its lines, input and history', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     typeCommand('whoami');
     await user.click(screen.getByRole('button', { name: 'Minimize terminal' }));
     expect(winEl('term')).toHaveAttribute('data-min', 'true');
@@ -173,6 +178,8 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
     it(`T08 AC15: About this site is closed after Restart from the ${via}`, async () => {
       const user = userEvent.setup();
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await choose(user, 'tanzi.os', 'About this site');
       expect(winEl('site')).not.toBeNull();
       await restart(via, user);
@@ -183,6 +190,8 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
       const user = userEvent.setup();
       const expected = freshLayout();
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       const bar = winEl('hello')!.querySelector<HTMLElement>('.win-titlebar')!;
       fireEvent.pointerDown(bar, { pointerId: 1, button: 0, clientX: 300, clientY: 150 });
       fireEvent.pointerMove(bar, { pointerId: 1, clientX: 340, clientY: 190 });
@@ -206,6 +215,8 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
       const atOriginal = freshLayout();
       expect(expected).not.toEqual(atOriginal);
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       window.innerWidth = 1600;
       window.innerHeight = 900;
       act(() => {
@@ -223,6 +234,8 @@ describe('T08 Restart resets the desktop by remounting (T3)', () => {
     const user = userEvent.setup();
     const expected = freshLayout();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     for (let i = 0; i < 3; i++) {
       await user.click(winEl('about')!);
       await user.click(verbBtn());
@@ -239,6 +252,8 @@ describe('T08 Restart keeps and writes nothing of the settings (T3)', () => {
   it('T08 AC17: theme, wallpaper and wobble chosen from the menu survive a menu Restart', async () => {
     const user = userEvent.setup();
     const { container } = render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await choose(user, 'View', 'Light mode');
     await choose(user, 'View', 'Wallpaper: Grid');
     await choose(user, 'View', 'Wobbly windows');
@@ -264,6 +279,8 @@ describe('T08 Restart keeps and writes nothing of the settings (T3)', () => {
   it('T08 AC17: settings changed in the terminal survive a terminal Restart (wobble stays on)', async () => {
     const user = userEvent.setup();
     const { container } = render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     typeCommand('theme light');
     typeCommand('wallpaper plain');
     typeCommand('restart');
@@ -280,6 +297,8 @@ describe('T08 Restart keeps and writes nothing of the settings (T3)', () => {
     it(`T08 AC17: Restart from the ${via} writes nothing and stores nothing that was unstored`, async () => {
       const user = userEvent.setup();
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       const set = vi.spyOn(Storage.prototype, 'setItem');
       const remove = vi.spyOn(Storage.prototype, 'removeItem');
       await restart(via, user);
@@ -291,6 +310,8 @@ describe('T08 Restart keeps and writes nothing of the settings (T3)', () => {
     it(`T08 AC17: Restart from the ${via} does not re-read storage`, async () => {
       const user = userEvent.setup();
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       const get = vi.spyOn(Storage.prototype, 'getItem');
       await restart(via, user);
       expect(get).not.toHaveBeenCalled();
@@ -299,6 +320,8 @@ describe('T08 Restart keeps and writes nothing of the settings (T3)', () => {
     it(`T08 AC17: stored values are not re-applied by a Restart from the ${via}`, async () => {
       const user = userEvent.setup();
       const { container } = render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       // Tamper with storage behind the app's back: a re-read would pick this up.
       localStorage.setItem('tanzi-os:wallpaper', 'plain');
       localStorage.setItem('tanzi-os:wobble', 'false');
@@ -318,6 +341,8 @@ describe('T08 Restart keeps and writes nothing of the settings (T3)', () => {
         throw new Error('quota');
       });
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await choose(user, 'View', 'Light mode');
       expect(html.dataset.theme).toBe('light');
       await restart(via, user);
@@ -335,6 +360,8 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
     const user = userEvent.setup();
     const expected = freshLayout();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     const oldBar = winEl('about')!.querySelector<HTMLElement>('.win-titlebar')!;
     fireEvent.pointerDown(oldBar, { pointerId: 1, button: 0, clientX: 300, clientY: 150 });
     fireEvent.pointerMove(oldBar, { pointerId: 1, clientX: 380, clientY: 230 });
@@ -355,6 +382,8 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
     const user = userEvent.setup();
     const expected = freshLayout();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(verbBtn());
     await user.click(winEl('proj')!);
     await choose(user, 'Windows', 'Tidy up');
@@ -365,6 +394,8 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
   it('T08 AC20: Tidy up keeps terminal lines of a window that stays open', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     typeCommand('whoami');
     const before = logLines();
     await choose(user, 'Windows', 'Tidy up');
@@ -374,6 +405,8 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
   it('T08 AC20: Close still resets a window and minimize still keeps its state', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(verbBtn());
     await user.click(screen.getByRole('button', { name: 'Minimize hello.txt' }));
     await user.click(screen.getByRole('button', { name: 'hello.txt' }));
@@ -387,6 +420,8 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
     it(`T08 AC20: after a Restart from the ${via} the terminal runs commands normally`, async () => {
       const user = userEvent.setup();
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await restart(via, user);
       typeCommand('whoami');
       expect(logLines()).toHaveLength(3);
@@ -403,6 +438,8 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
           <Desktop />
         </StrictMode>,
       );
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await restart(via, user);
       expect(logLines()).toHaveLength(1);
       await choose(user, 'Help', 'Terminal commands');
@@ -416,6 +453,8 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
   it('T08 AC20: Help then Terminal commands with a closed terminal before Restart still runs once', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(screen.getByRole('button', { name: 'Close terminal' }));
     await restartFromMenu(user);
     await choose(user, 'Help', 'Terminal commands');
@@ -425,6 +464,8 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
   it('T08 AC20: the menubar and dock are not remounted by Restart', async () => {
     const user = userEvent.setup();
     const { container } = render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     const header = container.querySelector('header');
     const dockBtn = screen.getByRole('button', { name: 'terminal' });
     const dock = dockBtn.parentElement;
@@ -441,6 +482,8 @@ describe('T08 Restart leaves existing behaviour alone (T3)', () => {
   it('T08 AC20: Restart can be repeated and the dock still reflects the windows', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await restartFromMenu(user);
     await user.click(screen.getByRole('button', { name: 'Close hello.txt' }));
     await restartFromMenu(user);
@@ -559,6 +602,8 @@ describe('T08 boot path (T4)', () => {
     for (const via of ['menu', 'terminal'] as const) {
       it(`T08 AC2: Restart from the ${via} shows the boot screen straight away, with a name saying it is restarting`, async () => {
         render(<Desktop />);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         expect(dialog()).toBeNull();
         await request(via);
         const d = dialog()!;
@@ -573,6 +618,8 @@ describe('T08 boot path (T4)', () => {
       it(`T08 AC3: under reduced motion, Restart from the ${via} shows no dialog in any commit, starts no interval, and resets at once`, async () => {
         stubMotion(true);
         render(<Desktop />);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         const before = winEl('hello');
         const setI = vi.spyOn(globalThis, 'setInterval');
         const w = watch();
@@ -590,6 +637,8 @@ describe('T08 boot path (T4)', () => {
     it('T08 AC3: the preference is re-read on every request, and a change mid-boot does not interrupt the boot', async () => {
       stubMotion(true);
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await request('terminal');
       expect(dialog()).toBeNull();
       // Preference turned off: the next Restart boots.
@@ -614,6 +663,8 @@ describe('T08 boot path (T4)', () => {
 
     it('T08 AC4: Tidy up, Close, Minimize, dock clicks and the tidy and clear commands show no boot screen', async () => {
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       const w = watch();
       fireEvent.click(screen.getByRole('button', { name: 'Close hello.txt' }));
       fireEvent.click(screen.getByRole('button', { name: 'Minimize about.md' }));
@@ -638,6 +689,8 @@ describe('T08 boot path (T4)', () => {
     it('T08 AC9: a second boot in the same session starts at 0%', async () => {
       vi.spyOn(Math, 'random').mockReturnValue(0.5);
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await request('terminal');
       tick(3);
       expect(Number(bar()!.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
@@ -652,6 +705,8 @@ describe('T08 boot path (T4)', () => {
     for (const via of ['menu', 'terminal'] as const) {
       it(`T08 AC10: with r at 0 the desktop is not reset on tick 14 and is reset on tick 15 (${via})`, async () => {
         render(<Desktop />);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         fireEvent.click(verbBtn());
         const helloBefore = winEl('hello');
         await request(via);
@@ -669,6 +724,8 @@ describe('T08 boot path (T4)', () => {
     it('T08 AC10: with r just below 1 the boot is not done on tick 4 and is done on tick 5', async () => {
       vi.spyOn(Math, 'random').mockReturnValue(0.999999);
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       const helloBefore = winEl('hello');
       await request('terminal');
       tick(4);
@@ -681,6 +738,8 @@ describe('T08 boot path (T4)', () => {
 
     it('T08 AC10: dialog removal, window remount and inert removal land in the same batch, never apart', async () => {
       const { container } = render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await request('terminal');
       const w = watch();
       w.take();
@@ -705,6 +764,8 @@ describe('T08 boot path (T4)', () => {
           <Desktop />
         </StrictMode>,
       );
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await request('terminal');
       const w = watch();
       tick(14);
@@ -722,6 +783,8 @@ describe('T08 boot path (T4)', () => {
       const err = vi.spyOn(console, 'error').mockImplementation(() => {});
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const { unmount } = render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await request('terminal');
       tick(3);
       unmount();
@@ -744,6 +807,8 @@ describe('T08 boot path (T4)', () => {
           <Desktop />
         );
         render(ui);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         await request('terminal');
         tick(5);
         const w = watch();
@@ -766,6 +831,8 @@ describe('T08 boot path (T4)', () => {
 
     it('T08 AC13: after a boot ends a new Restart boots again', async () => {
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await request('terminal');
       tick(15);
       expect(dialog()).toBeNull();
@@ -784,6 +851,8 @@ describe('T08 boot path (T4)', () => {
         window.innerWidth = w0;
         window.innerHeight = h0;
         render(<Desktop />);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         await request('terminal');
         tick(3);
         window.innerWidth = 1600;
@@ -808,6 +877,8 @@ describe('T08 boot path (T4)', () => {
       it(`T08 AC15 AC16: Restart from the ${via} gives a fresh layout and initial window state once the boot ends`, async () => {
         const expected = freshLayout();
         render(<Desktop />);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         fireEvent.click(winEl('about')!);
         fireEvent.click(verbBtn());
         fireEvent.click(tabs()[1]);
@@ -824,6 +895,8 @@ describe('T08 boot path (T4)', () => {
 
     it('T08 AC17: theme, wallpaper and wobble survive a real boot, and nothing is written', async () => {
       const { container } = render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       act(() => typeCommand('theme light'));
       act(() => typeCommand('wallpaper plain'));
       const set = vi.spyOn(Storage.prototype, 'setItem');
@@ -839,6 +912,8 @@ describe('T08 boot path (T4)', () => {
 
     it('T08 AC17: wobble on keeps tilting after a real boot', async () => {
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await request('terminal');
       tick(15);
       // Let the windows settle out of their open pose (T5 owns that animation, not this test).
@@ -850,6 +925,8 @@ describe('T08 boot path (T4)', () => {
     it('T08 AC17: wobble off stays off after a real boot (the drag does not tilt)', async () => {
       localStorage.setItem('tanzi-os:wobble', 'false');
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       dragStart('hello');
       expect(rotation('hello')).toBe(0);
       fireEvent.pointerUp(winEl('hello')!.querySelector('.win-titlebar')!, { pointerId: 1 });
@@ -863,6 +940,8 @@ describe('T08 boot path (T4)', () => {
     it('T08 AC19: a drag released during the boot or after it cannot change the post-Restart layout', async () => {
       const expected = freshLayout();
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       const oldBar = dragStart('about');
       await request('terminal');
       tick(5);
@@ -880,6 +959,8 @@ describe('T08 boot path (T4)', () => {
     for (const via of ['menu', 'terminal'] as const) {
       it(`T08 AC21: during a boot from the ${via} the root is inert, the dialog is outside it and no menu is open`, async () => {
         const { container } = render(<Desktop />);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         await request(via);
         const root = rootOf(container);
         expect(isInert(root)).toBe(true);
@@ -898,6 +979,8 @@ describe('T08 boot path (T4)', () => {
 
     it('T08 AC21: windows minimized before Restart are not inert afterwards', async () => {
       const { container } = render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       fireEvent.click(screen.getByRole('button', { name: 'Minimize about.md' }));
       expect(winEl('about')).toHaveAttribute('inert');
       await request('terminal');
@@ -922,6 +1005,8 @@ describe('T08 boot path (T4)', () => {
 
     it('T08 AC18: first load behaves as before: in place at mount, and a reopened window flies in after a frame', () => {
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       expectInPlace();
       tick(3);
       expectInPlace();
@@ -934,6 +1019,8 @@ describe('T08 boot path (T4)', () => {
     for (const via of ['menu', 'terminal'] as const) {
       it(`T08 AC18: in the commit that removes the dialog after a ${via} Restart every window is in place`, async () => {
         render(<Desktop />);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         tick(3);
         await request(via);
         tick(14);
@@ -948,6 +1035,8 @@ describe('T08 boot path (T4)', () => {
 
     it('T08 AC18: a window closed before Restart is also in place in the first commit after the boot', async () => {
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       tick(3);
       fireEvent.click(screen.getByRole('button', { name: 'Close hello.txt' }));
       tick(3);
@@ -960,6 +1049,8 @@ describe('T08 boot path (T4)', () => {
 
     it('T08 AC18: after a frame, closing and reopening a window flies it in again, in its first commit', async () => {
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       tick(3);
       await request('terminal');
       tick(15);
@@ -978,6 +1069,8 @@ describe('T08 boot path (T4)', () => {
 
     it('T08 AC18: a second Restart is also in place, and a window opened after it still flies in', async () => {
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       tick(3);
       await request('menu');
       tick(15);
@@ -996,6 +1089,8 @@ describe('T08 boot path (T4)', () => {
       it(`T08 AC18: under reduced motion every open window is in place right after a ${via} Restart`, async () => {
         stubMotion(true);
         render(<Desktop />);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         tick(3);
         await request(via);
         expect(dialog()).toBeNull();
@@ -1025,6 +1120,8 @@ describe('T08 focus after Restart (T6)', () => {
         }
         const expected = freshLayout();
         render(<Desktop />);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         if (via === 'terminal') act(() => input().focus());
         if (reduce) {
           const user = userEvent.setup();
@@ -1047,6 +1144,8 @@ describe('T08 focus after Restart (T6)', () => {
     const expected = freshLayout();
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(winEl('about')!);
     await restartFromMenu(user);
     expect(layout().map((l) => l.z)).toEqual(expected.map((l) => l.z));
@@ -1056,6 +1155,8 @@ describe('T08 focus after Restart (T6)', () => {
     stubMotion(true);
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.click(trigger('tanzi.os'));
     await user.keyboard('{Escape}{ArrowRight}');
     expect(trigger('Windows').tabIndex).toBe(0);
@@ -1131,6 +1232,8 @@ describe('T08 live region (T7)', () => {
       it(`T08 AC26 AC28: ${path} path from the ${via}: empty until 100ms after the reset, then BOOT_COPY.done`, async () => {
         setPath(path);
         render(<Desktop />);
+        // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+        openAllFromDock();
         await doReset(path, via);
         expect(dialog()).toBeNull();
         expect(region().textContent).toBe('');
@@ -1147,6 +1250,8 @@ describe('T08 live region (T7)', () => {
     it(`T08 AC26: ${path} path: a second reset empties the region at once and refills it 100ms later`, async () => {
       setPath(path);
       render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await doReset(path, 'terminal');
       ms(100);
       expect(region().textContent).toBe(BOOT_COPY.done);
@@ -1162,6 +1267,8 @@ describe('T08 live region (T7)', () => {
   it('T08 AC26: reduced path: a second reset inside the window cancels the first timer', async () => {
     setPath('reduced');
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await doReset('reduced', 'terminal');
     ms(60);
     await doReset('reduced', 'menu');
@@ -1176,6 +1283,8 @@ describe('T08 live region (T7)', () => {
   it('T08 AC26: during a boot the region is not inert and is empty', async () => {
     setPath('boot');
     const { container } = render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await request('terminal');
     expect(dialog()).not.toBeNull();
     expect(isInert(rootOf(container))).toBe(true);
@@ -1189,6 +1298,8 @@ describe('T08 live region (T7)', () => {
   it('T08 AC26: after the reset commit of a second boot the region is empty', async () => {
     setPath('boot');
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await request('terminal');
     tick(15);
     ms(100);
@@ -1205,6 +1316,8 @@ describe('T08 live region (T7)', () => {
       const err = vi.spyOn(console, 'error').mockImplementation(() => {});
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const { unmount } = render(<Desktop />);
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       await doReset(path, 'terminal');
       ms(50);
       unmount();
@@ -1223,6 +1336,8 @@ describe('T08 live region (T7)', () => {
           <Desktop />
         </StrictMode>,
       );
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       expect(region().textContent).toBe('');
       const seen: string[] = [];
       const mo = new MutationObserver(() => {});

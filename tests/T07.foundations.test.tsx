@@ -21,7 +21,10 @@ const api: { dispatch: (a: DesktopAction) => void; state: State | null } = {
 };
 
 function Harness({ renderBody }: { renderBody?: (id: WinId) => React.ReactNode }) {
-  const [state, dispatch] = useReducer(desktopReducer, undefined, () => initialDesktop(1280, 720));
+  const [state, dispatch] = useReducer(desktopReducer, undefined, () =>
+    // // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the explicit all-open (Tidy up) state.
+    desktopReducer(initialDesktop(1280, 720), { type: 'tidy' }),
+  );
   useEffect(() => {
     api.dispatch = dispatch;
     api.state = state;

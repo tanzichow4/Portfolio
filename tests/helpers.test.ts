@@ -1,4 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import Desktop from '../src/Desktop';
+import { INITIAL_ORDER, layout } from '../src/logic/layout';
+import { zIndexFor } from '../src/logic/zorder';
+import { openAllFromDock } from './helpers/openAll';
 import { contrastRatio, hexToRgb } from './helpers/contrast';
 import { parseBlock, resolveTheme, stripComments } from './helpers/cssTokens';
 
@@ -67,5 +73,34 @@ describe('css token helper (AC4/AC17 infrastructure)', () => {
   it('AC4: does not treat nested at-rule blocks as :root', () => {
     const css = '@media (min-width: 1px) { :root { --a: 1; } }\n:root { --b: 2; }';
     expect(parseBlock(css, ':root')['--b']).toBe('2');
+  });
+});
+
+describe('openAllFromDock helper (T15 AC25 setup)', () => {
+  afterEach(() => {
+    cleanup();
+    localStorage.clear();
+  });
+
+  it('T15 AC25: opens all five windows in default order and position without moving focus', () => {
+    render(createElement(Desktop));
+    const trigger = screen.getByRole('menuitem', { name: 'tanzi.os' });
+    openAllFromDock();
+    const els = document.querySelectorAll<HTMLElement>('[data-win]');
+    expect(els).toHaveLength(5);
+    const pos = layout(window.innerWidth, window.innerHeight);
+    for (const el of els) {
+      const id = el.dataset.win as (typeof INITIAL_ORDER)[number];
+      expect(Number(el.style.zIndex)).toBe(zIndexFor(id, INITIAL_ORDER));
+      expect(el.style.left).toBe(`${pos[id].x}px`);
+      expect(el.style.top).toBe(`${pos[id].y}px`);
+      expect(el.dataset.min).toBe('false');
+    }
+    expect(document.activeElement).toBe(document.body);
+    expect(trigger.tabIndex).toBe(0);
+  });
+
+  it('T15 AC25: throws a clear error when there is no dock', () => {
+    expect(() => openAllFromDock()).toThrow(/no dock/);
   });
 });

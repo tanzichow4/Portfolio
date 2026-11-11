@@ -15,7 +15,10 @@ const deepFreeze = <T>(o: T): T => {
   return o;
 };
 
-const fresh = (vw = 1280, vh = 720): State => deepFreeze(initialDesktop(vw, vh));
+// DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only. The start state will open only hello, so these tests
+// reach the old all-open precondition through an explicit reducer setup (Tidy up).
+const fresh = (vw = 1280, vh = 720): State =>
+  deepFreeze(desktopReducer(initialDesktop(vw, vh), { type: 'tidy' }));
 const run = (s: State, a: DesktopAction): State => desktopReducer(deepFreeze(s), a);
 const DOCK5: WinId[] = ['hello', 'about', 'exp', 'proj', 'term'];
 
@@ -54,7 +57,9 @@ describe('desktop reducer: initial state', () => {
   });
 
   it('AC2: five dock windows open and visible, site closed, INITIAL_ORDER', () => {
-    const s = fresh();
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, this test pins the start state, so it builds from
+    // initialDesktop directly. Assertions are unchanged.
+    const s = deepFreeze(initialDesktop(1280, 720));
     for (const id of DOCK5) expect(s.wins[id]).toMatchObject({ open: true, min: false });
     expect(s.wins.site).toMatchObject({ open: false, min: false });
     expect(s.order).toEqual(INITIAL_ORDER);

@@ -2,18 +2,22 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import Dock from '../src/Dock';
 import { DOCK_LABELS, LINKS, WIN_TITLES } from '../src/data';
-import { initialDesktop } from '../src/logic/desktop';
+import { desktopReducer, initialDesktop } from '../src/logic/desktop';
 import { DOCK_IDS } from '../src/logic/windows';
 import type { State, WinId } from '../src/types';
 
 type Wins = State['wins'];
 
+// // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, the base is the explicit all-open (Tidy up) state, which the
+// "default state is open" expectations rely on.
+const allOpenWins = (): Wins => desktopReducer(initialDesktop(1280, 720), { type: 'tidy' }).wins;
+
 function winsWith(id: WinId, patch: Partial<Wins[WinId]>): Wins {
-  const wins = initialDesktop(1280, 720).wins;
+  const wins = allOpenWins();
   return { ...wins, [id]: { ...wins[id], ...patch } };
 }
 
-function setup(wins: Wins = initialDesktop(1280, 720).wins) {
+function setup(wins: Wins = allOpenWins()) {
   const dispatch = vi.fn();
   const utils = render(<Dock wins={wins} dispatch={dispatch} />);
   return { dispatch, nav: screen.getByRole('navigation', { name: 'Dock' }), ...utils };

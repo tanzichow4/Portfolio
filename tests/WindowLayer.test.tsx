@@ -15,7 +15,10 @@ interface Probe {
 }
 
 function Harness({ probe, flyIn = false }: { probe: Probe; flyIn?: boolean }) {
-  const [state, dispatch] = useReducer(desktopReducer, undefined, () => initialDesktop(1280, 720));
+  const [state, dispatch] = useReducer(desktopReducer, undefined, () =>
+    // // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, start from the explicit all-open (Tidy up) state.
+    desktopReducer(initialDesktop(1280, 720), { type: 'tidy' }),
+  );
   const { attach } = probe;
   useEffect(() => {
     attach(dispatch);

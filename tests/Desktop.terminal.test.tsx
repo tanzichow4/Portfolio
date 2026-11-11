@@ -28,11 +28,14 @@ vi.mock('../src/MenuBar', async (orig) => {
 
 import Desktop from '../src/Desktop';
 import { appReducer, initialApp } from '../src/logic/system';
+import { openAllFromDock } from './helpers/openAll';
 
 describe('T07 Desktop and Terminal', () => {
   it('T07 AC5: typing in the terminal does not re-render MenuBar or Dock, and moves no window', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     const input = screen.getByRole('textbox', { name: 'Terminal command' });
     // Focusing the input raises the window, which legitimately re-renders Desktop. Settle first.
     await user.click(input);
@@ -53,6 +56,8 @@ describe('T07 Desktop and Terminal', () => {
   it('T07 AC39: Enter on a command does reach Desktop (theme light changes the root theme)', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await user.type(
       screen.getByRole('textbox', { name: 'Terminal command' }),
       'theme light{Enter}',
@@ -63,6 +68,8 @@ describe('T07 Desktop and Terminal', () => {
   it('T07 AC3: closing and reopening the terminal resets its output and input', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     const input = () => screen.getByRole('textbox', { name: 'Terminal command' });
     await user.type(input(), 'whoami{Enter}');
     await user.type(input(), 'unsent');
@@ -76,6 +83,8 @@ describe('T07 Desktop and Terminal', () => {
   it('T07 AC3: minimizing and restoring keeps output and unsent input', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     const input = () => screen.getByRole('textbox', { name: 'Terminal command', hidden: true });
     await user.type(input(), 'whoami{Enter}');
     await user.type(input(), 'unsent');
@@ -102,6 +111,8 @@ describe('T07 Desktop and Terminal', () => {
           <Desktop />
         </StrictMode>,
       );
+      // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+      openAllFromDock();
       return user;
     };
 

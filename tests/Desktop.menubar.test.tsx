@@ -11,6 +11,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Desktop from '../src/Desktop';
+import { openAllFromDock } from './helpers/openAll';
 
 const html = document.documentElement;
 const reset = () => {
@@ -194,6 +195,8 @@ describe('wallpaper (AC25)', () => {
       throw new Error('denied');
     });
     const { container } = render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     expect(bg(container)).toContain('--wall-nebula');
     expect(document.querySelectorAll('[data-win]')).toHaveLength(5);
   });
@@ -327,6 +330,8 @@ describe('minimized windows stay unreachable (AC36)', () => {
   it('AC36: Minimize all leaves every window button inert and out of the accessibility tree', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await choose(user, 'Windows', 'Minimize all');
     const buttons = Array.from(document.querySelectorAll<HTMLElement>('[data-win] button'));
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds two native buttons, 10 -> 12;
@@ -352,6 +357,8 @@ describe('minimized windows stay unreachable (AC36)', () => {
   it('AC36: the Windows menu can bring a minimized window back', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
+    // DELIBERATE REQUIREMENT CHANGE (T15 AC25): setup only, only hello is open at start, so open the other windows from the dock first.
+    openAllFromDock();
     await choose(user, 'Windows', 'Minimize all');
     await choose(user, 'Windows', 'terminal');
     expect(winEl('term')).toHaveAttribute('data-min', 'false');
