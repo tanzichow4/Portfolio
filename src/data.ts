@@ -144,9 +144,11 @@ export interface AboutSegment {
 export const ABOUT_COPY: AboutSegment[][] = [
   [
     {
-      text: "I'm a software engineer who enjoys the whole arc of a project — the sketch, the gnarly middle, and the ",
+      text: "I'm a software engineer who enjoys seeing projects built from the ground up and ",
     },
-    { text: 'last pixel', em: true },
+    { text: 'making ideas come to life', em: true },
+    { text: ". I'm fascinated by random facts and love " },
+    { text: 'visualizing data', em: true },
     { text: '.' },
   ],
   [

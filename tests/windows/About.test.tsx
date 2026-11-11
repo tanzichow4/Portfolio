@@ -102,6 +102,76 @@ describe('T07 About body: content', () => {
   });
 });
 
+describe('T16 About copy', () => {
+  it('T16 AC1: first paragraph is exactly the five literal segments', () => {
+    expect(ABOUT_COPY[0]).toEqual([
+      { text: "I'm a software engineer who enjoys seeing projects built from the ground up and " },
+      { text: 'making ideas come to life', em: true },
+      { text: ". I'm fascinated by random facts and love " },
+      { text: 'visualizing data', em: true },
+      { text: '.' },
+    ]);
+  });
+
+  it('T16 AC1: apostrophes in the first paragraph are straight', () => {
+    const text = ABOUT_COPY[0].map((s) => s.text).join('');
+    expect(text).not.toMatch(/[‘’]/);
+    expect(text).toContain("I'm");
+  });
+
+  it('T16 AC1: the old "whole arc" / "last pixel" copy appears nowhere in src/', () => {
+    const files = import.meta.glob('/src/**/*.{ts,tsx}', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    }) as Record<string, string>;
+    const entries = Object.entries(files);
+    expect(entries.length).toBeGreaterThan(5);
+    for (const [path, text] of entries) {
+      expect(text, path).not.toContain('last pixel');
+      expect(text, path).not.toContain('whole arc');
+    }
+  });
+
+  it('T16 AC2: "Currently building" paragraph is unchanged, segment for segment', () => {
+    expect(ABOUT_COPY[1]).toEqual([
+      { text: 'Currently building ' },
+      { text: 'web platforms, automation and data tooling', em: true },
+      { text: '.' },
+    ]);
+  });
+
+  it('T16 AC2: ABOUT_COPY has exactly two paragraphs and FACTS labels are unchanged', () => {
+    expect(ABOUT_COPY).toHaveLength(2);
+    expect(FACTS.map((f) => f.label)).toEqual([
+      'Calgary, AB',
+      'Python · JavaScript · Swift',
+      'Sports enthusiast',
+      'Mediocre at chess',
+      'Loves to game',
+    ]);
+  });
+
+  it('T16 AC3: renders both paragraphs with em segments as em.about-em, then the facts list', () => {
+    const { container } = render(<About />);
+    const paras = Array.from(container.querySelectorAll('p'));
+    expect(paras.map((p) => p.textContent)).toEqual([
+      "I'm a software engineer who enjoys seeing projects built from the ground up and making ideas come to life. I'm fascinated by random facts and love visualizing data.",
+      'Currently building web platforms, automation and data tooling.',
+    ]);
+    expect(paras.every((p) => p.classList.contains('about-para'))).toBe(true);
+    const ems = Array.from(container.querySelectorAll('p em.about-em'));
+    expect(ems.map((e) => e.textContent)).toEqual([
+      'making ideas come to life',
+      'visualizing data',
+      'web platforms, automation and data tooling',
+    ]);
+    expect(container.querySelectorAll('ul.about-facts')).toHaveLength(1);
+    const ul = container.querySelector('ul')!;
+    expect(paras[1].compareDocumentPosition(ul) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe('T07 About body: height', () => {
   it('T07 AC47: about WIN_META height is the measured 331 and y position inputs unchanged', () => {
     expect(WIN_META.about.height).toBe(331);

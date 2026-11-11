@@ -61,6 +61,16 @@ describe('T13 PhonePage content (AC10)', () => {
     expected.forEach((s, i) => expect(ems[i].textContent).toBe(s.text));
   });
 
+  it('T16 AC4: the About section shows the new first paragraph and the unchanged second one', () => {
+    render(<PhonePage />);
+    const about = section(PHONE_HEADINGS.about);
+    const paras = Array.from(about.querySelectorAll('p')).map((p) => p.textContent);
+    expect(paras).toContain(
+      "I'm a software engineer who enjoys seeing projects built from the ground up and making ideas come to life. I'm fascinated by random facts and love visualizing data.",
+    );
+    expect(paras).toContain('Currently building web platforms, automation and data tooling.');
+  });
+
   it('T13 AC10: every FACTS label is inside About, after the paragraphs', () => {
     render(<PhonePage />);
     const about = section(PHONE_HEADINGS.about);
