@@ -58,7 +58,8 @@ const REFERENCE = {
   hello: { x: 77, y: 72 },
   about: { x: 640, y: 64 },
   // DELIBERATE REQUIREMENT CHANGE (T07 AC52): exp height 300 -> 290, so y 344 -> 354.
-  exp: { x: 64, y: 354 },
+  // DELIBERATE REQUIREMENT CHANGE (T17 AC12): exp height 290 -> 400, so y 354 -> 244.
+  exp: { x: 64, y: 244 },
   // DELIBERATE REQUIREMENT CHANGE (T07 AC52): proj height 330 -> 385, so y 300 -> 644 - 385 = 259.
   proj: { x: 538, y: 259 },
   // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so y 334 -> 340.
@@ -313,7 +314,8 @@ test.describe('opening and closing menus (AC6-AC8, AC13, AC15)', () => {
       win(page, id).evaluate((el) => Number((el as HTMLElement).style.zIndex));
     await trigger(page, 'Windows').click();
     const b = await box(win(page, 'proj'));
-    await page.mouse.click(b.x + 120, b.y + b.height - 10);
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC12): exp now reaches x 664 and covers proj's bottom-left, so click the bottom-middle of proj instead (still clear of every other window).
+    await page.mouse.click(b.x + 300, b.y + b.height - 10);
     await expect(page.getByRole('menu')).toHaveCount(0);
     for (const id of DOCK5.filter((i) => i !== 'proj'))
       expect(await z('proj')).toBeGreaterThan(await z(id));

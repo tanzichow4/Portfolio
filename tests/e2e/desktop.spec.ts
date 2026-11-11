@@ -24,7 +24,8 @@ test('AC24: at 1280x720 the five windows sit at the reference positions and site
     hello: { x: 77, y: 72 },
     about: { x: 640, y: 64 },
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): exp height 300 -> 290, so y 344 -> 354.
-    exp: { x: 64, y: 354 },
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC12): exp height 290 -> 400, so y 354 -> 244.
+    exp: { x: 64, y: 244 },
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): proj height 330 -> 385, so y 300 -> 644 - 385 = 259.
     proj: { x: 538, y: 259 },
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): term height 310 -> 270, so y 334 -> 340.

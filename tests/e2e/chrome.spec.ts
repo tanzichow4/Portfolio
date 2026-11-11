@@ -330,7 +330,8 @@ test.describe('window chrome', () => {
     await openAllFromDock(page);
     const b = await box(win(page, 'proj'));
     // A spot of proj not covered by any other window (below about, right of exp, left of term).
-    await page.mouse.click(b.x + 120, b.y + b.height - 10);
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC12): exp now reaches x 664 and covers proj's bottom-left, so click the bottom-middle of proj instead (still clear of every other window).
+    await page.mouse.click(b.x + 300, b.y + b.height - 10);
     for (const id of DOCK5.filter((i) => i !== 'proj')) {
       expect(await zOf(page, 'proj')).toBeGreaterThan(await zOf(page, id));
     }

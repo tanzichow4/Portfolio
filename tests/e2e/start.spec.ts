@@ -63,7 +63,8 @@ const settled = (page: Page) =>
 const REFERENCE: Record<Id, { x: number; y: number }> = {
   hello: { x: 77, y: 72 },
   about: { x: 640, y: 64 },
-  exp: { x: 64, y: 354 },
+  // DELIBERATE REQUIREMENT CHANGE (T17 AC12): exp height 290 -> 400, so y 354 -> 244.
+  exp: { x: 64, y: 244 },
   proj: { x: 538, y: 259 },
   term: { x: 810, y: 340 },
 };

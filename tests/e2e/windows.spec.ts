@@ -23,7 +23,8 @@ const HEIGHTS: Record<Id, number> = {
   hello: 473,
   // DELIBERATE REQUIREMENT CHANGE (T16 AC9): the 'See some data viz' button makes about taller, so WIN_META.about.height is the new measured value.
   about: ABOUT_H,
-  exp: 290,
+  // DELIBERATE REQUIREMENT CHANGE (T17 AC14): experience window grows from 290 to 400 (AC11).
+  exp: 400,
   proj: 385,
   term: 270,
   site: 282,
@@ -225,7 +226,8 @@ test.describe('T07 window contents, cross-window', () => {
     const errors = watchErrors(page);
     await load(page);
     await raise(page, 'exp');
-    const d = await box(panel(page).locator('.exp-desc'));
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC4): p.exp-desc is replaced by ul.exp-stats.
+    const d = await box(panel(page).locator('.exp-stats'));
     await page.mouse.move(d.x + 2, d.y + 4);
     await page.mouse.down();
     await page.mouse.move(d.x + d.width - 4, d.y + d.height - 4, { steps: 8 });

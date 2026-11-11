@@ -510,6 +510,9 @@ test.describe('T06 dock pointer isolation (AC13, AC14, AC16)', () => {
     // DELIBERATE REQUIREMENT CHANGE (T15 AC25): open the other windows from the dock (only hello is open on load).
     await openAllFromDock(page);
     // Drag proj so its body sits under the dock.
+    // DELIBERATE REQUIREMENT CHANGE (T17 AC12): exp now spans y 244..644 and covers proj's whole free titlebar, so raise proj first by clicking its bottom-middle (clear of every other window), then drag it.
+    const pb = await box(win(page, 'proj'));
+    await page.mouse.click(pb.x + 300, pb.y + pb.height - 10);
     await dragTitle(page, 'proj', 640, 660);
     await page.waitForTimeout(700);
     const p = await box(win(page, 'proj'));
