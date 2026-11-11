@@ -125,22 +125,17 @@ test.describe('menubar layout (AC1-AC4)', () => {
     await page.goto('/');
     const right = bar(page).locator('.mb-right');
     const kids = right.locator(':scope > *');
-    await expect(kids).toHaveCount(5);
+    await expect(kids).toHaveCount(4);
     expect(await kids.evaluateAll((els) => els.map((e) => e.tagName))).toEqual([
-      'A',
       'A',
       'A',
       'BUTTON',
       'TIME',
     ]);
-    const gh = bar(page).getByRole('link', { name: 'GitHub' });
+    const gh = bar(page).getByRole('link', { name: 'LinkedIn' });
     await expect(gh).toHaveAttribute('target', '_blank');
     await expect(gh).toHaveAttribute('rel', /noopener/);
     await expect(gh).toHaveAttribute('rel', /noreferrer/);
-    await expect(bar(page).getByRole('link', { name: 'LinkedIn' })).toHaveAttribute(
-      'target',
-      '_blank',
-    );
     const mail = bar(page).getByRole('link', { name: 'Email' });
     await expect(mail).toHaveAttribute('href', /^mailto:/);
     expect(await mail.getAttribute('target')).toBeNull();
@@ -499,13 +494,12 @@ test.describe('clock and keyboard reach (AC32, AC36, AC12)', () => {
   }) => {
     await page.goto('/');
     const names: string[] = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 5; i++) {
       await page.keyboard.press('Tab');
       names.push(await activeName(page));
     }
     expect(names).toEqual([
       'tanzi.os',
-      'GitHub',
       'LinkedIn',
       'Email',
       'Switch to light mode',
@@ -550,7 +544,7 @@ test.describe('clock and keyboard reach (AC32, AC36, AC12)', () => {
 test.describe('hover motion (AC33)', () => {
   test('AC33: hovering a link tilts and lifts it; the toggle rotates', async ({ page }) => {
     await page.goto('/');
-    const gh = bar(page).getByRole('link', { name: 'GitHub' });
+    const gh = bar(page).getByRole('link', { name: 'LinkedIn' });
     await gh.hover();
     await expect.poll(async () => computed(gh, 'transform')).not.toBe('none');
     const toggle = bar(page).getByRole('button', { name: 'Switch to light mode' });
@@ -562,7 +556,7 @@ test.describe('hover motion (AC33)', () => {
     test.use({ reducedMotion: 'reduce' });
     test('AC33: hovering a link or the toggle applies no transform', async ({ page }) => {
       await page.goto('/');
-      const gh = bar(page).getByRole('link', { name: 'GitHub' });
+      const gh = bar(page).getByRole('link', { name: 'LinkedIn' });
       await gh.hover();
       await page.waitForTimeout(500);
       expect(await computed(gh, 'transform')).toBe('none');

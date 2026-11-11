@@ -101,7 +101,7 @@ test.describe('T06 dock motion', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
-    const host = link(page, 'GitHub');
+    const host = link(page, 'LinkedIn');
     await host.hover();
     await settle(page);
     const [a, b, , , tx, ty] = parseMatrix(await computed(face(host), 'transform'));
@@ -157,7 +157,7 @@ test.describe('T06 dock motion', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
-    const targets: Locator[] = [winBtn(page), link(page, 'GitHub')];
+    const targets: Locator[] = [winBtn(page), link(page, 'LinkedIn')];
     for (const host of targets) {
       const b = await box(host);
       const pts = [
@@ -230,7 +230,7 @@ test.describe('T06 dock motion', () => {
     const errors = watchErrors(page);
     await page.goto('/');
     await trapLinkClicks(page);
-    const host = link(page, 'GitHub');
+    const host = link(page, 'LinkedIn');
     const b = await box(host);
     const pts = [
       [b.x + b.width / 2, b.y + b.height - 0.5],
@@ -242,7 +242,7 @@ test.describe('T06 dock motion', () => {
       await settle(page);
       await page.mouse.click(x, y);
     }
-    expect(await linkClicks(page)).toEqual(['GitHub', 'GitHub', 'GitHub']);
+    expect(await linkClicks(page)).toEqual(['LinkedIn', 'LinkedIn', 'LinkedIn']);
     expect(errors).toEqual([]);
   });
 
@@ -275,7 +275,7 @@ test.describe('T06 dock motion', () => {
     test('T06 AC19: hover and press leave the face at transform none', async ({ page }) => {
       const errors = watchErrors(page);
       await page.goto('/');
-      for (const host of [winBtn(page), link(page, 'GitHub')]) {
+      for (const host of [winBtn(page), link(page, 'LinkedIn')]) {
         await host.hover();
         await settle(page);
         expect(await computed(face(host), 'transform')).toBe('none');

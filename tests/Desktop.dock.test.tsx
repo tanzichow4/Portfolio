@@ -212,7 +212,7 @@ describe('T06 AC14 clicking the dock with a menu open', () => {
     const { seen, off } = blockNavigation();
     await user.click(trigger('View'));
     expect(screen.getByRole('menu')).toBeInTheDocument();
-    const gh = within(dock()).getByRole('link', { name: 'GitHub' });
+    const gh = within(dock()).getByRole('link', { name: 'LinkedIn' });
     await user.click(gh);
     off();
     expect(screen.queryByRole('menu')).toBeNull();
@@ -335,10 +335,11 @@ describe('T06 AC16 dock links leave the desktop alone', () => {
 });
 
 describe('T06 AC25 and AC26 keyboard', () => {
-  it('T06 AC25: Tab runs menubar, window controls, then the eight dock controls in order', async () => {
+  it('T06 AC25: Tab runs menubar, window controls, then the seven dock controls in order', async () => {
     const user = userEvent.setup();
     render(<Desktop />);
     const stops: HTMLElement[] = [];
+    // DELIBERATE REQUIREMENT CHANGE: GitHub link removed per Tanzi (LINKS is now LinkedIn and Email). 33 -> 31 stops (one fewer menubar link, one fewer dock link).
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the hello body adds three tab stops (verb,
     // primary button, "Say hi" link), so 23 -> 26 stops and the dock starts at index 18.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the experience body adds two more stops (the
@@ -346,26 +347,25 @@ describe('T06 AC25 and AC26 keyboard', () => {
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the projects body adds four tile links, so
     // 28 -> 32 stops and the dock starts at index 24.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the terminal body adds its input as a stop, so 32 -> 33 stops and the dock starts at index 25.
-    for (let i = 0; i < 33; i++) {
+    for (let i = 0; i < 31; i++) {
       await user.tab();
       stops.push(document.activeElement as HTMLElement);
     }
     expect(stops[0]).toBe(trigger('tanzi.os'));
-    expect(stops[5]).toBe(screen.getByRole('button', { name: 'Minimize hello.txt' }));
-    const tail = stops.slice(25);
+    expect(stops[4]).toBe(screen.getByRole('button', { name: 'Minimize hello.txt' }));
+    const tail = stops.slice(24);
     expect(tail.map((e) => e.getAttribute('aria-label'))).toEqual([
       'hello.txt',
       'about.md',
       'experience.log',
       'projects',
       'terminal',
-      'GitHub',
       'LinkedIn',
       'Email',
     ]);
     for (const e of tail) expect(dock().contains(e)).toBe(true);
     // Each is its own stop: no duplicates.
-    expect(new Set(stops).size).toBe(33);
+    expect(new Set(stops).size).toBe(31);
   });
 
   it('T06 AC25: tabbing back from the dock does not skip a control (shift+tab walks the same order)', async () => {
@@ -373,7 +373,7 @@ describe('T06 AC25 and AC26 keyboard', () => {
     render(<Desktop />);
     dockBtn('term').focus();
     await user.tab();
-    expect(document.activeElement).toBe(within(dock()).getByRole('link', { name: 'GitHub' }));
+    expect(document.activeElement).toBe(within(dock()).getByRole('link', { name: 'LinkedIn' }));
     await user.tab({ shift: true });
     expect(document.activeElement).toBe(dockBtn('term'));
     await user.tab({ shift: true });

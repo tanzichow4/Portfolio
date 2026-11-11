@@ -93,7 +93,7 @@ export function runCommand(raw: string): { lines: Line[]; effects: TerminalEffec
       for (const p of PROJECTS) lines.push(out(p.name.padEnd(12) + p.desc));
       break;
     case 'contact':
-      lines.push(out(`${EMAIL} · github · linkedin`));
+      lines.push(out(`${EMAIL} · linkedin`));
       break;
     case 'open': {
       if (arg === '') {

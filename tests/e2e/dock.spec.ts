@@ -22,7 +22,7 @@ const TITLES: Record<Id, string> = {
   proj: 'projects',
   term: 'terminal',
 };
-const LINK_LABELS = ['GitHub', 'LinkedIn', 'Email'] as const;
+const LINK_LABELS = ['LinkedIn', 'Email'] as const;
 const STATE_WORD = { open: 'Open', min: 'Minimized', closed: 'Closed' } as const;
 
 const win = (page: Page, id: string) => page.locator(`[data-win="${id}"]`);
@@ -142,7 +142,7 @@ const dragTitle = async (page: Page, id: Id | 'site', toX: number, toY: number) 
 };
 
 test.describe('T06 dock layout and styles', () => {
-  test('T06 AC1/AC2/AC3: the dock is centred, 14px from the bottom, top at vh - 76, with 5 buttons, a divider and 3 links', async ({
+  test('T06 AC1/AC2/AC3: the dock is centred, 14px from the bottom, top at vh - 76, with 5 buttons, a divider and 2 links', async ({
     page,
   }) => {
     const errors = watchErrors(page);
@@ -166,7 +166,7 @@ test.describe('T06 dock layout and styles', () => {
     expect(bg).not.toMatch(/ 1\)$/);
 
     await expect(dock(page).getByRole('button')).toHaveCount(5);
-    await expect(dock(page).getByRole('link')).toHaveCount(3);
+    await expect(dock(page).getByRole('link')).toHaveCount(2);
     const kinds = await d
       .locator(':scope > *')
       .evaluateAll((els) =>
@@ -505,7 +505,7 @@ test.describe('T06 dock pointer isolation (AC13, AC14, AC16)', () => {
       const b = await box(loc);
       return [b.x + b.width / 2, b.y + b.height / 2] as const;
     };
-    for (const loc of [dockBtn(page, 'proj'), dockBtn(page, 'term'), dockLink(page, 'GitHub')]) {
+    for (const loc of [dockBtn(page, 'proj'), dockBtn(page, 'term'), dockLink(page, 'LinkedIn')]) {
       const [x, y] = await centre(loc);
       const inside = await page.evaluate(
         ([cx, cy]) => !!document.elementFromPoint(cx, cy)?.closest('nav[aria-label="Dock"]'),
@@ -554,22 +554,22 @@ test.describe('T06 dock pointer isolation (AC13, AC14, AC16)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('T06 AC14/AC16: clicking GitHub with a menu open closes the menu, opens a new tab and changes no window', async ({
+  test('T06 AC14/AC16: clicking LinkedIn with a menu open closes the menu, opens a new tab and changes no window', async ({
     page,
   }) => {
     const errors = watchErrors(page);
     await page
       .context()
-      .route('https://github.com/**', (r) =>
+      .route('https://linkedin.com/**', (r) =>
         r.fulfill({ status: 200, contentType: 'text/html', body: '<title>stub</title>' }),
       );
     await page.goto('/');
     await page.getByRole('menuitem', { name: 'View', exact: true }).click();
     await expect(page.getByRole('menu')).toHaveCount(1);
     const popup = page.waitForEvent('popup');
-    await dockLink(page, 'GitHub').click();
+    await dockLink(page, 'LinkedIn').click();
     const p = await popup;
-    expect(p.url()).toMatch(/^https:\/\/github\.com\//);
+    expect(p.url()).toMatch(/^https:\/\/(www\.)?linkedin\.com\//);
     await p.close();
     await expect(page.getByRole('menu')).toHaveCount(0);
     for (const id of IDS) {
@@ -584,9 +584,8 @@ test.describe('T06 dock pointer isolation (AC13, AC14, AC16)', () => {
   }) => {
     const errors = watchErrors(page);
     await page.goto('/');
-    await expect(dockLink(page, 'GitHub')).toHaveAttribute('href', /^https:\/\/github\.com/);
     await expect(dockLink(page, 'LinkedIn')).toHaveAttribute('href', /^https:\/\/linkedin\.com/);
-    for (const l of ['GitHub', 'LinkedIn']) {
+    for (const l of ['LinkedIn']) {
       await expect(dockLink(page, l)).toHaveAttribute('target', '_blank');
       await expect(dockLink(page, l)).toHaveAttribute('rel', 'noopener noreferrer');
     }
@@ -606,7 +605,7 @@ test.describe('T06 dock pointer isolation (AC13, AC14, AC16)', () => {
 });
 
 test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
-  test('T06 AC25: Tab reaches the menubar, then the windows, then the eight dock controls in order', async ({
+  test('T06 AC25: Tab reaches the menubar, then the windows, then the seven dock controls in order', async ({
     page,
   }) => {
     const errors = watchErrors(page);
@@ -619,11 +618,13 @@ test.describe('T06 dock keyboard (AC25, AC26, AC27)', () => {
     // 28 -> 32, the dock starts at index 24, and the distinct stops after the menubar go 23 -> 27.
     // DELIBERATE REQUIREMENT CHANGE (T07 AC52): the terminal input adds one stop, so 32 -> 33,
     // the dock starts at index 25, and the distinct stops after the menubar go 27 -> 28.
-    const labels = await tabLabels(page, 33);
+    // DELIBERATE REQUIREMENT CHANGE: GitHub link removed per Tanzi, so 33 -> 31 stops (one fewer menubar
+    // link and one fewer dock link), the dock starts at index 24 and distinct stops go 28 -> 27.
+    const labels = await tabLabels(page, 31);
     expect(labels[0]).toBe('tanzi.os');
-    expect(labels[5]).toBe('Minimize hello.txt');
-    expect(labels.slice(25)).toEqual([...IDS.map((i) => TITLES[i]), ...LINK_LABELS]);
-    expect(new Set(labels.slice(5)).size).toBe(28);
+    expect(labels[4]).toBe('Minimize hello.txt');
+    expect(labels.slice(24)).toEqual([...IDS.map((i) => TITLES[i]), ...LINK_LABELS]);
+    expect(new Set(labels.slice(4)).size).toBe(27);
     expect(errors).toEqual([]);
   });
 

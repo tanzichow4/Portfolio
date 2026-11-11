@@ -49,14 +49,14 @@ describe('T06 Dock component', () => {
     ]);
     const links = within(nav).getAllByRole('link');
     expect(links.map((l) => l.getAttribute('aria-label'))).toEqual(LINKS.map((l) => l.label));
-    expect(links.map((l) => l.getAttribute('aria-label'))).toEqual(['GitHub', 'LinkedIn', 'Email']);
+    expect(links.map((l) => l.getAttribute('aria-label'))).toEqual(['LinkedIn', 'Email']);
   });
 
   it('T06 AC3: visual order is buttons, one divider, links; no About this site button', () => {
     const { nav } = setup();
     const kids = Array.from(nav.children);
     const kinds = kids.map((k) => (k.tagName === 'BUTTON' ? 'b' : k.tagName === 'A' ? 'a' : 'd'));
-    expect(kinds.join('')).toBe('bbbbbdaaa');
+    expect(kinds.join('')).toBe('bbbbbdaa');
     expect(within(nav).queryByRole('button', { name: /about this site/i })).toBeNull();
     expect(within(nav).getAllByRole('button')).toHaveLength(5);
   });
@@ -122,7 +122,7 @@ describe('T06 Dock component', () => {
   it('T06 AC23: every icon is aria-hidden', () => {
     const { nav } = setup();
     const svgs = nav.querySelectorAll('svg');
-    expect(svgs).toHaveLength(8);
+    expect(svgs).toHaveLength(7);
     for (const s of svgs) expect(s.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -173,7 +173,7 @@ describe('T06 Dock component', () => {
   it('T06 AC22/AC16: links are native anchors with href from LINKS', () => {
     const { nav } = setup();
     const links = within(nav).getAllByRole('link');
-    expect(links).toHaveLength(3);
+    expect(links).toHaveLength(2);
     links.forEach((a, i) => {
       expect(a.tagName).toBe('A');
       expect(a.getAttribute('href')).toBe(LINKS[i].href);
@@ -181,9 +181,9 @@ describe('T06 Dock component', () => {
     });
   });
 
-  it('T06 AC16: GitHub and LinkedIn open in a new tab with noopener noreferrer', () => {
+  it('T06 AC16: LinkedIn opens in a new tab with noopener noreferrer', () => {
     const { nav } = setup();
-    for (const name of ['GitHub', 'LinkedIn']) {
+    for (const name of ['LinkedIn']) {
       const a = within(nav).getByRole('link', { name });
       expect(a).toHaveAttribute('target', '_blank');
       expect(a).toHaveAttribute('rel', 'noopener noreferrer');

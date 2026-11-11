@@ -103,18 +103,17 @@ const focusedName = (page: Page) =>
       '',
   );
 
-// DELIBERATE REQUIREMENT CHANGE (T05 AC40): the menubar adds five tab stops before the first
+// DELIBERATE REQUIREMENT CHANGE (T05 AC40): the menubar adds four tab stops (GitHub link removed per Tanzi) before the first
 // window control. This helper pins them exactly, so any drift in count or order fails loudly.
 const tabPastMenubar = async (page: Page) => {
   const theme = await page.evaluate(() => document.documentElement.dataset.theme);
   const names: string[] = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 4; i++) {
     await page.keyboard.press('Tab');
     names.push(await focusedName(page));
   }
   expect(names).toEqual([
     'tanzi.os',
-    'GitHub',
     'LinkedIn',
     'Email',
     theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode',

@@ -6,7 +6,6 @@ import {
   Code,
   EnvelopeSimple,
   Folder,
-  GithubLogo,
   HandWaving,
   GameController,
   Horse,
@@ -113,7 +112,6 @@ export const PROJECTS: Project[] = [
 ];
 
 export const LINKS: LinkItem[] = [
-  { label: 'GitHub', icon: GithubLogo, href: 'https://github.com/' },
   { label: 'LinkedIn', icon: LinkedinLogo, href: 'https://linkedin.com/in/tanzi-chowdhury/' },
   { label: 'Email', icon: EnvelopeSimple, href: `mailto:${EMAIL}` },
 ];

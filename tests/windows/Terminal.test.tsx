@@ -161,7 +161,7 @@ describe('T07 Terminal: running commands', () => {
   it('T07 AC40: contact prints the email from data.ts', async () => {
     const { texts, run } = setup();
     await run('contact');
-    expect(texts()[2]).toBe(`${EMAIL} · github · linkedin`);
+    expect(texts()[2]).toBe(`${EMAIL} · linkedin`);
   });
 
   it('T07 AC40: an unknown command prints command not found', async () => {

@@ -113,22 +113,22 @@ describe('structure, names and links (AC2-AC5, AC10, AC11)', () => {
     }
   });
 
-  it('AC3: the right side has GitHub, LinkedIn and Email links from data.ts, then the toggle, then the clock', () => {
+  it('AC3: the right side has LinkedIn and Email links from data.ts, then the toggle, then the clock', () => {
     const { container } = setup();
     const right = container.querySelector('.mb-right')!;
     const kids = Array.from(right.children);
-    expect(kids.map((k) => k.tagName)).toEqual(['A', 'A', 'A', 'BUTTON', 'TIME']);
+    expect(kids.map((k) => k.tagName)).toEqual(['A', 'A', 'BUTTON', 'TIME']);
     LINKS.forEach((l, i) => {
       expect(kids[i]).toHaveAttribute('href', l.href);
       expect(kids[i]).toHaveAccessibleName(l.label);
       expect(kids[i].querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
     });
-    expect(LINKS.map((l) => l.label)).toEqual(['GitHub', 'LinkedIn', 'Email']);
+    expect(LINKS.map((l) => l.label)).toEqual(['LinkedIn', 'Email']);
   });
 
-  it('AC4: GitHub and LinkedIn open in a new tab with noopener noreferrer', () => {
+  it('AC4: LinkedIn opens in a new tab with noopener noreferrer', () => {
     setup();
-    for (const name of ['GitHub', 'LinkedIn']) {
+    for (const name of ['LinkedIn']) {
       const a = screen.getByRole('link', { name });
       expect(a).toHaveAttribute('target', '_blank');
       const rel = (a.getAttribute('rel') ?? '').split(/\s+/);
@@ -295,24 +295,23 @@ describe('roving tabindex and trigger keys (AC12, AC13)', () => {
     expect(document.activeElement).toBe(trigger('tanzi.os'));
   });
 
-  it('AC12: the next Tab leaves the menubar triggers (GitHub), not Windows', async () => {
+  it('AC12: the next Tab leaves the menubar triggers (LinkedIn), not Windows', async () => {
     const { user } = setup();
     await user.tab();
     await user.tab();
-    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'GitHub' }));
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'LinkedIn' }));
   });
 
-  it('AC12: before any window control the tab order is tanzi.os, GitHub, LinkedIn, Email, toggle, then a window', async () => {
+  it('AC12: before any window control the tab order is tanzi.os, LinkedIn, Email, toggle, then a window', async () => {
     const { user } = setup();
     const names: string[] = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 5; i++) {
       await user.tab();
       const el = document.activeElement as HTMLElement;
       names.push(el.getAttribute('aria-label') ?? el.textContent ?? '');
     }
     expect(names).toEqual([
       'tanzi.os',
-      'GitHub',
       'LinkedIn',
       'Email',
       'Switch to light mode',
@@ -1257,8 +1256,8 @@ describe('T08 focusSignal (AC25)', () => {
     const { rerender } = render(bare(0));
     rerender(bare(1));
     await user.tab();
-    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'GitHub' }));
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'LinkedIn' }));
     rerender(bare(1));
-    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'GitHub' }));
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'LinkedIn' }));
   });
 });

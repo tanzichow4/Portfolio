@@ -130,11 +130,8 @@ describe('runCommand outputs', () => {
     ]);
   });
 
-  it('AC22: contact prints the email, github and linkedin', () => {
-    expect(runCommand('contact').lines).toEqual([
-      echo('contact'),
-      out(`${EMAIL} · github · linkedin`),
-    ]);
+  it('AC22: contact prints the email and linkedin', () => {
+    expect(runCommand('contact').lines).toEqual([echo('contact'), out(`${EMAIL} · linkedin`)]);
   });
 });
 
